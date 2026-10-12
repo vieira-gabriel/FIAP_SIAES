@@ -68,11 +68,35 @@ A porta do repositório no domínio é o que permite à camada `application` dep
 
 ---
 
-## 5. Itens da Documentação Ainda Não Representados
+## 5. Autenticação com JWT (RNF-03)
+
+A documentação exige autenticação JWT (RNF-03) e proíbe senhas e segredos em texto plano (RNF-04), mas não define onde o código fica. A distribuição abaixo segue as mesmas camadas do restante do projeto e mantém o domínio livre de bibliotecas de JWT e de hashing (RNF-02).
+
+| Camada | Arquivo | Responsabilidade |
+| :--- | :--- | :--- |
+| Domínio | `src/domain/entities/usuario.py` | Entidade `Usuario` com o perfil de acesso: Atendente, Mecânico ou Administrador (Linguagem Ubíqua §3). |
+| Domínio | `src/domain/repositories/usuario_repository.py` | Porta (ABC) para buscar usuários, no mesmo padrão da porta de Ordem de Serviço. |
+| Aplicação | `src/application/ports/token_service.py` | Interface para emitir e validar tokens. |
+| Aplicação | `src/application/ports/password_hasher.py` | Interface para gerar e verificar o hash de senhas (RNF-04). |
+| Aplicação | `src/application/use_cases/autenticar_usuario.py` | Caso de uso de login: verifica as credenciais e devolve o token. |
+| Infraestrutura | `src/infrastructure/security/jwt_token_service.py` | Implementação de `token_service` com uma biblioteca de JWT. |
+| Infraestrutura | `src/infrastructure/security/bcrypt_password_hasher.py` | Implementação de `password_hasher` com bcrypt. |
+| Infraestrutura | `src/infrastructure/repositories/postgres_usuario_repository.py` | Implementação da porta de usuário em PostgreSQL. |
+| Apresentação | `src/presentation/auth/dependencies.py` | Validação do token nas rotas administrativas e operacionais e checagem do perfil exigido. |
+
+Pontos de atenção:
+
+* **Rotas públicas:** a consulta de status da OS pelo cliente (RF-15) fica fora da autenticação, conforme a RNF-03. O cliente não é um `Usuario` do sistema; ele se identifica pelo número da OS junto com CPF/CNPJ ou placa.
+* **Chave secreta:** a chave de assinatura do JWT deve vir de variável de ambiente e nunca ser commitada (RNF-04).
+* **Pasta `application/ports/`:** é uma decisão nova, que não consta na documentação. Hashing e emissão de token não são conceitos do negócio, por isso as interfaces ficam na aplicação, e não em `domain/`.
+
+---
+
+## 6. Itens da Documentação Ainda Não Representados
 
 As classes abaixo são citadas na Linguagem Ubíqua, mas a documentação não define o arquivo de cada uma; por isso, ainda não foram criados arquivos para elas:
 
 * **Entidades** (`src/domain/entities/`): `Cliente`, `Veiculo`, `Servico`, `Peca`.
 * **Objetos de Valor** (`src/domain/value_objects/`): `CPF`, `CNPJ`, `Placa`, `Valor`, `StatusOS`, `Orcamento`.
 
-Também permanecem pendentes, por dependerem de implementação: autenticação JWT (RNF-03), configuração do PostgreSQL (RNF-06), conteúdo do `Dockerfile` e do `docker-compose.yml` (RNF-08) e medição de cobertura de testes (RNF-10).
+Também permanecem pendentes, por dependerem de implementação: a lógica da autenticação JWT (RNF-03, ver seção 5), configuração do PostgreSQL (RNF-06), conteúdo do `Dockerfile` e do `docker-compose.yml` (RNF-08) e medição de cobertura de testes (RNF-10).

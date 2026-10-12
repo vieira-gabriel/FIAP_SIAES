@@ -3,7 +3,7 @@
 > **Projeto:** Sistema de Gestão de Oficina Mecânica (Tech Challenge - Fase 1)  
 > **Linguagem & Framework:** Python 3.12 / FastAPI / Uvicorn  
 > **Banco de Dados:** PostgreSQL 16  
-> **Padrão Arquitetural:** Monólito em Camadas (Layered Monolith) inspirado em Domain-Driven Design (DDD)  
+> **Padrão Arquitetural:** Monólito em Camadas (Layered Monolith) inspirado em Domain-Driven Design (DDD) e Clean Architecture  
 
 ---
 
@@ -14,8 +14,8 @@ O **Modelo C4** (criado por Simon Brown) é uma abordagem hierárquica e increme
 ```
 Nível 1: Contexto (System Context) ---> Visão geral das pessoas e sistemas
 Nível 2: Contêineres (Containers)  ---> Visão das aplicações e bancos de dados executáveis
-Nível 3: Componentes (Components)  ---> Visão dos módulos internos da aplicação Python
-Nível 4: Código (Code)             ---> Visão detalhada das classes de domínio e VOs
+Nível 3: Componentes (Components)  ---> Visão dos módulos internos da aplicação Python (src/api, application, domain, infrastructure)
+Nível 4: Código (Code)             ---> Visão detalhada das classes de domínio, VOs e agregados
 ```
 
 ---
@@ -67,7 +67,7 @@ O Diagrama de Contêineres detalha as unidades de implantação executáveis (co
 
 ```mermaid
 flowchart TD
-    subgraph CLIENTES ["🌐 Camada de Apresentação / Clientes HTTP"]
+    subgraph CLIENTES ["🌐 Camada de Entrada / Clientes HTTP"]
         BrowserLoja["💻 Portal da Loja / Swagger UI\n[Web Browser / OpenAPI]\nInterface interativa para atendimento e mecânicos."]
         BrowserCliente["📱 Portal / App do Cliente\n[Web Browser / Mobile]\nAcompanhamento público e aprovação de orçamento."]
     end
@@ -99,13 +99,13 @@ flowchart TD
 
 ## 4. Nível 3: Diagrama de Componentes (Component Diagram)
 
-O Diagrama de Componentes descreve a organização interna do contêiner da aplicação Python, evidenciando o desacoplamento das camadas da **Clean / Layered Architecture**.
+O Diagrama de Componentes descreve a organização interna do contêiner da aplicação Python, evidenciando o desacoplamento das camadas da **Clean / Layered Architecture** com a entrada centralizada em `src/api/`.
 
 ### Diagrama de Componentes (Mermaid)
 
 ```mermaid
 flowchart TD
-    subgraph PRESENTATION ["1. Camada de Apresentação (src/presentation/)"]
+    subgraph API_LAYER ["1. Camada de API / Entrada (src/api/)"]
         AuthController["🔐 AuthController\nEndpoints de login e geração de JWT."]
         OSController["🛠️ OrdemServicoController\nEndpoints administrativos de OS (Criar, Listar, Transicionar)."]
         ClienteController["👤 ClienteController\nEndpoints de CRUD de Clientes e Veículos."]
@@ -123,6 +123,7 @@ flowchart TD
         AprovarOrcamentoUseCase["⚙️ AprovarOrcamentoUseCase"]
         ConsultarStatusPublicoUseCase["⚙️ ConsultarStatusPublicoUseCase"]
         
+        Ports["🔌 Ports (Interfaces de Serviço)\nITokenProvider, IPasswordHasher"]
         EventDispatcher["⚡ EventDispatcher (In-Memory)\nBarramento síncrono para eventos de domínio."]
         EstoqueHandler["📦 BaixaEstoqueHandler\nEscuta OrcamentoAprovado e efetua baixa."]
     end
@@ -130,15 +131,17 @@ flowchart TD
     subgraph DOMAIN ["3. Camada de Domínio (src/domain/ - Pure Python Dataclasses)"]
         AggOS[("🟩 Agregado: OrdemServico\nEntidade-raiz com regras da máquina de estados.")]
         AggEstoque[("🟩 Agregado: EstoquePeca\nEntidade com controle quantitativo.")]
-        VOs["💎 Value Objects\nCPF, CNPJ, Placa, StatusOS, Valor."]
+        Entities["👤 Entidades\nCliente, Veiculo, Usuario."]
+        VOs["💎 Value Objects\nCpfCnpj, Placa, StatusOS, PerfilUsuario."]
         DomainEvents["🟧 Eventos de Domínio\nOrcamentoAprovadoEvent, StatusOSAlteradoEvent."]
-        IRepositories["🔌 Interfaces de Repositório (ABCs)\nIOrdemServicoRepository, IEstoqueRepository."]
+        IRepositories["🔌 Interfaces de Repositório (ABCs)\nIOrdemServicoRepository, IEstoqueRepository, IUsuarioRepository."]
     end
 
     subgraph INFRASTRUCTURE ["4. Camada de Infraestrutura (src/infrastructure/)"]
         PgOSRepo["🐘 PostgresOrdemServicoRepository\nImplementação concreta SQLAlchemy."]
         PgEstoqueRepo["🐘 PostgresEstoqueRepository\nImplementação concreta SQLAlchemy com Lock."]
-        JWTProvider["🔐 PyJWTProvider\nCodificação e decodificação de tokens JWT."]
+        JWTProvider["🔐 PyJWTProvider\nImplementação de ITokenProvider."]
+        BcryptHasher["🔐 BcryptPasswordHasher\nImplementação de IPasswordHasher."]
         PgDatabase["🐘 SQLAlchemy Session / Postgres Driver"]
     end
 
@@ -159,6 +162,8 @@ flowchart TD
     CriarOSUseCase --> IRepositories
     AprovarOrcamentoUseCase --> IRepositories
     
+    JWTProvider -.->|Implementa| Ports
+    BcryptHasher -.->|Implementa| Ports
     PgOSRepo -.->|Implementa| IRepositories
     PgEstoqueRepo -.->|Implementa| IRepositories
     PgOSRepo --> PgDatabase
@@ -169,9 +174,9 @@ flowchart TD
 
 ## 5. Nível 4: Diagrama de Código (Code Diagram)
 
-O Diagrama de Código ilustra a estrutura interna da entidade-raiz do Agregado `OrdemServico` e seus Objetos de Valor (VOs), implementados como **`dataclasses` puras do Python** sem acoplamento com frameworks.
+O Diagrama de Código ilustra a estrutura interna das entidades de domínio (`OrdemServico`, `Cliente`, `Veiculo`, `Usuario`), Objetos de Valor (`CpfCnpj`, `Placa`, `StatusOS`, `PerfilUsuario`) e Eventos, implementados como **`dataclasses` puras do Python** sem acoplamento com frameworks.
 
-### Diagrama de Classes de Domínio (Mermaid / UML)
+### Diagrama de Classes do Domínio (Mermaid / UML)
 
 ```mermaid
 classDiagram
@@ -208,6 +213,17 @@ classDiagram
         GERENTE
     }
 
+    class StatusOS {
+        <<enumeration>>
+        RECEBIDA
+        EM_DIAGNOSTICO
+        AGUARDANDO_APROVACAO
+        EM_EXECUCAO
+        FINALIZADA
+        ENTREGUE
+        CANCELADA
+    }
+
     class OrdemServico {
         +UUID id
         +UUID cliente_id
@@ -220,12 +236,15 @@ classDiagram
         +datetime data_abertura
         +Optional~datetime~ data_inicio_execucao
         +Optional~datetime~ data_finalizacao
+        +List~DomainEvent~ _domain_events
         +atribuir_mecanico(mecanico_id: UUID) void
         +finalizar_orcamento() void
         +aprovar_orcamento() void
+        +rejeitar_orcamento() void
         +concluir_manutencao() void
         +entregar_veiculo() void
         +forcar_cancelamento(motivo: str) void
+        +collect_domain_events() List~DomainEvent~
     }
 
     class ItemServico {
@@ -242,60 +261,67 @@ classDiagram
         +valor_total() float
     }
 
-    class StatusOS {
-        <<enumeration>>
-        RECEBIDA
-        EM_DIAGNOSTICO
-        AGUARDANDO_APROVACAO
-        EM_EXECUCAO
-        FINALIZADA
-        ENTREGUE
-        CANCELADA
-    }
-
     class CpfCnpj {
         <<Value Object>>
         +str valor
+        +validar() bool
     }
 
     class Placa {
         <<Value Object>>
         +str valor
+        +eh_mercosul() bool
+    }
+
+    class DomainEvent {
+        <<interface>>
+        +str event_id
+        +datetime occurred_on
+    }
+
+    class OrcamentoAprovadoEvent {
+        +UUID os_id
+        +UUID cliente_id
+        +List~dict~ itens_pecas
     }
 
     Usuario "1" --> "1" PerfilUsuario : possui
-    Cliente "1" --> "1" CpfCnpj : possui documento
-    Veiculo "1" --> "1" Placa : possui placa
     Veiculo "*" --> "1" Cliente : pertence a (cliente_id)
     OrdemServico "*" --> "1" Cliente : referencia (cliente_id)
     OrdemServico "*" --> "1" Veiculo : referencia (veiculo_id)
-    OrdemServico "*" --> "1" Usuario : cadastrada por (atendente_id)
-    OrdemServico "*" --> "0..1" Usuario : executada por (mecanico_id)
-    OrdemServico "1" --> "1" StatusOS : estado atual
-    OrdemServico "1" *-- "*" ItemServico : itens congelados
-    OrdemServico "1" *-- "*" ItemPeca : itens congelados
+    OrdemServico "*" --> "1" Usuario : atendente (atendente_id)
+    OrdemServico "*" --> "0..1" Usuario : mecanico (mecanico_id)
+    OrdemServico "1" *-- "*" ItemServico : contem
+    OrdemServico "1" *-- "*" ItemPeca : contem
+    OrdemServico --> StatusOS : possui estado
+    DomainEvent <|-- OrcamentoAprovadoEvent : herda de
+    OrdemServico *-- DomainEvent : acumula eventos
 ```
 
 ---
 
 ## 6. Rastreabilidade da Arquitetura com a Estrutura de Pastas no Código
 
+A estrutura física do repositório reflete exatamente o desacoplamento proposto pelo C4 Model e pelo DDD:
+
 ```text
 src/
-├── presentation/                  # Nível 3 (Controle de Entrada & RBAC)
-│   ├── controllers/               # Route Handlers FastAPI
-│   ├── middlewares/               # JWT Auth & Rate Limiting Guards
-│   └── schemas/                   # Pydantic DTOs (Validação HTTP)
-├── application/                   # Nível 3 (Casos de Uso)
-│   ├── use_cases/                 # Serviços de Orquestração
-│   └── events/                    # Event Dispatcher In-Memory
-├── domain/                        # Nível 4 (Núcleo Puro de Negócio)
-│   ├── entities/                  # Dataclasses de Agregados (OrdemServico, Cliente)
-│   ├── value_objects/             # VOs Imutáveis (CPF, CNPJ, Placa, StatusOS)
-│   ├── events/                    # Definição dos Eventos de Domínio
-│   └── repositories/              # Interfaces Abstratas (ABCs)
-└── infrastructure/                # Nível 3 (Adaptadores I/O)
-    ├── database/                  # SQLAlchemy Engine e Sessions
-    ├── repositories/              # Implementações PostgreSQL
-    └── security/                  # Cryptography & PyJWT Providers
+├── presentation/                  # Nível 3 (Camada de Entrada, Controllers HTTP & Middlewares)
+│   ├── controllers/               # Route Handlers FastAPI (Auth, OS, Cliente, Estoque)
+│   ├── middlewares/               # JWT Auth & Rate Limiting Guards (Depends / Security)
+│   └── schemas/                   # Pydantic DTOs (Validação de Entrada/Saída HTTP)
+├── application/                   # Nível 3 (Camada de Aplicação & Casos de Uso)
+│   ├── use_cases/                 # Serviços de Orquestração (CriarOS, AprovarOrcamento, Login)
+│   ├── ports/                     # Interfaces Abstratas de Serviços (ITokenProvider, IPasswordHasher)
+│   ├── events/                    # Event Dispatcher In-Memory
+│   └── handlers/                  # Event Handlers (BaixaEstoqueHandler)
+├── domain/                        # Nível 4 (Núcleo Puro de Negócio em Python Dataclasses)
+│   ├── entities/                  # Dataclasses de Agregados e Entidades (OrdemServico, Cliente, Veiculo, Usuario)
+│   ├── value_objects/             # VOs Imutáveis (CpfCnpj, Placa, StatusOS, PerfilUsuario)
+│   ├── events/                    # Definição dos Eventos de Domínio (OrcamentoAprovadoEvent)
+│   └── repositories/              # Interfaces Abstratas dos Repositórios (ABCs)
+└── infrastructure/                # Nível 3 (Adaptadores I/O & Infraestrutura)
+    ├── database/                  # Engine SQLAlchemy, Configurações e Sessions
+    ├── repositories/              # Implementações Concretas com SQLAlchemy (Postgres)
+    └── security/                  # Implementações Concretas de Segurança (PyJWT, Passlib/Bcrypt)
 ```

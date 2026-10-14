@@ -1,0 +1,39 @@
+[project]
+name = "siaes"
+version = "0.1.0"
+description = "Sistema Integrado de Atendimento e Execução de Serviços - MVP da oficina mecânica (Tech Challenge Fase 1)"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+# O driver do PostgreSQL (psycopg 3 ou asyncpg) e a ferramenta de migrations
+# entram quando o grupo decidir (guia de desenvolvimento, seção 8.2).
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy>=2.0",
+    "pyjwt>=2.9",
+    "bcrypt>=4.2",
+    "slowapi>=0.1.9",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=5.0",
+    "httpx>=0.27",
+    "ruff>=0.6",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src/domain", "src/application"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

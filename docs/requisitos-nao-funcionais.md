@@ -2,6 +2,8 @@
 
 Este documento especifica os **Requisitos Não Funcionais (RNF)** do MVP do sistema da oficina mecânica, definindo as restrições arquiteturais, padrões de segurança, requisitos de desempenho, transacionalidade de banco de dados, cobertura de testes e critérios para empacotamento e deploy.
 
+> Documento atualizado em 14/10/2026 - Versão 1.1
+
 ---
 
 ## 1. Arquitetura de Software e Design

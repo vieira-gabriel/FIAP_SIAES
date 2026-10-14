@@ -2,6 +2,7 @@
 
 Este documento especifica todos os **Requisitos Funcionais (RF)** do MVP do sistema de gestão da oficina mecânica, estabelecendo as regras de negócio operacionais para as duas frentes do sistema: a **Frente da Loja** (acesso autenticado e controlado por perfis - RBAC) e a **Frente do Cliente** (acompanhamento público desautenticado e seguro).
 
+> Documento atualizado em 14/10/2026 - Versão 1.1
 ---
 
 ## Matriz de Perfis e Permissões de Acesso (RBAC)

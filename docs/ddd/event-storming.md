@@ -26,12 +26,15 @@ Legenda dos post-its:
 
 ### 1. Acompanhar OS
 
-Fluxo público do cliente, sem login (RF-25).
+Fluxo público do cliente, sem login (RF-25, RF-26).
 
 | Ator | Comando | Política | Evento | Requisito |
 | :--- | :--- | :--- | :--- | :--- |
 | Cliente | Entra com credenciais | Verifica número da OS e credencial do cliente | Acessa página de acompanhamento | RF-25 |
 | — | — | Busca status e infos da OS | Exibe status e info da OS | RF-25 |
+| — (modelo de leitura "Orçamento da OS") | — | Orçamento pendente de aprovação | Exibe orçamento | RF-25, RF-26 |
+| Cliente | Orçamento aprovado | — | — | RF-26 |
+| Cliente | Orçamento reprovado | — | — | RF-26 |
 
 ### 2. Criação de Ordem de Serviço
 
@@ -45,9 +48,9 @@ O board marca apenas o agregado `OrdemServico` nesta área. A política "Reserva
 | Mecânico | Inicia diagnóstico | Vincula mecânico à OS | Status OS "Em diagnóstico" (`EM_DIAGNOSTICO`) | RF-16 |
 | Mecânico | Adiciona serviços à OS | Serviços vinculados | — | RF-17 |
 | Mecânico | Adiciona peças à OS | Peças vinculadas | Sinaliza se houver peça pendente | RF-17, RF-18 |
-| — (política "Gera orçamento") | — | Orçamento gerado | Reservar peças; Status OS "Aguardando aprovação" (`AGUARDANDO_APROVACAO`); Envio para email do cliente | RF-17, RF-18 |
-| Cliente (modelo de leitura "Orçamento de serviço") | Aprovar / reprovar OS | OS aprovada | Confere se há peça pendente → Status OS "Aguardando execução" (`AGUARDANDO_EXECUCAO`) ou Status OS "Aguardando peça" (`AGUARDANDO_PECA`) | RF-26 |
-| Cliente (modelo de leitura "Orçamento de serviço") | Aprovar / reprovar OS | OS reprovada | Status OS "Cancelada" (`CANCELADA`) | RF-18, RF-26 |
+| — (política "Gera orçamento") | — | Orçamento gerado | Reservar peças; Status OS "Aguardando aprovação" (`AGUARDANDO_APROVACAO`); Disponibiliza o orçamento no acompanhamento da OS | RF-17, RF-18, RF-25 |
+| Cliente | Aprova / reprova OS | OS aprovada | Confere se há peça pendente → Status OS "Aguardando execução" (`AGUARDANDO_EXECUCAO`) ou Status OS "Aguardando peça" (`AGUARDANDO_PECA`) | RF-26 |
+| Cliente | Aprova / reprova OS | OS reprovada | Estorno de peças; Status OS "Cancelada" (`CANCELADA`) | RF-18, RF-26 |
 
 O evento "Saldo da peça atualizado", da área Gestão administrativa (seção 3.3), dispara a política "Confere se há OS com pendência da peça atualizada", que leva a OS de "Aguardando peça" para "Aguardando execução" (RF-19).
 
@@ -130,8 +133,9 @@ Os nomes do board diferem dos termos da Linguagem Ubíqua em alguns pontos. No c
 | Gera orçamento / Orçamento gerado | `finalizar_orcamento` | Linguagem Ubíqua §5, RF-17 |
 | Reservar peças | Reserva | Linguagem Ubíqua §1, RF-18 |
 | Sinaliza se houver peça pendente | Peça Pendente | Linguagem Ubíqua §1, RF-18 |
-| Aprovar / reprovar OS → OS aprovada | `aprovar_orcamento` | Linguagem Ubíqua §5, RF-26 |
-| Aprovar / reprovar OS → OS reprovada | `rejeitar_orcamento` | Linguagem Ubíqua §5, RF-26 |
+| Orçamento aprovado; Aprova / reprova OS → OS aprovada | `aprovar_orcamento` | Linguagem Ubíqua §5, RF-26 |
+| Orçamento reprovado; Aprova / reprova OS → OS reprovada | `rejeitar_orcamento` | Linguagem Ubíqua §5, RF-26 |
+| Estorno de peças | Estorno (das quantidades reservadas) | Linguagem Ubíqua §1, RF-18 |
 | Confere se há OS com pendência da peça atualizada | `liberar_para_execucao` | Linguagem Ubíqua §5, RF-19 |
 | Cancelar OS / OS cancelada | `cancelar(motivo)` | Linguagem Ubíqua §5, RF-23 |
 | Remover serviço, peça, cliente ou veículo | Exclusão lógica | RF-06, RF-09, RF-11, RF-12 |
@@ -142,8 +146,8 @@ Os nomes do board diferem dos termos da Linguagem Ubíqua em alguns pontos. No c
 
 | Ponto | Board | Requisitos | Tratamento |
 | :--- | :--- | :--- | :--- |
-| Envio de e-mail ao cliente | A política "Envio para email do cliente" é disparada por "Orçamento gerado" | Nenhum RF ou RNF define envio de e-mail; o cliente consulta e aprova o orçamento no portal público (RF-25, RF-26) | Decisão do grupo: fora do MVP; a política sai do board e a aprovação do orçamento passa para a área "Acompanhar OS" |
-| Estorno de reservas | "OS reprovada" e "OS cancelada" não disparam política de estorno | RF-18, RF-23 e RF-26 exigem o estorno automático das reservas | Os requisitos prevalecem |
+| Aprovação do orçamento em duas áreas | Os comandos "Orçamento aprovado" e "Orçamento reprovado" da área "Acompanhar OS" não se ligam ao comando "Aprova / reprova OS" nem aos eventos "OS aprovada" e "OS reprovada" da área "Criação de ordem de serviço"; os dois primeiros têm nome de evento | RF-26 define uma única ação do cliente no portal público | As duas áreas representam a mesma ação; no código há um único caso de uso para aprovar e outro para rejeitar |
+| Estorno no cancelamento | "OS cancelada" não dispara política de estorno | RF-18 e RF-23 exigem o estorno automático das reservas no cancelamento pelo Gerente | Os requisitos prevalecem |
 | Exclusão lógica | Os eventos "removido" não indicam o tipo de exclusão | RF-06, RF-09, RF-11 e RF-12 definem exclusão lógica | Decisão do grupo: o tipo de exclusão fica registrado só nos requisitos, e o board permanece como está |
 | Etapas sem evento próprio | Início da execução, conclusão, entrega e histórico de status ficam no comando genérico "Atualizar status da OS"; relatório e gestão de usuários não aparecem | RF-20 (com baixa das peças), RF-21, RF-22, RF-24, RF-27 e RF-03 | Os requisitos e a máquina de estados da Linguagem Ubíqua (§5) prevalecem |
 | "Atualizar dados da OS" | Permitido a Gerente e Atendente | Nenhum RF define a atualização dos dados da OS; a Linguagem Ubíqua (§3) dá também ao Mecânico a permissão de atualizar OS | Pendente de decisão do grupo |

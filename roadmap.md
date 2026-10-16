@@ -8,17 +8,17 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 
 ## Estado Atual
 
-> Atualizado em 12/10/2026, considerando o repositório até o commit `105d66c` (merge do PR #1).
+> Atualizado em 15/10/2026, considerando a `main` até o commit `c63c963` (health check da API) e o Event Storming exportado do Miro.
 
 | Item | Situação |
 | :--- | :--- |
-| Requisitos funcionais e não funcionais | Revisados (RF-01 a RF-23, RNF-01 a RNF-13), com RBAC, reserva de estoque e máquina de estados definidos |
-| Linguagem ubíqua | Revisada (máquina de estados, bounded contexts e perfis); nomes ainda divergem do modelo C4 |
+| Requisitos funcionais e não funcionais | Na `main`: RF-01 a RF-23 e RNF-01 a RNF-13. A branch `docs/fechamento-fase-0` (Gabriel, ainda sem merge) os renumera para RF-01 a RF-27 e RNF-01 a RNF-16 e acrescenta regras novas (ver Fase 0) |
+| Linguagem ubíqua | Revisada (máquina de estados, bounded contexts e perfis); nomes ainda divergem do modelo C4. A branch `docs/fechamento-fase-0` traz a versão com 9 status |
 | Modelo C4 | Documentado nos 4 níveis; a estrutura de pastas da seção 6 difere da que foi implementada |
-| Guia de desenvolvimento e estrutura de pastas | Criados no PR #1, com instruções para assistentes de IA (`AGENTS.md`, `CLAUDE.md`); escritos sobre a versão anterior dos requisitos, por isso citam numeração e decisões desatualizadas |
-| Event Storming | Exportado em PDF, porém em resolução baixa demais para leitura; link do board ainda não consta no repositório |
-| Código (`src/`) e testes | Estrutura em camadas e arquivos da autenticação JWT criados, todos ainda vazios |
-| Docker | `Dockerfile` e `docker-compose.yml` vazios |
+| Guia de desenvolvimento e estrutura de pastas | Criados no PR #1, com instruções para assistentes de IA (`AGENTS.md`, `CLAUDE.md`); escritos sobre a versão anterior dos requisitos, por isso citam numeração e decisões desatualizadas. A branch `docs/fechamento-fase-0` os atualiza |
+| Event Storming | Quadro no Miro com 3 áreas (Criação da OS, Acompanhar OS, Gestão administrativa), legível nas imagens exportadas por área. O PDF versionado no repositório continua em baixa resolução e o link do quadro não consta no repositório. Lacunas levantadas na Fase 1 |
+| Código (`src/`) e testes | Rota `GET /health` em `src/presentation/api/main.py`. Os demais arquivos das camadas e da autenticação JWT continuam vazios; nenhum teste |
+| Docker | Primeira versão de `Dockerfile` e `docker-compose.yml` (só o serviço `api`); diverge do RNF-12 (ver Fase 2) |
 | README | Apenas título |
 
 ---
@@ -41,8 +41,8 @@ flowchart LR
 | Fase | Objetivo | Depende de | Resultado esperado | Situação |
 | :--- | :--- | :--- | :--- | :--- |
 | **0** | Fundação | - | Decisões fechadas, documentos alinhados entre si e ao enunciado, repositório configurado | Em andamento |
-| **1** | Modelagem DDD | 0 | Event Storming legível, diagramas e linguagem ubíqua consistentes entre si | Em andamento |
-| **2** | Infraestrutura base | 0 | `docker compose up --build` sobe API + PostgreSQL com Swagger em `/docs` | Não iniciada |
+| **1** | Modelagem DDD | 0 | Event Storming completo e legível, diagramas e linguagem ubíqua consistentes entre si | Em andamento |
+| **2** | Infraestrutura base | 0 | `docker compose up --build` sobe API + PostgreSQL com Swagger em `/docs` | Em andamento (health check e Docker inicial) |
 | **3** | Domínio | 1 | Entidades, objetos de valor, eventos e regras de negócio com testes unitários | Não iniciada |
 | **4** | Autenticação e cadastros | 2, 3 | Login JWT, RBAC, gestão de usuários e cadastros administrativos | Não iniciada (arquivos criados, vazios) |
 | **5** | Fluxo da OS | 4 | Abertura, orçamento, reserva de estoque, aprovação, status e consulta pública | Não iniciada |
@@ -55,6 +55,19 @@ flowchart LR
 ## Fase 0 - Fundação
 
 **Objetivo:** fechar as decisões que bloqueiam o restante do trabalho, alinhar os documentos entre si e ao enunciado e preparar o repositório.
+
+### Branch `docs/fechamento-fase-0` (pendente de merge)
+
+O Gabriel publicou em 13 e 14/10 a branch `docs/fechamento-fase-0`, que ainda não entrou na `main`. Ela fecha várias pendências desta fase, e este roadmap só deve ser reescrito por completo depois do merge. Conteúdo informado nos commits:
+
+- Requisitos renumerados (RF-01 a RF-27 e RNF-01 a RNF-16), com listagem e detalhamento de OS, gestão de segredos, análise de vulnerabilidades e testes de integração restaurados, e a menção a descontos removida
+- Novos status `AGUARDANDO_PECA` e `AGUARDANDO_EXECUCAO`, peça pendente com reserva parcial e prioridade para a OS mais antiga, baixa no início da execução, histórico de status, estimativa de entrega e número da OS
+- Linguagem ubíqua com os 9 status e a tabela de transições; C4, guia e estrutura de pastas alinhados à nova numeração
+- Event Storming reexportado (com peça pendente e cancelamento), `presentation/routers/` e `presentation/schemas/` criados, `.gitignore`, `.env.example` e `pyproject.toml` (uv, pytest, Ruff, Python 3.12)
+
+- [ ] Fazer o merge da branch na `main` por Pull Request
+- [ ] Resolver o conflito esperado com a `main`: a branch usa `pyproject.toml` e remove `src/presentation/api/main.py` e `requirements.txt`, mas a `main` ganhou o health check, o `Dockerfile` e o `docker-compose.yml`, que dependem deles. Decidir onde fica a aplicação FastAPI (`presentation/api/` ou `presentation/routers/`) e como as dependências são instaladas no Docker
+- [ ] Depois do merge, conferir o que a branch resolveu e reescrever as seções "Decisões de Domínio", "Alinhamento dos Requisitos com o Enunciado" e "Atualização do Guia" deste roadmap
 
 ### Decisões Técnicas
 
@@ -124,9 +137,10 @@ A branch do PR #1 foi criada antes da revisão dos requisitos (commit `3540bed`)
 
 - [ ] Proteger a branch `main` no GitHub. O PR #1 seguiu o fluxo, mas os commits `3540bed` e `2f87c23` entraram direto na `main`; confirmar a proteção nas configurações do repositório
 - [x] Definir o padrão de branches e de mensagens de commit (guia de desenvolvimento, seção 7)
-- [ ] Criar `.gitignore` para Python (incluindo `.env`, `.venv/`, `__pycache__/` e relatórios de cobertura)
-- [ ] Criar `.env.example` com as variáveis necessárias, sem valores reais
-- [ ] Criar o arquivo de dependências
+- [ ] Criar `.gitignore` para Python (incluindo `.env`, `.venv/`, `__pycache__/` e relatórios de cobertura); a branch `docs/fechamento-fase-0` já traz um
+- [ ] Remover da `main` os dois arquivos `.pyc` commitados no health check (`src/presentation/__pycache__/` e `src/presentation/api/__pycache__/`), junto com a criação do `.gitignore`
+- [ ] Criar `.env.example` com as variáveis necessárias, sem valores reais (já existe na branch `docs/fechamento-fase-0`)
+- [ ] Unificar o arquivo de dependências: a `main` tem `requirements.txt` (só `fastapi` e `uvicorn`) e a branch `docs/fechamento-fase-0` tem `pyproject.toml`; manter apenas um
 
 ### Estrutura de Pastas
 
@@ -154,10 +168,20 @@ A branch do PR #1 foi criada antes da revisão dos requisitos (commit `3540bed`)
 
 - [x] Event Storming do fluxo de criação da OS (área "Criação da ordem de serviço")
 - [x] Event Storming do acompanhamento da OS (área "Acompanhar OS")
-- [ ] Confirmar que a área "Gestão administrativa" cobre a gestão de peças e insumos, exigida explicitamente pelo enunciado
-- [ ] Reexportar [event-storming.pdf](docs/ddd/event-storming.pdf) em alta resolução ou em formato vetorial; o arquivo atual é uma única imagem de 1753 × 570 pixels em que o texto dos post-its não é legível
+- [x] Event Storming da gestão administrativa (área "Gestão administrativa"): CRUD de serviços, peças, clientes, veículos e OSs com validação de perfil
+- [ ] Reexportar [event-storming.pdf](docs/ddd/event-storming.pdf) em alta resolução ou em formato vetorial, exportando uma área por vez; o arquivo da `main` é uma única imagem de 1753 × 570 pixels em que o texto dos post-its não é legível (a branch `docs/fechamento-fase-0` traz uma nova exportação, a conferir depois do merge)
 - [ ] Garantir acesso público ao board (Miro ou equivalente), sem necessidade de pedir permissão, e registrar o link no repositório
-- [ ] Transcrever em texto os eventos de domínio, comandos, políticas e atores levantados, para referência no código e na linguagem ubíqua
+- [ ] Transcrever em texto os eventos de domínio, comandos, políticas e atores levantados, para referência no código e na linguagem ubíqua (por exemplo em `docs/ddd/event-storming.md`)
+
+**Lacunas do quadro atual do Event Storming** (levantadas em 15/10/2026 com base nas imagens exportadas do Miro):
+
+- [ ] Modelar as etapas finais da OS, hoje reduzidas ao comando genérico "Atualizar status da OS": execução iniciada, manutenção concluída (mecânico) e veículo entregue (atendente), com os timestamps usados no tempo médio de execução
+- [ ] Modelar a reserva, a baixa e o estorno do estoque: `OS reprovada` e `Cancelar OS` não disparam nenhuma política de devolução das peças, e o quadro só mostra "Atualiza estoque" ao adicionar peças
+- [ ] Criar o Event Storming próprio da gestão de peças e insumos, exigido pelo enunciado: hoje há só o CRUD de peças e a chegada de peça dentro do fluxo da OS. Incluir entrada e saída de estoque, reserva, baixa e peça pendente
+- [ ] Incluir os fluxos que os requisitos citam e o quadro não mostra: gestão de usuários internos pelo Gerente e relatório de tempo médio de execução
+- [ ] Incluir os caminhos de erro: credenciais inválidas na consulta pública, estoque insuficiente e transição de status inválida
+- [ ] Representar os demais elementos de DDD exigidos pelo enunciado: o agregado `EstoquePeca` (hoje só aparece `Ordem de Serviço`), entidades, objetos de valor e bounded contexts
+- [ ] Revisar detalhes: "Entre com credenciais" deve ser "Entra com credenciais"; "Atualizar peça" parece sem política de validação de perfil, enquanto os requisitos permitem que Atendente e Mecânico atualizem o saldo; nomear a credencial do cliente como CPF/CNPJ, como nos requisitos; explicitar a seta que sai da área de criação da OS (provavelmente liga ao "Criar OS" da administração); conferir a legenda "PA" (losango vermelho)
 
 ### Consistência entre Documentos
 
@@ -180,13 +204,22 @@ A branch do PR #1 foi criada antes da revisão dos requisitos (commit `3540bed`)
 
 **Objetivo:** ter o ambiente completo subindo com um único comando antes de iniciar as funcionalidades.
 
-- [ ] `Dockerfile` da aplicação Python 3.12 com build multi-stage (RNF-12)
-- [ ] `docker-compose.yml` com os serviços `app` e `db`, volume persistente e healthcheck, subindo com `docker compose up --build` (RNF-12)
+**Já feito (commit `c63c963`, Guilherme):** rota `GET /health` em `src/presentation/api/main.py`, `Dockerfile` e `docker-compose.yml` com o serviço `api` e healthcheck. Ajustes necessários nessa primeira versão:
+
+- [ ] `Dockerfile`: trocar Python 3.11 por 3.12, usar build multi-stage e executar com usuário não-root (RNF-12, RNF-02)
+- [ ] `Dockerfile`: o comando `uvicorn src.presentation.api.main:app` exige o prefixo `src.`, o que quebra os imports absolutos a partir de `src/` definidos no guia; ajustar junto com o `PYTHONPATH`
+- [ ] `docker-compose.yml`: remover o volume `.:/app`, que sobrescreve o código copiado para a imagem (manter apenas em um arquivo de override para desenvolvimento, se necessário) e o campo `version`, obsoleto no Compose v2
+- [ ] `src/presentation/api/`: criar o `__init__.py` e decidir se a aplicação fica nessa pasta ou em `presentation/routers/`; o guia exige `__init__.py` em toda pasta e não prevê `api/`
+
+Tarefas da fase:
+
+- [ ] `docker-compose.yml` com os serviços `app` e `db` (PostgreSQL 16), volume persistente para o banco e healthcheck, subindo com `docker compose up --build` (RNF-12); hoje existe só o serviço `api`
 - [ ] Configuração do `PYTHONPATH` (ou empacotamento) para os imports a partir de `src/` funcionarem localmente, no Docker e no pytest
 - [ ] Configuração por variáveis de ambiente, sem segredos no código
 - [ ] Engine e sessão do SQLAlchemy com controle de transação e rollback completo em caso de falha (RNF-06)
 - [ ] Migrations iniciais
-- [ ] Aplicação FastAPI mínima com rota de health check e Swagger em `/docs` (RNF-13)
+- [x] Rota de health check na aplicação FastAPI (`GET /health`)
+- [ ] Conferir o Swagger em `/docs`, exposto automaticamente pelo FastAPI, e documentar o acesso (RNF-13)
 - [ ] Tratamento padronizado de erros, traduzindo as exceções do domínio para códigos HTTP, incluindo `401` e `403` (RNF-03)
 - [ ] Event Dispatcher síncrono em memória (Modelo C4)
 - [ ] Estrutura para testes de integração com banco PostgreSQL de teste
@@ -197,6 +230,8 @@ A branch do PR #1 foi criada antes da revisão dos requisitos (commit `3540bed`)
 ## Fase 3 - Domínio
 
 **Objetivo:** implementar o núcleo de regras de negócio com `dataclasses` puras, sem dependência de framework ou ORM (RNF-02). É a camada que concentra a meta de cobertura. As receitas de objeto de valor, entidade e porta de repositório estão nas seções 5.1 a 5.3 do guia.
+
+**Dependência da Fase 1:** as etapas finais da OS, o estorno de estoque e o agregado `EstoquePeca` precisam estar modelados antes da implementação (ver lacunas do Event Storming).
 
 **Ponto de partida:** `entities/ordem_servico.py`, `entities/usuario.py`, `repositories/ordem_servico_repository.py` e `repositories/usuario_repository.py` já existem em `src/domain/`, vazios.
 

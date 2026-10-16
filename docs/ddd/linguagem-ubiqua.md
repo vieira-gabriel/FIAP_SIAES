@@ -43,7 +43,7 @@ Este documento estabelece a **Linguagem Ubíqua** do sistema de gestão da ofici
 
 | Perfil / Ator | Função no Negócio | Escopo de Permissões na API |
 | :--- | :--- | :--- |
-| **Atendente** | Primeiro contato com o cliente e entrega final do veículo. | Criar, listar, detalhar e atualizar OS; cadastrar e atualizar clientes/veículos; listar serviços; consultar e atualizar saldo de peças; alterar status para `ENTREGUE`. |
+| **Atendente** | Primeiro contato com o cliente e entrega final do veículo. | Criar, listar, detalhar e atualizar OS; cadastrar e atualizar clientes/veículos; listar serviços; consultar peças; alterar status para `ENTREGUE`. |
 | **Mecânico** | Execução técnica, diagnóstico e reparo do veículo. | Listar, detalhar e atualizar OS; atribuir-se a uma OS (`RECEBIDA` $\rightarrow$ `EM_DIAGNOSTICO`); adicionar serviços/peças e concluir orçamento (`AGUARDANDO_APROVACAO`); iniciar a execução das OS atribuídas a ele (`EM_EXECUCAO`); listar clientes e veículos; consultar e atualizar saldo de peças; alterar status para `FINALIZADA`. |
 | **Gerente (Admin)** | Gestão estratégica, administrativa e financeira da loja. | Acesso administrativo total (CRUD completo em todas as entidades: Criar, Listar, Atualizar e Deletar); cancelar OS com motivo; gerenciar catálogo de serviços e estoque; visualizar relatórios de tempos médios. |
 | **Cliente** | Proprietário do veículo (Acesso público externo). | Consultar status da OS em tempo real via API pública (fornecendo Nº OS + CPF/CNPJ) e aprovar ou rejeitar orçamentos propostos. |

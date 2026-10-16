@@ -9,7 +9,7 @@ Este documento especifica todos os **Requisitos Funcionais (RF)** do MVP do sist
 
 O acesso às funcionalidades da aplicação é estritamente controlado com base nos seguintes perfis:
 
-* **`Atendente`**: Responsável pelo primeiro contato, cadastro de clientes/veículos, abertura de OS, consulta de serviços/peças, atualização de saldo de estoque e entrega final do veículo.
+* **`Atendente`**: Responsável pelo primeiro contato, cadastro de clientes/veículos, abertura de OS, consulta de serviços/peças e entrega final do veículo.
 * **`Mecânico`**: Responsável pela avaliação técnica, diagnóstico, inclusão de itens/peças na OS, cálculo de orçamento, início e conclusão da execução da manutenção.
 * **`Gerente` (Admin)**: Administrador com privilégios totais (CRUD completo em todas as entidades, gerenciamento de usuários/credenciais internas, cancelamento de OS, gestão de catálogo e relatórios de métricas).
 * **`Cliente` (Público)**: Acesso público desautenticado restrito à consulta de status da própria OS e aprovação/rejeição do orçamento proposto.
@@ -129,11 +129,12 @@ O sistema deve permitir criar novos serviços, alterar valores base e tempos est
 
 ##### **RF-12** - Gestão de Peças e Controle de Estoque
 ###### Descrição do Domínio
-O sistema deve permitir a consulta, cadastro, atualização do saldo e baixa de peças e insumos. Atendentes e Mecânicos podem listar e atualizar saldos operacionais de peças; a criação de novos itens e exclusão são restritas à gerência.
+O sistema deve permitir a consulta, cadastro, atualização dos dados, atualização do saldo e baixa de peças e insumos. Atendentes apenas consultam peças; Mecânicos consultam peças e atualizam a quantidade em estoque; a criação de novos itens, a alteração dos dados cadastrais e a exclusão são restritas à gerência.
 ###### Perfis de Acesso
-`Atendente`, `Mecânico`, `Gerente` (Listar e Atualizar Estoque) | `Gerente` (Criar e Deletar Peças)
+`Atendente`, `Mecânico`, `Gerente` (Listar) | `Mecânico`, `Gerente` (Atualizar quantidade em estoque) | `Gerente` (Criar, Atualizar dados cadastrais e Deletar Peças)
 ###### Critério de Aceite / Validação
 * Controlar quantidade física, quantidade reservada, preço unitário de venda, código de referência e prazo de reposição da peça (em dias, usado na estimativa de entrega do RF-25).
+* Apenas o Gerente altera preço unitário de venda, código de referência e prazo de reposição.
 * O saldo disponível é a quantidade física menos a quantidade reservada, e nunca pode ficar negativo.
 * Todo aumento de saldo aciona a alocação automática às OS com peça pendente (RF-19), na mesma transação.
 * A remoção é uma exclusão lógica: a peça deixa de ser listada e de poder ser incluída em novas OS, e as reservas e OS existentes permanecem íntegras.

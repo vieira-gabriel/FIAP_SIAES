@@ -100,7 +100,7 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 - [x] Histórico de status com toda transição: status anterior, novo status, data/hora, origem, usuário e motivo (RF-24)
 - [x] Cancelamento exclusivo do Gerente, de `RECEBIDA` até `EM_EXECUCAO`, com motivo; reservas estornadas e peças baixadas consideradas consumidas; sem alteração arbitrária de status (RF-23)
 - [x] Sem remoção de OS: o cancelamento substitui o comando "Remover OS" do Event Storming
-- [x] Atualização de saldo por Atendente, Mecânico e Gerente (RF-12)
+- [x] Atualização de saldo por Mecânico e Gerente; dados cadastrais da peça alterados só pelo Gerente; Atendente apenas consulta peças (RF-12)
 - [x] Número da OS: 3 primeiros dígitos do CPF/CNPJ + 8 caracteres do UUID interno (RF-13)
 - [x] Usuários de demonstração de Atendente e Mecânico criados quando `SEED_DEMO=true` (RF-03)
 - [x] Senha do usuário da carga inicial lida de `ADMIN_PASSWORD`, obrigatória e sem valor padrão (RF-03, RNF-06)

@@ -16,7 +16,7 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 | Linguagem ubíqua | Atualizada com os 9 status, a tabela de transições e os termos de estoque; os nomes ainda divergem do modelo C4 em alguns pontos (Fase 1) |
 | Modelo C4 | Documentado nos 4 níveis; camada de entrada renomeada para `src/presentation/`; a estrutura de pastas da seção 6 ainda depende de decisão do grupo |
 | Guia de desenvolvimento e estrutura de pastas | Atualizados para a numeração atual dos requisitos, com as decisões técnicas da seção 8 |
-| Event Storming | PDF reexportado com os fluxos de peça pendente e de cancelamento; link do board ainda não consta no repositório |
+| Event Storming | PDF reexportado com os fluxos de peça pendente e de cancelamento; link do board registrado em [docs/ddd/event-storming.md](docs/ddd/event-storming.md) |
 | Código (`src/`) e testes | Estrutura em camadas, `presentation/routers/` e `presentation/schemas/` criados; arquivos ainda vazios |
 | Configuração do repositório | `.gitignore`, `.env.example` e `pyproject.toml` criados; falta gerar o `uv.lock` |
 | Docker | `Dockerfile` e `docker-compose.yml` vazios |
@@ -164,7 +164,7 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 - [x] Fluxo de peça pendente, reposição de estoque e cancelamento pelo Gerente no board
 - [ ] Confirmar que a área "Gestão administrativa" cobre a gestão de peças e insumos, exigida explicitamente pelo enunciado
 - [ ] Reexportar [event-storming.pdf](docs/ddd/event-storming.pdf) em alta resolução ou em formato vetorial; o arquivo atual é uma única imagem em que o texto dos post-its não é legível
-- [ ] Garantir acesso público ao board (Miro ou equivalente), sem necessidade de pedir permissão, e registrar o link no repositório
+- [x] Garantir acesso público ao board (Miro ou equivalente), sem necessidade de pedir permissão, e registrar o link no repositório ([docs/ddd/event-storming.md](docs/ddd/event-storming.md))
 - [ ] Transcrever em texto os eventos de domínio, comandos, políticas e atores levantados, para referência no código e na linguagem ubíqua
 
 ### Consistência entre Documentos

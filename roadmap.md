@@ -8,7 +8,7 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 
 ## Estado Atual
 
-> Atualizado em 13/10/2026, considerando o repositório até o commit `351232b` (merge do PR #2) e a branch `docs/fechamento-fase-0`.
+> Atualizado em 16/10/2026, considerando a `main` até o merge do PR #48 e a branch `docs/event-storming-pecas`.
 
 | Item | Situação |
 | :--- | :--- |
@@ -17,9 +17,9 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 | Modelo C4 | Documentado nos 4 níveis; camada de entrada renomeada para `src/presentation/`; a estrutura de pastas da seção 6 ainda depende de decisão do grupo |
 | Guia de desenvolvimento e estrutura de pastas | Atualizados para a numeração atual dos requisitos, com as decisões técnicas da seção 8 |
 | Event Storming | PDF reexportado com os fluxos de peça pendente e de cancelamento; link do board registrado em [docs/ddd/event-storming.md](docs/ddd/event-storming.md) |
-| Código (`src/`) e testes | Estrutura em camadas, `presentation/routers/` e `presentation/schemas/` criados; arquivos ainda vazios |
+| Código (`src/`) e testes | Rota `GET /health` em `src/presentation/api/main.py`. Os demais arquivos das camadas e da autenticação JWT continuam vazios; nenhum teste |
 | Configuração do repositório | `.gitignore`, `.env.example` e `pyproject.toml` criados; falta gerar o `uv.lock` |
-| Docker | `Dockerfile` e `docker-compose.yml` vazios |
+| Docker | Primeira versão de `Dockerfile` e `docker-compose.yml` (só o serviço `api`); diverge do RNF-15 (ver Fase 2) |
 | README | Apenas título |
 
 ---
@@ -41,9 +41,9 @@ flowchart LR
 
 | Fase | Objetivo | Depende de | Resultado esperado | Situação |
 | :--- | :--- | :--- | :--- | :--- |
-| **0** | Fundação | - | Decisões fechadas, documentos alinhados entre si e ao enunciado, repositório configurado | Em andamento (5 decisões com o grupo e proteção da `main`) |
-| **1** | Modelagem DDD | 0 | Event Storming legível, diagramas e linguagem ubíqua consistentes entre si | Em andamento |
-| **2** | Infraestrutura base | 0 | `docker compose up --build` sobe API + PostgreSQL com Swagger em `/docs` | Não iniciada |
+| **0** | Fundação | - | Decisões fechadas, documentos alinhados entre si e ao enunciado, repositório configurado | Em andamento |
+| **1** | Modelagem DDD | 0 | Event Storming completo e legível, diagramas e linguagem ubíqua consistentes entre si | Em andamento |
+| **2** | Infraestrutura base | 0 | `docker compose up --build` sobe API + PostgreSQL com Swagger em `/docs` | Em andamento (health check e Docker inicial) |
 | **3** | Domínio | 1 | Entidades, objetos de valor, eventos e regras de negócio com testes unitários | Não iniciada |
 | **4** | Autenticação e cadastros | 2, 3 | Login JWT, RBAC, gestão de usuários e cadastros administrativos | Não iniciada (arquivos criados, vazios) |
 | **5** | Fluxo da OS | 4 | Abertura, orçamento, reserva e pendência de peças, aprovação, execução e consulta pública | Não iniciada |
@@ -56,6 +56,13 @@ flowchart LR
 ## Fase 0 - Fundação
 
 **Objetivo:** fechar as decisões que bloqueiam o restante do trabalho, alinhar os documentos entre si e ao enunciado e preparar o repositório.
+
+### Pendências do Merge da Branch `docs/fechamento-fase-0`
+
+A branch `docs/fechamento-fase-0` entrou na `main` pelo PR #20, junto com o health check do commit `c63c963`. Ficaram pendentes:
+
+- [x] Fazer o merge da branch na `main` por Pull Request (PR #20)
+- [ ] Decidir onde fica a aplicação FastAPI (`presentation/api/` ou `presentation/routers/`) e como as dependências são instaladas no Docker: a `main` mantém `src/presentation/api/main.py` e `requirements.txt` ao lado do `pyproject.toml`
 
 ### Decisões Técnicas
 
@@ -130,8 +137,9 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 - [ ] Proteger a branch `main` no GitHub (Settings → Branches): exigir PR com 1 aprovação e bloquear push forçado. O enunciado exige a proteção e o repositório precisa estar público
 - [x] Definir o padrão de branches e de mensagens de commit (guia de desenvolvimento, seção 7)
 - [x] Criar `.gitignore` para Python (incluindo `.env`, `.venv/`, `__pycache__/`, relatórios de cobertura e o PDF do enunciado)
+- [ ] Remover da `main` os dois arquivos `.pyc` commitados no health check (`src/presentation/__pycache__/` e `src/presentation/api/__pycache__/`); o `.gitignore` já ignora `__pycache__/`, mas não remove arquivos já versionados
 - [x] Criar `.env.example` com as variáveis necessárias, sem valores reais
-- [x] Criar o arquivo de dependências (`pyproject.toml`)
+- [ ] Unificar o arquivo de dependências: a `main` tem `requirements.txt` (só `fastapi` e `uvicorn`) e `pyproject.toml`; manter apenas o `pyproject.toml`, conforme a seção 8.1 do guia
 - [ ] Gerar o `uv.lock` com `uv lock` após a decisão do driver do PostgreSQL e da ferramenta de migrations
 
 ### Estrutura de Pastas
@@ -162,11 +170,22 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 - [x] Event Storming do fluxo de criação da OS (área "Criação da ordem de serviço")
 - [x] Event Storming do acompanhamento da OS (área "Acompanhar OS")
 - [x] Fluxo de peça pendente, reposição de estoque e cancelamento pelo Gerente no board
+- [x] Event Storming da gestão administrativa (área "Gestão administrativa"): CRUD de serviços, peças, clientes, veículos e OSs com validação de perfil
 - [x] Confirmar que a área "Gestão administrativa" cobre a gestão de peças e insumos, exigida explicitamente pelo enunciado
 - [x] Reexportar [event-storming.pdf](docs/ddd/event-storming.pdf) com o texto dos post-its legível com zoom de 100%
 - [x] Garantir acesso público ao board (Miro ou equivalente), sem necessidade de pedir permissão, e registrar o link no repositório ([docs/ddd/event-storming.md](docs/ddd/event-storming.md))
 - [x] Transcrever em texto os eventos de domínio, comandos, políticas e atores levantados, para referência no código e na linguagem ubíqua ([docs/ddd/event-storming.md](docs/ddd/event-storming.md))
 - [ ] Completar o board com o estorno no cancelamento, a aprovação do orçamento em uma única área e um título que identifique o projeto (seção 5 de [docs/ddd/event-storming.md](docs/ddd/event-storming.md))
+
+**Lacunas do quadro atual do Event Storming** (levantadas em 15/10/2026 com base nas imagens exportadas do Miro; a seção 5 de [docs/ddd/event-storming.md](docs/ddd/event-storming.md) registra como cada divergência é tratada):
+
+- [ ] Modelar as etapas finais da OS, hoje reduzidas ao comando genérico "Atualizar status da OS": execução iniciada, manutenção concluída (mecânico) e veículo entregue (atendente), com os timestamps usados no tempo médio de execução
+- [ ] Modelar a baixa do estoque no início da execução e o estorno no cancelamento; a reserva após o orçamento gerado e o estorno na reprovação já constam no board
+- [x] Gestão de peças e insumos: o board separa cadastro, atualização de dados e atualização de saldo da peça e liga o saldo atualizado à liberação das OS com peça pendente; o algoritmo de alocação do RF-19 será detalhado em `docs/ddd/diagramas.pdf`
+- [ ] Incluir os fluxos que os requisitos citam e o quadro não mostra: gestão de usuários internos pelo Gerente e relatório de tempo médio de execução
+- [ ] Incluir os caminhos de erro: credenciais inválidas na consulta pública, estoque insuficiente e transição de status inválida
+- [ ] Representar os demais elementos de DDD exigidos pelo enunciado: o agregado `EstoquePeca` (hoje só aparece `Ordem de Serviço`), entidades, objetos de valor e bounded contexts
+- [ ] Revisar detalhes: nomear a credencial do cliente como CPF/CNPJ, como nos requisitos; conferir a legenda "PA" (losango vermelho). Já resolvidos: "Entra com credenciais", política de perfil em "Atualizar saldo da peça" (Gerente e Mecânico, RF-12) e a seta da área de criação da OS, que liga ao "Criar OS" da administração
 
 ### Consistência entre Documentos
 
@@ -189,13 +208,22 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 
 **Objetivo:** ter o ambiente completo subindo com um único comando antes de iniciar as funcionalidades.
 
-- [ ] `Dockerfile` da aplicação Python 3.12 com build multi-stage usando `uv` (RNF-15)
-- [ ] `docker-compose.yml` com os serviços `app` e `db`, volume persistente e healthcheck, subindo com `docker compose up --build` (RNF-15)
-- [ ] `PYTHONPATH=src` no Dockerfile e no `.env`; no pytest já está configurado no `pyproject.toml`
-- [ ] Configuração por variáveis de ambiente, com falha na inicialização quando faltar variável obrigatória (RNF-06)
+**Já feito (commit `c63c963`, Guilherme):** rota `GET /health` em `src/presentation/api/main.py`, `Dockerfile` e `docker-compose.yml` com o serviço `api` e healthcheck. Ajustes necessários nessa primeira versão:
+
+- [ ] `Dockerfile`: trocar Python 3.11 por 3.12, usar build multi-stage com `uv` e executar com usuário não-root (RNF-15)
+- [ ] `Dockerfile`: o comando `uvicorn src.presentation.api.main:app` exige o prefixo `src.`, o que quebra os imports absolutos a partir de `src/` definidos no guia; ajustar junto com o `PYTHONPATH`
+- [ ] `docker-compose.yml`: remover o volume `.:/app`, que sobrescreve o código copiado para a imagem (manter apenas em um arquivo de override para desenvolvimento, se necessário) e o campo `version`, obsoleto no Compose v2
+- [ ] `src/presentation/api/`: criar o `__init__.py` e decidir se a aplicação fica nessa pasta ou em `presentation/routers/`; o guia exige `__init__.py` em toda pasta e não prevê `api/`
+
+Tarefas da fase:
+
+- [ ] `docker-compose.yml` com os serviços `app` e `db` (PostgreSQL 16), volume persistente para o banco e healthcheck, subindo com `docker compose up --build` (RNF-15); hoje existe só o serviço `api`
+- [ ] Configuração do `PYTHONPATH` (ou empacotamento) para os imports a partir de `src/` funcionarem localmente, no Docker e no pytest
+- [ ] Configuração por variáveis de ambiente, sem segredos no código e com falha na inicialização quando faltar variável obrigatória (RNF-06)
 - [ ] Engine e sessão do SQLAlchemy com controle de transação e rollback completo em caso de falha (RNF-08)
-- [ ] Migrations iniciais (ferramenta pendente de decisão)
-- [ ] Aplicação FastAPI mínima com rota de health check e Swagger em `/docs` (RNF-16)
+- [ ] Migrations iniciais (ferramenta pendente de decisão, seção 8.2 do guia)
+- [x] Rota de health check na aplicação FastAPI (`GET /health`)
+- [ ] Conferir o Swagger em `/docs`, exposto automaticamente pelo FastAPI, e documentar o acesso (RNF-16)
 - [ ] Tratamento padronizado de erros, traduzindo as exceções do domínio para códigos HTTP, incluindo `401` e `403` (RNF-03)
 - [ ] Event Dispatcher síncrono em memória (Modelo C4)
 - [ ] Estrutura para testes de integração com banco PostgreSQL de teste (RNF-13)
@@ -206,6 +234,8 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 ## Fase 3 - Domínio
 
 **Objetivo:** implementar o núcleo de regras de negócio com `dataclasses` puras, sem dependência de framework ou ORM (RNF-02). É a camada que concentra a meta de cobertura. As receitas de objeto de valor, entidade e porta de repositório estão nas seções 5.1 a 5.3 do guia.
+
+**Dependência da Fase 1:** as etapas finais da OS, o estorno de estoque e o agregado `EstoquePeca` precisam estar modelados antes da implementação (ver lacunas do Event Storming).
 
 **Ponto de partida:** `entities/ordem_servico.py`, `entities/usuario.py`, `repositories/ordem_servico_repository.py` e `repositories/usuario_repository.py` já existem em `src/domain/`, vazios.
 

@@ -44,8 +44,8 @@ O board marca apenas o agregado `OrdemServico` nesta área. A política "Reserva
 | Atendente | Vincular veículo | Veículo vinculado à OS | Gera número da OS; Status OS "Recebida" (`RECEBIDA`) | RF-07, RF-13 |
 | Mecânico | Inicia diagnóstico | Vincula mecânico à OS | Status OS "Em diagnóstico" (`EM_DIAGNOSTICO`) | RF-16 |
 | Mecânico | Adiciona serviços à OS | Serviços vinculados | — | RF-17 |
-| Mecânico | Adiciona peças à OS | Peças vinculadas | Sinaliza se houver peça pendente; Reservar peças | RF-17, RF-18 |
-| — (política "Gera orçamento") | — | Orçamento gerado | Status OS "Aguardando aprovação" (`AGUARDANDO_APROVACAO`); Envio para email do cliente | RF-17 |
+| Mecânico | Adiciona peças à OS | Peças vinculadas | Sinaliza se houver peça pendente | RF-17, RF-18 |
+| — (política "Gera orçamento") | — | Orçamento gerado | Reservar peças; Status OS "Aguardando aprovação" (`AGUARDANDO_APROVACAO`); Envio para email do cliente | RF-17, RF-18 |
 | Cliente (modelo de leitura "Orçamento de serviço") | Aprovar / reprovar OS | OS aprovada | Confere se há peça pendente → Status OS "Aguardando execução" (`AGUARDANDO_EXECUCAO`) ou Status OS "Aguardando peça" (`AGUARDANDO_PECA`) | RF-26 |
 | Cliente (modelo de leitura "Orçamento de serviço") | Aprovar / reprovar OS | OS reprovada | Status OS "Cancelada" (`CANCELADA`) | RF-18, RF-26 |
 
@@ -142,10 +142,9 @@ Os nomes do board diferem dos termos da Linguagem Ubíqua em alguns pontos. No c
 
 | Ponto | Board | Requisitos | Tratamento |
 | :--- | :--- | :--- | :--- |
-| Momento da reserva de peças | A política "Reservar peças" é disparada por "Peças vinculadas", antes de "Gera orçamento" | RF-17 e RF-18 reservam as peças na conclusão do orçamento, na mesma transação da passagem para `AGUARDANDO_APROVACAO` | Os requisitos prevalecem |
-| Envio de e-mail ao cliente | A política "Envio para email do cliente" é disparada por "Orçamento gerado" | Nenhum RF ou RNF define envio de e-mail | Fora do MVP até o grupo decidir incluí-lo nos requisitos |
+| Envio de e-mail ao cliente | A política "Envio para email do cliente" é disparada por "Orçamento gerado" | Nenhum RF ou RNF define envio de e-mail; o cliente consulta e aprova o orçamento no portal público (RF-25, RF-26) | Decisão do grupo: fora do MVP; a política sai do board e a aprovação do orçamento passa para a área "Acompanhar OS" |
 | Estorno de reservas | "OS reprovada" e "OS cancelada" não disparam política de estorno | RF-18, RF-23 e RF-26 exigem o estorno automático das reservas | Os requisitos prevalecem |
-| Exclusão lógica | Os eventos "removido" não indicam o tipo de exclusão | RF-06, RF-09, RF-11 e RF-12 definem exclusão lógica | Os requisitos prevalecem |
+| Exclusão lógica | Os eventos "removido" não indicam o tipo de exclusão | RF-06, RF-09, RF-11 e RF-12 definem exclusão lógica | Decisão do grupo: o tipo de exclusão fica registrado só nos requisitos, e o board permanece como está |
 | Etapas sem evento próprio | Início da execução, conclusão, entrega e histórico de status ficam no comando genérico "Atualizar status da OS"; relatório e gestão de usuários não aparecem | RF-20 (com baixa das peças), RF-21, RF-22, RF-24, RF-27 e RF-03 | Os requisitos e a máquina de estados da Linguagem Ubíqua (§5) prevalecem |
 | "Atualizar dados da OS" | Permitido a Gerente e Atendente | Nenhum RF define a atualização dos dados da OS; a Linguagem Ubíqua (§3) dá também ao Mecânico a permissão de atualizar OS | Pendente de decisão do grupo |
 | Identificação do cliente | O comando "Entra com credenciais" sugere login | RF-25 e RF-26 dispensam login e exigem número da OS com CPF/CNPJ | Os requisitos prevalecem |

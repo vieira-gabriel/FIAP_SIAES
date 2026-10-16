@@ -35,7 +35,7 @@ Fluxo público do cliente, sem login (RF-25).
 
 ### 2. Criação de Ordem de Serviço
 
-Todos os eventos desta área pertencem ao agregado `OrdemServico`. Cada linha segue a ordem do fluxo no board.
+O board marca apenas o agregado `OrdemServico` nesta área. A política "Reservar peças" altera também o agregado `EstoquePeca` da Linguagem Ubíqua, que o board não representa. Cada linha segue a ordem do fluxo no board.
 
 | Ator | Comando | Evento | Políticas disparadas pelo evento | Requisito |
 | :--- | :--- | :--- | :--- | :--- |
@@ -111,7 +111,7 @@ Comando de entrada: Seleciona opção "OSs" → evento "Lista OSs" (RF-14).
 
 | Ator | Comando | Política | Evento | Requisito |
 | :--- | :--- | :--- | :--- | :--- |
-| Gerente, Atendente | Atualizar dados da OS | Validar se é Gerente ou Atendente | Dados da OS atualizados | RF-13 |
+| Gerente, Atendente | Atualizar dados da OS | Validar se é Gerente ou Atendente | Dados da OS atualizados | Sem RF (seção 5) |
 | Gerente, Atendente | Criar OS | Validar se é Gerente ou Atendente | Inicia o fluxo da seção 2 | RF-13 |
 | Gerente, Atendente, Mecânico | Atualizar status da OS | — | Status da OS atualizado | RF-16 a RF-22 |
 | Gerente | Cancelar OS | Validar se é Gerente | OS cancelada | RF-23 |
@@ -119,9 +119,37 @@ Comando de entrada: Seleciona opção "OSs" → evento "Lista OSs" (RF-14).
 
 O cancelamento pelo Gerente substitui o comando "Remover OS" das versões anteriores do board: não há remoção de OS.
 
-### 4. Divergências Conhecidas
+### 4. Correspondência com a Linguagem Ubíqua
+
+Os nomes do board diferem dos termos da Linguagem Ubíqua em alguns pontos. No código, use sempre a coluna da direita.
+
+| Nome no board | Termo da Linguagem Ubíqua | Referência |
+| :--- | :--- | :--- |
+| Abrir OS / OS aberta | Abrir OS | Linguagem Ubíqua §5, RF-13 |
+| Inicia diagnóstico / Vincula mecânico à OS | `atribuir_mecanico` | Linguagem Ubíqua §5, RF-16 |
+| Gera orçamento / Orçamento gerado | `finalizar_orcamento` | Linguagem Ubíqua §5, RF-17 |
+| Reservar peças | Reserva | Linguagem Ubíqua §1, RF-18 |
+| Sinaliza se houver peça pendente | Peça Pendente | Linguagem Ubíqua §1, RF-18 |
+| Aprovar / reprovar OS → OS aprovada | `aprovar_orcamento` | Linguagem Ubíqua §5, RF-26 |
+| Aprovar / reprovar OS → OS reprovada | `rejeitar_orcamento` | Linguagem Ubíqua §5, RF-26 |
+| Confere se há OS com pendência da peça atualizada | `liberar_para_execucao` | Linguagem Ubíqua §5, RF-19 |
+| Cancelar OS / OS cancelada | `cancelar(motivo)` | Linguagem Ubíqua §5, RF-23 |
+| Remover serviço, peça, cliente ou veículo | Exclusão lógica | RF-06, RF-09, RF-11, RF-12 |
+| Peça | Peça / Insumo | Linguagem Ubíqua §1 |
+| Atualizar saldo da peça | Atualização de saldo de `EstoquePeca` | Linguagem Ubíqua §1, RF-12 |
+
+### 5. Divergências Conhecidas
 
 | Ponto | Board | Requisitos | Tratamento |
 | :--- | :--- | :--- | :--- |
+| Momento da reserva de peças | A política "Reservar peças" é disparada por "Peças vinculadas", antes de "Gera orçamento" | RF-17 e RF-18 reservam as peças na conclusão do orçamento, na mesma transação da passagem para `AGUARDANDO_APROVACAO` | Os requisitos prevalecem |
+| Envio de e-mail ao cliente | A política "Envio para email do cliente" é disparada por "Orçamento gerado" | Nenhum RF ou RNF define envio de e-mail | Fora do MVP até o grupo decidir incluí-lo nos requisitos |
+| Estorno de reservas | "OS reprovada" e "OS cancelada" não disparam política de estorno | RF-18, RF-23 e RF-26 exigem o estorno automático das reservas | Os requisitos prevalecem |
+| Exclusão lógica | Os eventos "removido" não indicam o tipo de exclusão | RF-06, RF-09, RF-11 e RF-12 definem exclusão lógica | Os requisitos prevalecem |
+| Etapas sem evento próprio | Início da execução, conclusão, entrega e histórico de status ficam no comando genérico "Atualizar status da OS"; relatório e gestão de usuários não aparecem | RF-20 (com baixa das peças), RF-21, RF-22, RF-24, RF-27 e RF-03 | Os requisitos e a máquina de estados da Linguagem Ubíqua (§5) prevalecem |
+| "Atualizar dados da OS" | Permitido a Gerente e Atendente | Nenhum RF define a atualização dos dados da OS; a Linguagem Ubíqua (§3) dá também ao Mecânico a permissão de atualizar OS | Pendente de decisão do grupo |
+| Identificação do cliente | O comando "Entra com credenciais" sugere login | RF-25 e RF-26 dispensam login e exigem número da OS com CPF/CNPJ | Os requisitos prevalecem |
+| Gerente na abertura e no diagnóstico | "Abrir OS" tem só o Atendente e "Inicia diagnóstico" tem só o Mecânico | RF-13 e RF-16 incluem o Gerente | Os requisitos prevalecem |
+| Agregado de estoque | Só o agregado `OrdemServico` aparece no board | A Linguagem Ubíqua (§1) define o agregado `EstoquePeca` | A Linguagem Ubíqua prevalece |
 | Alocação de peças repostas | Uma única política, "Confere se há OS com pendência da peça atualizada" | RF-19 detalha a alocação do saldo às OS com peça pendente, da OS mais antiga para a mais nova, e a liberação apenas das OS sem nenhuma pendência | O board registra só a reação ao evento; o algoritmo do RF-19 será detalhado em diagrama próprio em `docs/ddd/diagramas.pdf` |
 | "Atualizar status da OS" | Comando sem política de permissão | RF-16 a RF-22 definem quem faz cada transição; não há alteração arbitrária de status (RF-23) | A máquina de estados da Linguagem Ubíqua (§5) prevalece |

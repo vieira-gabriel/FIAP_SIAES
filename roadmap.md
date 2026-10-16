@@ -162,10 +162,10 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 - [x] Event Storming do fluxo de criação da OS (área "Criação da ordem de serviço")
 - [x] Event Storming do acompanhamento da OS (área "Acompanhar OS")
 - [x] Fluxo de peça pendente, reposição de estoque e cancelamento pelo Gerente no board
-- [ ] Confirmar que a área "Gestão administrativa" cobre a gestão de peças e insumos, exigida explicitamente pelo enunciado
+- [x] Confirmar que a área "Gestão administrativa" cobre a gestão de peças e insumos, exigida explicitamente pelo enunciado
 - [ ] Reexportar [event-storming.pdf](docs/ddd/event-storming.pdf) em alta resolução ou em formato vetorial; o arquivo atual é uma única imagem em que o texto dos post-its não é legível
 - [x] Garantir acesso público ao board (Miro ou equivalente), sem necessidade de pedir permissão, e registrar o link no repositório ([docs/ddd/event-storming.md](docs/ddd/event-storming.md))
-- [ ] Transcrever em texto os eventos de domínio, comandos, políticas e atores levantados, para referência no código e na linguagem ubíqua
+- [x] Transcrever em texto os eventos de domínio, comandos, políticas e atores levantados, para referência no código e na linguagem ubíqua ([docs/ddd/event-storming.md](docs/ddd/event-storming.md))
 
 ### Consistência entre Documentos
 

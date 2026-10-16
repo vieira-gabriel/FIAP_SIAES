@@ -49,7 +49,7 @@ Todos os eventos desta área pertencem ao agregado `OrdemServico`. Cada linha se
 | Cliente (modelo de leitura "Orçamento de serviço") | Aprovar / reprovar OS | OS aprovada | Confere se há peça pendente → Status OS "Aguardando execução" (`AGUARDANDO_EXECUCAO`) ou Status OS "Aguardando peça" (`AGUARDANDO_PECA`) | RF-26 |
 | Cliente (modelo de leitura "Orçamento de serviço") | Aprovar / reprovar OS | OS reprovada | Status OS "Cancelada" (`CANCELADA`) | RF-18, RF-26 |
 
-O evento "Saldo da peça atualizado", da área Gestão administrativa, também leva a OS de "Aguardando peça" para "Aguardando execução" (RF-19).
+O evento "Saldo da peça atualizado", da área Gestão administrativa (seção 3.3), dispara a política "Confere se há OS com pendência da peça atualizada", que leva a OS de "Aguardando peça" para "Aguardando execução" (RF-19).
 
 ### 3. Gestão Administrativa
 
@@ -79,6 +79,7 @@ Comando de entrada: Seleciona opção "Peças" → evento "Lista Peças" (RF-12)
 | Gerente | Adicionar peça | Validar se é Gerente | Peça cadastrada | RF-12 |
 | Gerente | Atualizar dados da peça | Validar se é Gerente | Dados da peça atualizados | RF-12 |
 | Gerente, Mecânico | Atualizar saldo da peça | Validar se é Gerente ou Mecânico | Saldo da peça atualizado | RF-12, RF-19 |
+| — | — | Confere se há OS com pendência da peça atualizada | Status OS "Aguardando execução" (`AGUARDANDO_EXECUCAO`) | RF-19 |
 | Gerente | Remover peça | Validar se é Gerente | Peça removida (exclusão lógica) | RF-12 |
 | Gerente, Atendente, Mecânico | Procurar peça | — | Exibe resultado da busca | RF-12 |
 
@@ -122,5 +123,5 @@ O cancelamento pelo Gerente substitui o comando "Remover OS" das versões anteri
 
 | Ponto | Board | Requisitos | Tratamento |
 | :--- | :--- | :--- | :--- |
-| Alocação de peças repostas | "Saldo da peça atualizado" leva direto ao status "Aguardando execução" | RF-19 exige alocar o saldo às OS com peça pendente, da OS mais antiga para a mais nova, antes de liberar a OS | A regra do RF-19 prevalece; acrescentar ao board as políticas "Alocar saldo às OS com peça pendente" e "Liberar OS sem pendência" |
+| Alocação de peças repostas | Uma única política, "Confere se há OS com pendência da peça atualizada" | RF-19 detalha a alocação do saldo às OS com peça pendente, da OS mais antiga para a mais nova, e a liberação apenas das OS sem nenhuma pendência | O board registra só a reação ao evento; o algoritmo do RF-19 será detalhado em diagrama próprio em `docs/ddd/diagramas.pdf` |
 | "Atualizar status da OS" | Comando sem política de permissão | RF-16 a RF-22 definem quem faz cada transição; não há alteração arbitrária de status (RF-23) | A máquina de estados da Linguagem Ubíqua (§5) prevalece |

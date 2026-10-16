@@ -10,9 +10,9 @@ Antes de implementar, consulte os documentos abaixo. Em caso de conflito entre o
 
 | Documento | O que define |
 | :--- | :--- |
-| `docs/requisitos-funcionais.md` | O que o sistema deve fazer (RF-01 a RF-17). |
-| `docs/requisitos-nao-funcionais.md` | Arquitetura, segurança, banco, Docker e testes (RNF-01 a RNF-11). |
-| `docs/ddd/linguagem-ubiqua.md` | Nomes oficiais do domínio e o mapeamento entre conceitos e código. |
+| `docs/requisitos-funcionais.md` | O que o sistema deve fazer (RF-01 a RF-27). |
+| `docs/requisitos-nao-funcionais.md` | Arquitetura, segurança, banco, Docker e testes (RNF-01 a RNF-16). |
+| `docs/ddd/linguagem-ubiqua.md` | Nomes oficiais do domínio, máquina de estados da OS e o mapeamento entre conceitos e código. |
 | `docs/estrutura-de-pastas.md` | Por que a estrutura de pastas é como é, incluindo a autenticação JWT. |
 | `docs/guia-de-desenvolvimento.md` | Este guia: como implementar cada coisa. |
 
@@ -35,7 +35,8 @@ src/
 │   ├── repositories/     Implementações das portas de repositório (PostgreSQL)
 │   └── security/         Implementações de JWT e hash de senha
 └── presentation/     Entrada HTTP (rotas, DTOs, autenticação das rotas)
-    ├── schemas.py        DTOs de entrada e saída
+    ├── routers/          Rotas FastAPI, um arquivo por recurso
+    ├── schemas/          DTOs de entrada e saída, um arquivo por recurso
     └── auth/             Validação do token nas rotas
 tests/
 ├── unit/             Testes sem banco e sem HTTP
@@ -85,11 +86,12 @@ Toda dependência externa segue o mesmo padrão:
 | Caso de uso | `src/application/use_cases/` | verbo + objeto | `aprovar_orcamento.py` → `class AprovarOrcamento` |
 | Interface de serviço técnico | `src/application/ports/` | nome do serviço | `token_service.py` → `class TokenService(ABC)` |
 | Implementação de serviço técnico | `src/infrastructure/<assunto>/` | tecnologia + serviço | `jwt_token_service.py` |
-| DTO de entrada ou saída da API | `src/presentation/` | `schemas.py` | `CriarOSRequest`, `OSResponse` |
+| Rota HTTP | `src/presentation/routers/` | nome do recurso no plural | `ordens_servico.py` → `router = APIRouter()` |
+| DTO de entrada ou saída da API | `src/presentation/schemas/` | nome do recurso no singular | `ordem_servico.py` → `CriarOSRequest`, `OSResponse` |
 | Validação de token nas rotas | `src/presentation/auth/` | `dependencies.py` | — |
 | Teste unitário | `tests/unit/` | `test_<arquivo testado>.py` | `test_placa.py` |
 | Teste de integração | `tests/integration/` | `test_<fluxo>.py` | `test_fluxo_aprovacao_orcamento.py` |
-| Relatório de segurança | `docs/security/` | — | relatório da varredura (RNF-05) |
+| Relatório de segurança | `docs/security/` | — | relatório da análise de vulnerabilidades (RNF-07) |
 
 Se algo não se encaixa em nenhuma linha desta tabela, **não crie uma pasta nova por conta própria**: discuta com o grupo e, se aprovado, atualize esta tabela e `docs/estrutura-de-pastas.md` no mesmo PR.
 
@@ -102,7 +104,7 @@ Se algo não se encaixa em nenhuma linha desta tabela, **não crie uma pasta nov
 * Use os termos da **Linguagem Ubíqua** em português: `OrdemServico`, `Cliente`, `Veiculo`, `Servico`, `Peca`, `Orcamento`, `StatusOS`. Não traduza para o inglês e não invente sinônimos (ex.: não use `Pedido` no lugar de `OrdemServico`).
 * Identificadores sem acentos nem cedilha: `Veiculo`, `Peca`, `Orcamento`.
 * Arquivos e funções em `snake_case`; classes em `PascalCase`; constantes em `UPPER_SNAKE_CASE`.
-* Os valores de `StatusOS` são exatamente os do RF-13: `RECEBIDA`, `EM_DIAGNOSTICO`, `AGUARDANDO_APROVACAO`, `EM_EXECUCAO`, `FINALIZADA`, `ENTREGUE`, `CANCELADA`.
+* Os valores de `StatusOS` são exatamente os da seção 5 da Linguagem Ubíqua: `RECEBIDA`, `EM_DIAGNOSTICO`, `AGUARDANDO_APROVACAO`, `AGUARDANDO_PECA`, `AGUARDANDO_EXECUCAO`, `EM_EXECUCAO`, `FINALIZADA`, `ENTREGUE`, `CANCELADA`.
 
 ### 4.2. Imports
 
@@ -161,17 +163,19 @@ from domain.value_objects.status_os import StatusOS
 
 
 class OrdemServico:
-    def aprovar_orcamento(self) -> None:
-        if self.status != StatusOS.AGUARDANDO_APROVACAO:
-            raise TransicaoDeStatusInvalida(self.status, StatusOS.EM_EXECUCAO)
-        self._mudar_status(StatusOS.EM_EXECUCAO)
+    def concluir_manutencao(self) -> None:
+        if self.status != StatusOS.EM_EXECUCAO:
+            raise TransicaoDeStatusInvalida(self.status, StatusOS.FINALIZADA)
+        self._mudar_status(StatusOS.FINALIZADA)
 ```
 
 Regras que **ficam obrigatoriamente no domínio**:
-- Máquina de estados da OS e bloqueio de transições inválidas (RF-13).
-- Registro do horário de cada transição (RF-14).
-- Cálculo do orçamento: subtotal de serviços + soma de `quantidade × preço_unitario` das peças (RF-10).
-- Validação de CPF, CNPJ e placa (RF-02, RF-04).
+- Máquina de estados da OS e bloqueio de transições inválidas (Linguagem Ubíqua §5, RF-16 a RF-26).
+- Timestamps de abertura, início da execução e finalização (RF-13, RF-20, RF-21) e registro de cada transição no histórico de status (RF-24).
+- Cálculo do orçamento: subtotal de serviços + soma de `quantidade × preço_unitario` das peças, com valores congelados (RF-17, RNF-11).
+- Reserva, pendência, prioridade pela OS mais antiga, baixa e estorno de peças, sem saldo negativo (RF-18 a RF-20).
+- Cálculo da estimativa de entrega (RF-25).
+- Validação de CPF, CNPJ e placa (RF-05, RF-08).
 
 ### 5.3. Criar uma Porta e um Adaptador de Repositório
 
@@ -226,29 +230,38 @@ class CriarOS:
 
 O caso de uso **orquestra** (busca, chama métodos das entidades, salva). Se aparecer um `if` de regra de negócio no caso de uso, ele provavelmente deveria estar na entidade.
 
-Operações que precisam ser **atômicas** (RNF-07): criação de OS com itens e baixa de estoque na aprovação do orçamento. Elas devem rodar dentro de uma única transação de banco; a aprovação deve impedir estoque negativo (RF-07).
+Operações que precisam ser **atômicas** (RNF-08) rodam dentro de uma única transação de banco:
+
+* criação da OS com seus itens;
+* conclusão do orçamento com reserva das peças e registro das pendências (RF-17, RF-18);
+* atualização de saldo com alocação às OS pendentes e liberação de OS em `AGUARDANDO_PECA` (RF-12, RF-19);
+* início da execução com baixa das peças reservadas (RF-20);
+* rejeição e cancelamento com estorno das reservas (RF-18, RF-23, RF-26);
+* toda transição de status com o registro no histórico (RF-24).
+
+Nenhuma dessas operações pode deixar o saldo disponível negativo (RF-12).
 
 ### 5.5. Criar uma Rota HTTP
 
-1. Defina os DTOs de entrada e saída em `src/presentation/schemas.py` (RNF-11).
+1. Defina os DTOs de entrada e saída em `src/presentation/schemas/<recurso>.py` e a rota em `src/presentation/routers/<recurso>.py` (RNF-16).
 2. A rota converte o DTO de entrada, chama o caso de uso e converte o resultado no DTO de saída.
 3. A rota **não contém regra de negócio** e não acessa o repositório diretamente.
-4. Use os códigos HTTP do RNF-11: `200`, `201`, `400`, `401`, `404`, `422`, `500`. Exceções do domínio são traduzidas para esses códigos na camada `presentation`.
+4. Use os códigos HTTP `200`, `201`, `400`, `401`, `403`, `404`, `422` e `500`. `401` indica token ausente ou inválido e `403` indica perfil sem permissão (RNF-03). Exceções do domínio são traduzidas para esses códigos na camada `presentation`.
 
 ### 5.6. Proteger uma Rota com JWT
 
 * **Toda** rota administrativa e operacional exige token (RNF-03).
-* A **única** rota pública é a consulta de status da OS pelo cliente (RF-15), identificada pelo número da OS junto com CPF/CNPJ ou placa.
-* A validação do token e a checagem do perfil (Atendente, Mecânico, Administrador) ficam em `src/presentation/auth/dependencies.py`.
+* As **únicas** rotas públicas são a consulta de status da OS (RF-25) e a aprovação ou rejeição do orçamento (RF-26). As duas exigem o número da OS junto com o CPF/CNPJ do titular e têm rate limiting com SlowAPI (RNF-05).
+* A validação do token e a checagem do perfil (Atendente, Mecânico, Gerente) ficam em `src/presentation/auth/dependencies.py`.
 * O login é o caso de uso `application/use_cases/autenticar_usuario.py`, que usa as portas `TokenService` e `PasswordHasher`.
-* Senhas são guardadas apenas como hash; a chave de assinatura do JWT vem de variável de ambiente (RNF-04).
+* Senhas são guardadas apenas como hash; a chave de assinatura do JWT vem de variável de ambiente (RNF-06).
 
 ### 5.7. Escrever Testes
 
 | Tipo | Pasta | O que testa | Usa banco? |
 | :--- | :--- | :--- | :--- |
-| Unitário | `tests/unit/` | Entidades, objetos de valor e casos de uso | Não: use repositórios em memória que implementam a porta |
-| Integração | `tests/integration/` | Fluxos completos, com adaptadores reais | Sim |
+| Unitário | `tests/unit/` | Entidades, objetos de valor e casos de uso (RNF-12) | Não: use repositórios em memória que implementam a porta |
+| Integração | `tests/integration/` | Fluxos completos pelas rotas HTTP, com adaptadores reais (RNF-13) | Sim |
 
 Exemplo de repositório em memória para testes unitários:
 
@@ -264,41 +277,57 @@ class OrdemServicoRepositoryEmMemoria(OrdemServicoRepository):
         return self.dados.get(id)
 ```
 
-A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-10). Todo código novo em `domain/` e `application/` deve vir acompanhado de testes.
+A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Todo código novo em `domain/` e `application/` deve vir acompanhado de testes.
 
 ---
 
 ## 6. Segurança
 
-* Nunca commite senhas, chaves de JWT ou credenciais de banco (RNF-04). Use variáveis de ambiente.
+* Nunca commite senhas, chaves de JWT ou credenciais de banco (RNF-06). Use variáveis de ambiente; o `.env` é ignorado pelo Git e o `.env.example` lista as variáveis sem valores reais.
 * Senhas de usuário são armazenadas somente como hash.
-* O relatório da varredura de vulnerabilidades vai em `docs/security/` (RNF-05).
+* O relatório da análise de vulnerabilidades vai em `docs/security/` (RNF-07).
 
 ---
 
 ## 7. Fluxo de Git
 
-* Não faça commit direto na `main`. Crie uma branch e abra um PR.
+* Não faça commit direto na `main`. Crie uma branch e abra um PR. A `main` é protegida no GitHub: o merge exige PR com 1 aprovação de outro integrante e push forçado é bloqueado (exigência do enunciado).
 * Nomes de branch: `<tipo>/<descricao-curta>`, por exemplo `feat/crud-clientes`, `fix/validacao-cnpj`, `chore/estrutura-conforme-docs`.
 * Mensagens de commit em português, no formato `<tipo>: <descrição>`, com os tipos `feat`, `fix`, `chore`, `docs`, `test`, `refactor`.
 * Sempre que possível, cite o requisito no corpo do commit ou no PR (ex.: "Implementa RF-04").
 
 ---
 
-## 8. Decisões em Aberto
+## 8. Decisões Técnicas
 
-Os itens abaixo **ainda não foram decididos** pelo grupo. Não assuma uma escolha sem combinar antes; quando a decisão for tomada, atualize esta seção.
+### 8.1. Decididas
 
-| Decisão | Situação |
+| Decisão | Definição |
 | :--- | :--- |
-| Framework web | Não definido. O nome `presentation/auth/dependencies.py` supõe FastAPI. |
-| ORM ou acesso ao banco | Não definido. A documentação exige apenas PostgreSQL (RNF-06). |
-| Biblioteca de JWT | Não definida. |
-| Gerenciamento de dependências | Não definido (`pyproject.toml` ou `requirements.txt`). |
-| Configuração do `PYTHONPATH` para os imports a partir de `src/` | Não definida. |
-| Critério de aceite do RF-08 (abertura da OS) | Em branco na documentação. |
+| Linguagem | Python 3.12 (RNF-02) |
+| Framework web | FastAPI + Uvicorn, com Swagger em `/docs` (RNF-16) |
+| Banco de dados | PostgreSQL 16 (RNF-09) |
+| ORM | SQLAlchemy 2.0 (RNF-04); o modo síncrono ou assíncrono está pendente (8.2) |
+| JWT e hash de senha | PyJWT e bcrypt (RF-01, RF-03) |
+| Gerenciamento de dependências | `uv` com `pyproject.toml` e lockfile `uv.lock`. Comandos: `uv sync` (instala o ambiente), `uv add <pacote>` (adiciona dependência), `uv run pytest` (executa sem ativar o venv) |
+| Imports a partir de `src/` | `PYTHONPATH=src`: `pythonpath = ["src"]` no pytest (`pyproject.toml`), `ENV PYTHONPATH=/app/src` no Dockerfile e `PYTHONPATH=src` no `.env` para a IDE |
+| Lint e formatação | Ruff (`ruff check` e `ruff format`), configurado no `pyproject.toml` |
+| Testes e cobertura | pytest + pytest-cov (RNF-12 a RNF-14) |
+| Rate limiting | SlowAPI com contador em memória (RNF-05) |
+| Rotas e DTOs | `presentation/routers/` e `presentation/schemas/`, um arquivo por recurso |
+| CI (GitHub Actions) | Opcional; implementar somente se houver tempo ao final |
 
----
+### 8.2. Em Aberto
+
+Os itens abaixo **ainda não foram decididos** pelo grupo. Não assuma uma escolha sem combinar antes; quando a decisão for tomada, mova o item para 8.1.
+
+| Decisão | Opções levantadas e custos |
+| :--- | :--- |
+| Modo do SQLAlchemy | **Síncrono com psycopg 3:** código sem `async`/`await` em portas, casos de uso e testes; limite de 40 requisições simultâneas por padrão, sem efeito na meta de p95 < 500 ms. **Assíncrono com asyncpg:** maior vazão sob concorrência; `async` em todas as portas e casos de uso, testes com pytest-asyncio e carregamento preguiçoso proibido. |
+| Migrations | **Alembic:** versiona o schema e gera migrations a partir dos modelos; exige pasta `migrations/` e `alembic upgrade head` na subida. **`create_all` na inicialização:** nenhum arquivo extra; não altera tabelas existentes. **Scripts SQL no `initdb`:** SQL explícito; só executa com volume vazio e duplica o schema. |
+| Ferramentas de vulnerabilidade (RNF-07) | Proposta inicial: pip-audit (dependências), Bandit (código), Trivy (imagem Docker) e Dependabot (alertas no GitHub). Falta confirmação do grupo. |
+| Teste de desempenho (RNF-10) | Opções: Locust (cenários em Python, relatório HTML com p95), k6 (limite de p95 declarado no script, em JavaScript) ou script próprio com httpx. |
+| Unificação da estrutura de pastas | Criar ou não `domain/events/`, `application/events/`, `application/handlers/`, `infrastructure/database/` e `presentation/middlewares/`, previstas na seção 6 do modelo C4. |
 
 ## 9. Instruções para Assistentes de IA
 

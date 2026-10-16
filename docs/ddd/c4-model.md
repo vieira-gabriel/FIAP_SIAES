@@ -14,7 +14,7 @@ O **Modelo C4** (criado por Simon Brown) é uma abordagem hierárquica e increme
 ```
 Nível 1: Contexto (System Context) ---> Visão geral das pessoas e sistemas
 Nível 2: Contêineres (Containers)  ---> Visão das aplicações e bancos de dados executáveis
-Nível 3: Componentes (Components)  ---> Visão dos módulos internos da aplicação Python (src/api, application, domain, infrastructure)
+Nível 3: Componentes (Components)  ---> Visão dos módulos internos da aplicação Python (src/presentation, application, domain, infrastructure)
 Nível 4: Código (Code)             ---> Visão detalhada das classes de domínio, VOs e agregados
 ```
 
@@ -54,8 +54,8 @@ flowchart TD
 | :--- | :--- | :--- | :--- |
 | **Atendente** | Autenticado (JWT - `Atendente`) | API REST (HTTPS) | Abertura de OS, cadastro/vínculo de cliente e veículo, listagem de catálogo e entrega do veículo. |
 | **Mecânico** | Autenticado (JWT - `Mecanico`) | API REST (HTTPS) | Diagnóstico técnico, inclusão de serviços/peças, cálculo de orçamento e execução da manutenção. |
-| **Gerente (Admin)** | Autenticado (JWT - `Gerente`) | API REST (HTTPS) | Acesso total administrativo (CRUD amplo), forçar alterações de status, cancelamentos e métricas de SLA. |
-| **Cliente** | Público (Sem JWT) | API REST (HTTPS) | Consulta de status em tempo real (Nº OS + CPF/CNPJ/Placa), visualização do orçamento e aprovação/rejeição. |
+| **Gerente (Admin)** | Autenticado (JWT - `Gerente`) | API REST (HTTPS) | Acesso total administrativo (CRUD amplo), cancelamento de OS com motivo e relatórios de tempos médios. |
+| **Cliente** | Público (Sem JWT) | API REST (HTTPS) | Consulta de status em tempo real (Nº OS + CPF/CNPJ), visualização do orçamento e aprovação/rejeição. |
 
 ---
 
@@ -99,13 +99,13 @@ flowchart TD
 
 ## 4. Nível 3: Diagrama de Componentes (Component Diagram)
 
-O Diagrama de Componentes descreve a organização interna do contêiner da aplicação Python, evidenciando o desacoplamento das camadas da **Clean / Layered Architecture** com a entrada centralizada em `src/api/`.
+O Diagrama de Componentes descreve a organização interna do contêiner da aplicação Python, evidenciando o desacoplamento das camadas da **Clean / Layered Architecture** com a entrada centralizada em `src/presentation/`.
 
 ### Diagrama de Componentes (Mermaid)
 
 ```mermaid
 flowchart TD
-    subgraph API_LAYER ["1. Camada de API / Entrada (src/api/)"]
+    subgraph API_LAYER ["1. Camada de Apresentação / Entrada (src/presentation/)"]
         AuthController["🔐 AuthController\nEndpoints de login e geração de JWT."]
         OSController["🛠️ OrdemServicoController\nEndpoints administrativos de OS (Criar, Listar, Transicionar)."]
         ClienteController["👤 ClienteController\nEndpoints de CRUD de Clientes e Veículos."]
@@ -121,11 +121,12 @@ flowchart TD
         IniciardiagnosticoUseCase["⚙️ IniciarDiagnosticoUseCase"]
         CalcularOrcamentoUseCase["⚙️ CalcularOrcamentoUseCase"]
         AprovarOrcamentoUseCase["⚙️ AprovarOrcamentoUseCase"]
+        IniciarExecucaoUseCase["⚙️ IniciarExecucaoUseCase"]
         ConsultarStatusPublicoUseCase["⚙️ ConsultarStatusPublicoUseCase"]
         
         Ports["🔌 Ports (Interfaces de Serviço)\nITokenProvider, IPasswordHasher"]
         EventDispatcher["⚡ EventDispatcher (In-Memory)\nBarramento síncrono para eventos de domínio."]
-        EstoqueHandler["📦 BaixaEstoqueHandler\nEscuta OrcamentoAprovado e efetua baixa."]
+        EstoqueHandler["📦 BaixaEstoqueHandler\nEscuta ExecucaoIniciada e efetua a baixa das peças reservadas."]
     end
 
     subgraph DOMAIN ["3. Camada de Domínio (src/domain/ - Pure Python Dataclasses)"]
@@ -133,7 +134,7 @@ flowchart TD
         AggEstoque[("🟩 Agregado: EstoquePeca\nEntidade com controle quantitativo.")]
         Entities["👤 Entidades\nCliente, Veiculo, Usuario."]
         VOs["💎 Value Objects\nCpfCnpj, Placa, StatusOS, PerfilUsuario."]
-        DomainEvents["🟧 Eventos de Domínio\nOrcamentoAprovadoEvent, StatusOSAlteradoEvent."]
+        DomainEvents["🟧 Eventos de Domínio\nOrcamentoAprovadoEvent, ExecucaoIniciadaEvent, StatusOSAlteradoEvent."]
         IRepositories["🔌 Interfaces de Repositório (ABCs)\nIOrdemServicoRepository, IEstoqueRepository, IUsuarioRepository."]
     end
 
@@ -151,12 +152,14 @@ flowchart TD
     OSController --> CriarOSUseCase
     OSController --> IniciardiagnosticoUseCase
     OSController --> CalcularOrcamentoUseCase
+    OSController --> IniciarExecucaoUseCase
     PublicController --> AprovarOrcamentoUseCase
     PublicController --> ConsultarStatusPublicoUseCase
     
     AprovarOrcamentoUseCase --> AggOS
-    AprovarOrcamentoUseCase --> EventDispatcher
-    EventDispatcher -->|OrcamentoAprovadoEvent| EstoqueHandler
+    IniciarExecucaoUseCase --> AggOS
+    IniciarExecucaoUseCase --> EventDispatcher
+    EventDispatcher -->|ExecucaoIniciadaEvent| EstoqueHandler
     EstoqueHandler --> PgEstoqueRepo
     
     CriarOSUseCase --> IRepositories
@@ -218,6 +221,8 @@ classDiagram
         RECEBIDA
         EM_DIAGNOSTICO
         AGUARDANDO_APROVACAO
+        AGUARDANDO_PECA
+        AGUARDANDO_EXECUCAO
         EM_EXECUCAO
         FINALIZADA
         ENTREGUE
@@ -226,6 +231,7 @@ classDiagram
 
     class OrdemServico {
         +UUID id
+        +NumeroOS numero
         +UUID cliente_id
         +UUID veiculo_id
         +UUID atendente_id
@@ -239,11 +245,14 @@ classDiagram
         +List~DomainEvent~ _domain_events
         +atribuir_mecanico(mecanico_id: UUID) void
         +finalizar_orcamento() void
+        +List~HistoricoStatusOS~ historico
         +aprovar_orcamento() void
         +rejeitar_orcamento() void
+        +liberar_para_execucao() void
+        +iniciar_execucao(usuario_id: UUID) void
         +concluir_manutencao() void
         +entregar_veiculo() void
-        +forcar_cancelamento(motivo: str) void
+        +cancelar(motivo: str) void
         +collect_domain_events() List~DomainEvent~
     }
 
@@ -257,6 +266,8 @@ classDiagram
         +UUID peca_id
         +str nome
         +int quantidade
+        +int quantidade_reservada
+        +int quantidade_pendente
         +float preco_unitario_congelado
         +valor_total() float
     }
@@ -307,9 +318,9 @@ A estrutura física do repositório reflete exatamente o desacoplamento proposto
 ```text
 src/
 ├── presentation/                  # Nível 3 (Camada de Entrada, Controllers HTTP & Middlewares)
-│   ├── controllers/               # Route Handlers FastAPI (Auth, OS, Cliente, Estoque)
+│   ├── routers/                   # Route Handlers FastAPI, um arquivo por recurso (Auth, OS, Cliente, Estoque)
 │   ├── middlewares/               # JWT Auth & Rate Limiting Guards (Depends / Security)
-│   └── schemas/                   # Pydantic DTOs (Validação de Entrada/Saída HTTP)
+│   └── schemas/                   # Pydantic DTOs, um arquivo por recurso (Validação de Entrada/Saída HTTP)
 ├── application/                   # Nível 3 (Camada de Aplicação & Casos de Uso)
 │   ├── use_cases/                 # Serviços de Orquestração (CriarOS, AprovarOrcamento, Login)
 │   ├── ports/                     # Interfaces Abstratas de Serviços (ITokenProvider, IPasswordHasher)
@@ -325,3 +336,5 @@ src/
     ├── repositories/              # Implementações Concretas com SQLAlchemy (Postgres)
     └── security/                  # Implementações Concretas de Segurança (PyJWT, Passlib/Bcrypt)
 ```
+
+> **Pendente de decisão do grupo:** esta árvore ainda difere da estrutura descrita na seção 2 de `docs/guia-de-desenvolvimento.md`. As pastas `presentation/routers/` e `presentation/schemas/` já foram decididas e valem para os dois documentos. A validação do token continua em `presentation/auth/` até a decisão sobre `presentation/middlewares/`; a criação de `application/events/`, `application/handlers/`, `domain/events/` e `infrastructure/database/` também aguarda essa decisão (ver seção 8 do guia).

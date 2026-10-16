@@ -1,0 +1,32 @@
+# Segredos (RNF-06): apenas o .env.example é versionado
+.env
+.env.*
+!.env.example
+
+# Ambiente virtual e caches do Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Relatórios de cobertura (a evidência final é salva manualmente, ver roadmap Fase 7)
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# Editores e sistema operacional
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Enunciado do Tech Challenge (material da FIAP, mantido apenas localmente)
+Fase 1 - Tech Challenge.pdf

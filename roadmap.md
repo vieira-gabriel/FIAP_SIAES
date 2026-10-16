@@ -45,8 +45,8 @@ flowchart LR
 | **2** | Infraestrutura base | 0 | `docker compose up --build` sobe API + PostgreSQL com Swagger em `/docs` | Em andamento (health check e Docker inicial) |
 | **3** | Domínio | 1 | Entidades, objetos de valor, eventos e regras de negócio com testes unitários | Não iniciada |
 | **4** | Autenticação e cadastros | 2, 3 | Login JWT, RBAC, gestão de usuários e cadastros administrativos | Não iniciada (arquivos criados, vazios) |
-| **5** | Fluxo da OS | 4 | Abertura, orçamento, reserva de estoque, aprovação, status e consulta pública | Não iniciada |
-| **6** | Gestão e métricas | 5 | Listagem, detalhamento e tempo médio de execução | Não iniciada |
+| **5** | Fluxo da OS | 4 | Abertura, orçamento, reserva e pendência de peças, aprovação, execução e consulta pública | Não iniciada |
+| **6** | Gestão e métricas | 5 | Listagem, detalhamento e relatório de tempos médios | Não iniciada |
 | **7** | Qualidade e segurança | 6 | Cobertura ≥ 80% comprovada, relatório de vulnerabilidades e medição de desempenho | Não iniciada |
 | **8** | Documentação e entrega | 7 | README, documentação DDD final, vídeo e PDF de entrega | Não iniciada |
 
@@ -71,71 +71,75 @@ O Gabriel publicou em 13 e 14/10 a branch `docs/fechamento-fase-0`, que ainda n�
 
 ### Decisões Técnicas
 
-A seção 8 do guia de desenvolvimento ainda lista framework, ORM e biblioteca de JWT como não definidos, mas o modelo C4 e os RNFs já os definem (ver "Atualização do Guia de Desenvolvimento" abaixo).
+As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/guia-de-desenvolvimento.md), com os custos das opções em aberto.
 
 | Decisão | Definição | Onde está registrada |
 | :--- | :--- | :--- |
-| Linguagem | Python 3.12 | RNF-02, RNF-12 |
-| Framework web | FastAPI + Uvicorn | Modelo C4 |
-| Banco de dados | PostgreSQL 16 | RNF-07 |
-| ORM | SQLAlchemy | RNF-04, Modelo C4 |
-| JWT e hash de senha | PyJWT e Passlib/bcrypt | RF-03, Modelo C4 |
-| Testes e cobertura | pytest + pytest-cov | RNF-10, RNF-11 |
+| Linguagem | Python 3.12 | RNF-02 |
+| Framework web | FastAPI + Uvicorn | Modelo C4, guia §8.1 |
+| Banco de dados | PostgreSQL 16 | RNF-09 |
+| ORM | SQLAlchemy 2.0 | RNF-04, guia §8.1 |
+| JWT e hash de senha | PyJWT e bcrypt | RF-01, RF-03, guia §8.1 |
+| Testes e cobertura | pytest + pytest-cov | RNF-12 a RNF-14 |
 | Eventos de domínio | Event Dispatcher síncrono em memória | Modelo C4 |
-| Módulos críticos (meta de 80%) | Domínio e aplicação | RNF-11 |
-| Documentação da API | Swagger UI em `/docs` | RNF-13 |
-| Branches e commits | Branches `<tipo>/<descricao-curta>` e commits `<tipo>: <descrição>` em português | Guia de desenvolvimento, seção 7 |
-| Imports | Absolutos a partir de `src/` | Guia de desenvolvimento, seção 4.2 |
-| Configuração do `PYTHONPATH` para os imports | **Pendente** | Guia de desenvolvimento, seção 8 |
-| Migrations | **Pendente** (sugestão: Alembic) | - |
-| Rate limiting | **Pendente** (sugestão: SlowAPI) | RNF-05 |
-| Análise de vulnerabilidades | **Pendente** (sugestão: pip-audit, Bandit e Trivy) | - |
-| Teste de desempenho | **Pendente** (sugestão: Locust ou k6) | RNF-08 |
-| Lint e formatação | **Pendente** (sugestão: Ruff) | - |
-| Arquivo de dependências | **Pendente** (`pyproject.toml` ou `requirements.txt`) | Guia de desenvolvimento, seção 8 |
+| Módulos críticos (meta de 80%) | Domínio e aplicação | RNF-14 |
+| Documentação da API | Swagger UI em `/docs` | RNF-16 |
+| Branches e commits | Branches `<tipo>/<descricao-curta>` e commits `<tipo>: <descrição>` em português | Guia §7 |
+| Imports | Absolutos a partir de `src/`, com `PYTHONPATH=src` | Guia §4.2 e §8.1 |
+| Arquivo de dependências | `pyproject.toml` com `uv` e `uv.lock` | Guia §8.1 |
+| Lint e formatação | Ruff | Guia §8.1 |
+| Rate limiting | SlowAPI com contador em memória | RNF-05 |
+| Rotas e DTOs | `presentation/routers/` e `presentation/schemas/`, um arquivo por recurso | Guia §3 e §8.1 |
+| CI | Opcional, somente se houver tempo | Guia §8.1 |
+| Modo do SQLAlchemy (síncrono ou assíncrono) | **Pendente: decidir com o grupo** | Guia §8.2 |
+| Migrations | **Pendente: decidir com o grupo** (Alembic, `create_all` ou scripts SQL) | Guia §8.2 |
+| Análise de vulnerabilidades | **Pendente: confirmar com o grupo** (proposta: pip-audit, Bandit, Trivy e Dependabot) | RNF-07, guia §8.2 |
+| Teste de desempenho | **Pendente: decidir** (Locust, k6 ou script próprio) | RNF-10, guia §8.2 |
 
 ### Decisões de Domínio
 
-- [x] Transições de status e responsáveis por cada uma ([linguagem-ubiqua.md](docs/ddd/linguagem-ubiqua.md) seção 5, RF-13 a RF-20)
-- [x] Identificação do cliente na consulta pública: número da OS + CPF/CNPJ (RF-21)
-- [x] Aprovação e rejeição do orçamento pelo cliente em rota pública (RF-22)
+- [x] Transições de status e responsáveis por cada uma ([linguagem-ubiqua.md](docs/ddd/linguagem-ubiqua.md) seção 5)
+- [x] Identificação do cliente na consulta pública: número da OS + CPF/CNPJ (RF-25)
+- [x] Aprovação e rejeição do orçamento pelo cliente em rota pública (RF-26)
 - [x] Perfis de acesso com RBAC: Atendente, Mecânico e Gerente (RF-02)
 - [x] Carga inicial do usuário Gerente `admin@oficina.com` (RF-03)
 - [x] Remoção lógica de clientes e veículos (RF-06, RF-09)
-- [ ] Exclusão de serviços e peças: lógica ou física? Os itens da OS guardam `servico_id` e `peca_id` (RF-11, RF-12)
-- [ ] O que acontece quando não há saldo suficiente para reservar as peças ao concluir o orçamento (RF-16)
-- [ ] De onde vem a "estimativa de entrega" retornada na consulta pública; não há campo para isso no modelo de classes (RF-21)
-- [ ] Estrutura do histórico de auditoria da OS citado no RF-20 (ex.: status anterior, novo status, usuário, data/hora e motivo)
-- [ ] Usuários de demonstração de Atendente e Mecânico, já que a carga inicial cria apenas o Gerente
-- [ ] Senha do usuário da carga inicial lida de variável de ambiente, sem valor fixo no repositório
-- [ ] Registrar na documentação que `CANCELADA` é um status acrescentado à lista do enunciado e o motivo
+- [x] Exclusão de serviços e peças: lógica (RF-11, RF-12)
+- [x] Saldo insuficiente na conclusão do orçamento: reserva parcial, peças pendentes, novo status `AGUARDANDO_PECA` após a aprovação e alocação automática na reposição, com prioridade para a OS de abertura mais antiga (RF-18, RF-19, RF-26)
+- [x] Novo status `AGUARDANDO_EXECUCAO`: a aprovação leva à fila de execução, e o mecânico atribuído ou o Gerente inicia a execução, quando ocorre a baixa das peças (RF-20)
+- [x] Estimativa de entrega: tempo estimado por serviço e prazo de reposição das peças pendentes, sempre exibida como data (RF-11, RF-12, RF-25)
+- [x] Tempo de espera por peça contabilizado na estimativa de entrega, em métrica própria e no tempo total da OS (RF-25, RF-27)
+- [x] Histórico de status com toda transição: status anterior, novo status, data/hora, origem, usuário e motivo (RF-24)
+- [x] Cancelamento exclusivo do Gerente, de `RECEBIDA` até `EM_EXECUCAO`, com motivo; reservas estornadas e peças baixadas consideradas consumidas; sem alteração arbitrária de status (RF-23)
+- [x] Sem remoção de OS: o cancelamento substitui o comando "Remover OS" do Event Storming
+- [x] Atualização de saldo por Atendente, Mecânico e Gerente (RF-12)
+- [x] Número da OS: 3 primeiros dígitos do CPF/CNPJ + 8 caracteres do UUID interno (RF-13)
+- [x] Usuários de demonstração de Atendente e Mecânico criados quando `SEED_DEMO=true` (RF-03)
+- [x] Senha do usuário da carga inicial lida de `ADMIN_PASSWORD`, obrigatória e sem valor padrão (RF-03, RNF-06)
+- [x] Registrar na documentação os status acrescentados ao enunciado (`AGUARDANDO_PECA`, `AGUARDANDO_EXECUCAO`, `CANCELADA`) e o motivo (seção 5 dos RFs)
 
 ### Alinhamento dos Requisitos com o Enunciado
 
-A revisão dos RNFs removeu itens que o enunciado continua exigindo. Eles precisam voltar aos requisitos ou, no mínimo, ao roadmap e ao README:
-
-- [ ] **Análise de vulnerabilidades:** o enunciado exige o relatório no repositório e sua apresentação no vídeo; o requisito que tratava disso foi removido
-- [ ] **Testes de integração dos fluxos principais:** o RNF-10 cobre apenas testes unitários de domínio, mas o enunciado exige os dois tipos
-- [ ] **Ausência de credenciais no repositório:** o requisito sobre segredos e `.env` foi removido, mas o enunciado proíbe credenciais, senhas e tokens no repositório
-- [ ] **Listagem e detalhamento de Ordens de Serviço:** exigidos pelo enunciado, mas sem RF próprio desde a revisão
-- [ ] **Descontos e taxas:** o RNF-10 prevê testes de "lógica de desconto/taxas", mas nenhum RF define essa regra; incluir um RF ou remover a menção
-- [ ] **Identificação na consulta pública:** RF-21 exige número da OS + CPF/CNPJ, enquanto o RNF-04 admite UUID público e a tabela de atores do modelo C4 cita também a placa; padronizar
+- [x] **Gestão de segredos:** RNF-06
+- [x] **Análise de vulnerabilidades:** RNF-07
+- [x] **Testes de integração dos fluxos principais:** RNF-13
+- [x] **Listagem e detalhamento de Ordens de Serviço:** RF-14 e RF-15, com filtros por status, mecânico, cliente ou placa e período
+- [x] **Descontos e taxas:** menção removida do RNF-12
+- [x] **Identificação na consulta pública:** número da OS + CPF/CNPJ em RF-25, RF-26, RNF-04 e no modelo C4
 
 ### Atualização do Guia de Desenvolvimento e da Estrutura de Pastas
 
-A branch do PR #1 foi criada antes da revisão dos requisitos (commit `3540bed`). Por isso, [guia-de-desenvolvimento.md](docs/guia-de-desenvolvimento.md) e [estrutura-de-pastas.md](docs/estrutura-de-pastas.md) citam a versão anterior (RF-01 a RF-17, RNF-01 a RNF-11). Como o guia é a porta de entrada para o grupo e para os assistentes de IA, a atualização é prioritária.
-
-- [ ] Atualizar a numeração dos requisitos citados. Exemplos: o guia remete os valores de `StatusOS` ao RF-13, que hoje é a abertura da OS, e o cálculo do orçamento ao RF-10, que hoje é a listagem do catálogo de serviços
-- [ ] Seção 5.6 do guia: incluir a aprovação e a rejeição do orçamento (RF-22) entre as rotas públicas (o guia diz que a única rota pública é a consulta de status) e restringir a identificação a número da OS + CPF/CNPJ (RF-21)
-- [ ] Guia (seção 5.6) e estrutura de pastas (seção 5): usar o perfil `Gerente` em vez de `Administrador` e prever a resposta `403` para perfil sem permissão (RF-02), ausente da lista de códigos HTTP da seção 5.5
-- [ ] Seção 5.4 do guia: trocar a regra antiga de estoque (baixa e bloqueio na aprovação) pela atual: reserva em `AGUARDANDO_APROVACAO`, baixa na aprovação e estorno na rejeição ou no cancelamento (RF-16, RF-17, RF-22)
-- [ ] Seção 5.2 do guia: refletir os timestamps de início e fim da execução e o histórico de auditoria (RF-17, RF-18, RF-20) no lugar do antigo registro de horário em cada transição
-- [ ] Seção 8 do guia: marcar framework, ORM e biblioteca de JWT como definidos e remover a pendência do critério de aceite da abertura da OS, já preenchido no RF-13
-- [ ] Revisar as citações a RNF-04 (segredos), RNF-05 (vulnerabilidades), RNF-09 (testes de integração) e RNF-11 (DTOs e códigos HTTP): esses requisitos foram removidos ou renumerados. Restaurá-los resolve também parte do alinhamento com o enunciado acima
+- [x] Atualizar a numeração dos requisitos citados
+- [x] Seção 5.6 do guia: incluir a aprovação e a rejeição do orçamento entre as rotas públicas e restringir a identificação a número da OS + CPF/CNPJ
+- [x] Guia e estrutura de pastas: usar o perfil `Gerente` e prever a resposta `403`
+- [x] Seção 5.4 do guia: regras atuais de estoque (reserva, pendência, baixa no início da execução e estorno)
+- [x] Seção 5.2 do guia: timestamps de abertura, início e fim da execução e histórico de status
+- [x] Seção 8 do guia: decisões tomadas e decisões em aberto, com os custos das opções
+- [x] Revisar as citações a RNFs removidos ou renumerados
 
 ### Repositório
 
-- [ ] Proteger a branch `main` no GitHub. O PR #1 seguiu o fluxo, mas os commits `3540bed` e `2f87c23` entraram direto na `main`; confirmar a proteção nas configurações do repositório
+- [ ] Proteger a branch `main` no GitHub (Settings → Branches): exigir PR com 1 aprovação e bloquear push forçado. O enunciado exige a proteção e o repositório precisa estar público
 - [x] Definir o padrão de branches e de mensagens de commit (guia de desenvolvimento, seção 7)
 - [ ] Criar `.gitignore` para Python (incluindo `.env`, `.venv/`, `__pycache__/` e relatórios de cobertura); a branch `docs/fechamento-fase-0` já traz um
 - [ ] Remover da `main` os dois arquivos `.pyc` commitados no health check (`src/presentation/__pycache__/` e `src/presentation/api/__pycache__/`), junto com a criação do `.gitignore`
@@ -146,16 +150,17 @@ A branch do PR #1 foi criada antes da revisão dos requisitos (commit `3540bed`)
 
 - [x] Reorganizar os arquivos de código em camadas (`domain`, `application`, `infrastructure`, `presentation`) (PR #1)
 - [x] Separar `tests/unit/` e `tests/integration/` e criar `docs/security/` (PR #1)
-- [ ] Unificar a estrutura de pastas: a seção 6 do modelo C4 e a seção 2 do guia descrevem estruturas diferentes. Como o guia proíbe criar pastas sem acordo do grupo, a decisão precisa sair antes da implementação de eventos, rate limiting e acesso ao banco
-- [ ] Atualizar as seções 1 e 4 do modelo C4, que ainda chamam a camada de entrada de `src/api/`
+- [x] Criar `presentation/routers/` e transformar `presentation/schemas.py` em pasta
+- [ ] **Pendente: decidir com o grupo** a unificação com a seção 6 do modelo C4. A decisão precisa sair antes da implementação de eventos, rate limiting e acesso ao banco
+- [x] Atualizar as seções 1 e 4 do modelo C4 para `src/presentation/`
 
 | Pasta | Modelo C4 (seção 6) | Código e guia |
 | :--- | :--- | :--- |
-| `presentation/controllers/` | Prevista (rotas por recurso) | Não existe |
+| `presentation/routers/` | Prevista | Criada |
+| `presentation/schemas/` | Prevista | Criada |
 | `presentation/middlewares/` | Prevista (JWT e rate limiting) | Autenticação em `presentation/auth/` |
-| `presentation/schemas/` | Pasta | Arquivo único `presentation/schemas.py` |
 | `application/events/` e `application/handlers/` | Previstas (Event Dispatcher e `BaixaEstoqueHandler`) | Não existem |
-| `domain/events/` | Prevista (`OrcamentoAprovadoEvent`) | Não existe |
+| `domain/events/` | Prevista (eventos de domínio) | Não existe |
 | `infrastructure/database/` | Prevista (engine e sessões do SQLAlchemy) | Não existe |
 
 ---
@@ -185,11 +190,11 @@ A branch do PR #1 foi criada antes da revisão dos requisitos (commit `3540bed`)
 
 ### Consistência entre Documentos
 
-- [ ] Padronizar os objetos de valor de documento: a linguagem ubíqua define `CPF` e `CNPJ` separados (exemplo `cpf.py`), o modelo C4 usa um único `CpfCnpj` e o guia e a estrutura de pastas citam `cpf_cnpj.py`
-- [ ] Incluir na linguagem ubíqua os termos presentes no modelo C4: `Usuario`, `PerfilUsuario`, `ItemServico`, `ItemPeca`, reserva de estoque e eventos de domínio
+- [ ] Padronizar os objetos de valor de documento: a linguagem ubíqua define `CPF` e `CNPJ` separados (exemplo `cpf.py`), o modelo C4 usa um único `CpfCnpj` e a estrutura de pastas cita `cpf_cnpj.py`
+- [ ] Incluir na linguagem ubíqua os termos ainda ausentes do modelo C4: `Usuario`, `PerfilUsuario`, `ItemServico`, `ItemPeca` e eventos de domínio
 - [ ] Usar o objeto de valor `Valor` (precisão decimal) nos preços do diagrama de classes, que hoje aparecem como `float`
-- [ ] Completar o diagrama de classes com `Servico`, `Peca`/`EstoquePeca`, `Orcamento` e o histórico de auditoria, e esclarecer se `Peca` e `EstoquePeca` são a mesma entidade
-- [ ] Listar todos os eventos de domínio; o modelo C4 cita apenas `OrcamentoAprovadoEvent` e `StatusOSAlteradoEvent`, mas o RF-16 também depende de eventos de rejeição e cancelamento para o estorno
+- [ ] Completar o diagrama de classes com `Servico` (tempo estimado), `Peca`/`EstoquePeca` (quantidade reservada e prazo de reposição), `Orcamento` e `HistoricoStatusOS`, e esclarecer se `Peca` e `EstoquePeca` são a mesma entidade
+- [ ] Listar todos os eventos de domínio; o modelo C4 cita `OrcamentoAprovadoEvent`, `ExecucaoIniciadaEvent` e `StatusOSAlteradoEvent`, mas reserva, estorno, reposição de estoque e liberação de OS também dependem de eventos
 
 ### Diagramas
 
@@ -222,8 +227,8 @@ Tarefas da fase:
 - [ ] Conferir o Swagger em `/docs`, exposto automaticamente pelo FastAPI, e documentar o acesso (RNF-13)
 - [ ] Tratamento padronizado de erros, traduzindo as exceções do domínio para códigos HTTP, incluindo `401` e `403` (RNF-03)
 - [ ] Event Dispatcher síncrono em memória (Modelo C4)
-- [ ] Estrutura para testes de integração com banco PostgreSQL de teste
-- [ ] (Recomendado) Pipeline de CI no GitHub Actions executando lint, testes e cobertura em cada Pull Request
+- [ ] Estrutura para testes de integração com banco PostgreSQL de teste (RNF-13)
+- [ ] (Opcional, se houver tempo) Pipeline de CI no GitHub Actions executando lint, testes e cobertura em cada Pull Request
 
 ---
 
@@ -240,25 +245,28 @@ Tarefas da fase:
 - [ ] CPF e CNPJ com validação dos dígitos verificadores (RF-05)
 - [ ] `Placa` nos padrões antigo (`ABC1234`) e Mercosul (`ABC1D23`) (RF-08)
 - [ ] `Valor` com precisão decimal
-- [ ] `StatusOS` e `PerfilUsuario`
+- [ ] `NumeroOS` no formato `DDD-XXXXXXXX` (RF-13)
+- [ ] `StatusOS`, `PerfilUsuario` e `OrigemTransicao`
 
 ### Entidades e Agregados
 
 - [ ] Exceções de regra de negócio em `src/domain/exceptions.py`
-- [ ] `Cliente`, `Veiculo`, `Usuario` e `Servico`
-- [ ] Agregado `OrdemServico` com `ItemServico` e `ItemPeca`, congelando os preços vigentes no cálculo do orçamento (RF-15, RNF-09)
-- [ ] Cálculo do orçamento como soma dos valores congelados (RF-15)
-- [ ] Máquina de estados com bloqueio de transições inválidas: `atribuir_mecanico`, `finalizar_orcamento`, `aprovar_orcamento`, `rejeitar_orcamento`, `concluir_manutencao`, `entregar_veiculo` e `forcar_cancelamento` (RF-13 a RF-20)
-- [ ] Registro dos timestamps de abertura, início da execução e finalização (RF-13, RF-17, RF-18)
-- [ ] Bloqueio de alteração de itens após `FINALIZADA` (RF-18)
-- [ ] Histórico de auditoria com motivo do cancelamento forçado (RF-20)
-- [ ] Agregado `EstoquePeca` com saldo físico, reserva temporária, baixa e estorno, sem permitir saldo negativo (RF-12, RF-16, RF-17)
+- [ ] `Cliente`, `Veiculo`, `Usuario`, `Servico` (com tempo estimado) e `Peca` (com prazo de reposição), com exclusão lógica (RF-06, RF-09, RF-11, RF-12)
+- [ ] Agregado `OrdemServico` com `ItemServico` e `ItemPeca`, congelando os preços vigentes na conclusão do orçamento (RF-17, RNF-11)
+- [ ] Cálculo do orçamento como soma dos valores congelados (RF-17)
+- [ ] Máquina de estados com os 9 status e bloqueio de transições inválidas: `atribuir_mecanico`, `finalizar_orcamento`, `aprovar_orcamento`, `rejeitar_orcamento`, `liberar_para_execucao`, `iniciar_execucao`, `concluir_manutencao`, `entregar_veiculo` e `cancelar` (linguagem ubíqua §5)
+- [ ] Registro dos timestamps de abertura, início da execução e finalização (RF-13, RF-20, RF-21)
+- [ ] Bloqueio de alteração de itens após `FINALIZADA` (RF-21)
+- [ ] Histórico de status com origem, usuário e motivo obrigatório no cancelamento (RF-24, RF-23)
+- [ ] Agregado `EstoquePeca` com quantidade física, reserva, pendência, baixa e estorno, sem permitir saldo negativo (RF-12, RF-18, RF-20)
+- [ ] Regra de prioridade pela OS mais antiga na reserva e na alocação de peças repostas (RF-18, RF-19)
+- [ ] Cálculo da estimativa de entrega por status (RF-25)
 - [ ] Eventos de domínio acumulados no agregado (`collect_domain_events`)
 - [ ] Interfaces (portas) dos repositórios
 
 ### Testes
 
-- [ ] Testes unitários dos objetos de valor, da máquina de estados, do cálculo do orçamento e das regras de estoque, usando repositórios em memória (RNF-10)
+- [ ] Testes unitários dos objetos de valor, da máquina de estados, do cálculo do orçamento, da estimativa de entrega e das regras de estoque, usando repositórios em memória (RNF-12)
 
 ---
 
@@ -271,14 +279,14 @@ Tarefas da fase:
 - [ ] Login com e-mail e senha, emitindo JWT com a claim `role` e expiração de 24 horas (RF-01)
 - [ ] Guard de RBAC retornando `401` sem token válido e `403` sem permissão (RF-02, RNF-03)
 - [ ] Gestão de usuários internos exclusiva do Gerente, com senhas em hash bcrypt (RF-03)
-- [ ] Carga inicial do Gerente na subida do container (RF-03)
+- [ ] Carga inicial do Gerente na subida do container, com `ADMIN_PASSWORD` obrigatória, e dos usuários de demonstração quando `SEED_DEMO=true` (RF-03)
 - [ ] Cadastro, atualização e listagem de clientes, com validação de CPF/CNPJ (RF-04, RF-05)
 - [ ] Exclusão lógica de clientes pelo Gerente (RF-06)
 - [ ] Cadastro, atualização e listagem de veículos vinculados ao cliente, com validação de placa (RF-07, RF-08)
 - [ ] Exclusão lógica de veículos por Atendente e Gerente (RF-09)
-- [ ] Listagem do catálogo de serviços (RF-10) e CRUD restrito ao Gerente (RF-11)
-- [ ] Gestão de peças e atualização de saldo de estoque com permissões por perfil (RF-12)
-- [ ] Testes de integração das rotas, cobrindo acesso sem token (`401`) e com perfil sem permissão (`403`)
+- [ ] Listagem do catálogo de serviços (RF-10) e CRUD restrito ao Gerente, com tempo estimado e exclusão lógica (RF-11)
+- [ ] Gestão de peças, com prazo de reposição, exclusão lógica e atualização de saldo com permissões por perfil (RF-12)
+- [ ] Testes de integração das rotas, cobrindo acesso sem token (`401`) e com perfil sem permissão (`403`) (RNF-13)
 
 ---
 
@@ -288,27 +296,31 @@ Tarefas da fase:
 
 ### Frente da Loja
 
-- [ ] Abertura da OS com status `RECEBIDA`, carregando cliente e veículo existentes ou cadastrando-os no mesmo fluxo (RF-13, RF-04, RF-07)
-- [ ] Atribuição do mecânico com transição para `EM_DIAGNOSTICO` (RF-14)
-- [ ] Inclusão de serviços e peças e cálculo do orçamento, com transição para `AGUARDANDO_APROVACAO` (RF-15)
-- [ ] Reserva temporária das peças ao entrar em `AGUARDANDO_APROVACAO` (RF-16)
-- [ ] Conclusão da manutenção com transição para `FINALIZADA` (RF-18)
-- [ ] Entrega do veículo com transição para `ENTREGUE`, restrita a Atendente e Gerente (RF-19)
-- [ ] Cancelamento forçado e alteração excepcional de status pelo Gerente, com motivo no histórico e estorno das peças (RF-20, RF-16)
+- [ ] Abertura da OS com status `RECEBIDA` e número `DDD-XXXXXXXX`, carregando cliente e veículo existentes ou cadastrando-os no mesmo fluxo (RF-13, RF-04, RF-07)
+- [ ] Atribuição do mecânico com transição para `EM_DIAGNOSTICO` (RF-16)
+- [ ] Inclusão de serviços e peças e conclusão do orçamento, com transição para `AGUARDANDO_APROVACAO` (RF-17)
+- [ ] Reserva das peças com registro de pendências e prioridade pela OS mais antiga (RF-18)
+- [ ] Alocação automática das peças repostas e liberação de OS de `AGUARDANDO_PECA` para `AGUARDANDO_EXECUCAO` (RF-19)
+- [ ] Início da execução pelo mecânico atribuído ou pelo Gerente, com baixa das peças (RF-20)
+- [ ] Conclusão da manutenção com transição para `FINALIZADA` (RF-21)
+- [ ] Entrega do veículo com transição para `ENTREGUE`, restrita a Atendente e Gerente (RF-22)
+- [ ] Cancelamento pelo Gerente, com motivo no histórico e estorno das reservas (RF-23, RF-18)
+- [ ] Registro de toda transição no histórico de status (RF-24)
 
 ### Frente do Cliente
 
-- [ ] Consulta pública por número da OS + CPF/CNPJ, sem expor dados pessoais sensíveis (RF-21, RNF-04)
-- [ ] Rate limiting nas rotas públicas (ex.: 10 requisições por minuto por IP) (RNF-05)
-- [ ] Aprovação do orçamento com transição para `EM_EXECUCAO` e baixa das peças via `OrcamentoAprovadoEvent` e `BaixaEstoqueHandler` (RF-22, RF-17)
-- [ ] Rejeição do orçamento com transição para `CANCELADA` e estorno automático das peças (RF-22, RF-16)
-- [ ] Garantir que a transição de status e a movimentação de estoque ocorram na mesma transação, inclusive quando disparadas por eventos (RNF-06)
+- [ ] Consulta pública por número da OS + CPF/CNPJ, com estimativa de entrega e sem expor dados pessoais sensíveis (RF-25, RNF-04)
+- [ ] Rate limiting com SlowAPI nas rotas públicas (10 requisições por minuto por IP) (RNF-05)
+- [ ] Aprovação do orçamento com transição para `AGUARDANDO_EXECUCAO` ou `AGUARDANDO_PECA` (RF-26)
+- [ ] Rejeição do orçamento com transição para `CANCELADA` e estorno automático das reservas (RF-26, RF-18)
+- [ ] Garantir que a transição de status e a movimentação de estoque ocorram na mesma transação, inclusive quando disparadas por eventos (RNF-08)
 
 ### Testes
 
-- [ ] Teste de integração do fluxo completo: abertura → diagnóstico → orçamento → aprovação → execução → finalização → entrega
-- [ ] Testes de integração dos fluxos de rejeição e de cancelamento forçado, verificando o estorno das peças
-- [ ] (Recomendado) Teste de concorrência com duas aprovações disputando a mesma peça (RNF-07)
+- [ ] Teste de integração do fluxo completo: abertura → diagnóstico → orçamento → aprovação → fila de execução → execução → finalização → entrega (RNF-13)
+- [ ] Teste de integração da aprovação com peça pendente e da liberação pela reposição de estoque, incluindo a prioridade entre duas OS (RNF-13)
+- [ ] Testes de integração dos fluxos de rejeição e de cancelamento, verificando o estorno das reservas (RNF-13)
+- [ ] (Recomendado) Teste de concorrência com duas reservas disputando a mesma peça (RNF-09)
 
 ---
 
@@ -316,10 +328,10 @@ Tarefas da fase:
 
 **Objetivo:** fornecer as visões administrativas sobre as Ordens de Serviço.
 
-- [ ] Listagem de OS com filtros (exigida pelo enunciado; ver alinhamento na Fase 0)
-- [ ] Detalhamento da OS com histórico, cliente, veículo, itens e valores (exigido pelo enunciado; ver alinhamento na Fase 0)
-- [ ] Relatório do tempo médio de execução, de `EM_EXECUCAO` até `FINALIZADA`, agrupado por período e por mecânico e restrito ao Gerente (RF-23)
-- [ ] Testes de integração das rotas
+- [ ] Listagem de OS com filtros por status, mecânico, CPF/CNPJ ou placa e período de abertura (RF-14)
+- [ ] Detalhamento da OS com histórico, cliente, veículo, itens, pendências, valores e estimativa de entrega (RF-15)
+- [ ] Relatório de tempos médios restrito ao Gerente: execução por período e por mecânico, espera por peça e tempo total da OS (RF-27)
+- [ ] Testes de integração das rotas (RNF-13)
 
 ---
 
@@ -327,14 +339,14 @@ Tarefas da fase:
 
 **Objetivo:** consolidar as evidências de qualidade e segurança exigidas na entrega.
 
-- [ ] Cobertura ≥ 80% nos módulos de domínio e aplicação, medida com `pytest-cov` (RNF-11)
+- [ ] Cobertura ≥ 80% nos módulos de domínio e aplicação, medida com `pytest-cov` (RNF-14)
 - [ ] Evidência da cobertura salva (relatório ou captura de tela) para uso no README e no vídeo
-- [ ] Varredura de vulnerabilidades de dependências, código e imagem Docker, com correção do que for encontrado
-- [ ] Relatório da análise de vulnerabilidades salvo em `docs/security/`
+- [ ] Análise de vulnerabilidades de dependências, código e imagem Docker, com correção do que for encontrado (RNF-07)
+- [ ] Relatório da análise de vulnerabilidades salvo em `docs/security/` (RNF-07)
 - [ ] Revisão das proteções contra SQL Injection, IDOR e XSS (RNF-04) e do rate limiting (RNF-05)
-- [ ] Medição do tempo de resposta (p95 < 500 ms) com evidência registrada (RNF-08)
-- [ ] Revisão do repositório: nenhum segredo, senha ou token no código ou no histórico do git
-- [ ] Revisão do Swagger: schemas de entrada e saída, códigos HTTP e autenticação Bearer (RNF-13)
+- [ ] Medição do tempo de resposta (p95 < 500 ms) com evidência registrada (RNF-10)
+- [ ] Revisão do repositório: nenhum segredo, senha ou token no código ou no histórico do git (RNF-06)
+- [ ] Revisão do Swagger: schemas de entrada e saída, códigos HTTP e autenticação Bearer (RNF-16)
 
 ---
 
@@ -349,11 +361,11 @@ Tarefas da fase:
 - [ ] Arquitetura utilizada (pode referenciar o [modelo C4](docs/ddd/c4-model.md))
 - [ ] Tecnologias utilizadas
 - [ ] Pré-requisitos
-- [ ] Instruções para execução
+- [ ] Instruções para execução, incluindo a cópia do `.env.example` para `.env` e o preenchimento das variáveis obrigatórias
 - [ ] Instruções para execução dos testes
 - [ ] Instruções de acesso ao Swagger (`/docs`)
-- [ ] Decisão e justificativa do banco de dados (pode reaproveitar o RNF-07)
-- [ ] Usuários de demonstração e procedimento de autenticação
+- [ ] Decisão e justificativa do banco de dados (pode reaproveitar o RNF-09)
+- [ ] Usuários de demonstração (`SEED_DEMO=true`) e procedimento de autenticação
 - [ ] Estrutura dos principais diretórios (pode reaproveitar o guia de desenvolvimento)
 - [ ] Link para a documentação DDD
 - [ ] Link para o vídeo da entrega

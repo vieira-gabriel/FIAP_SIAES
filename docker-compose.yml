@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: fiap_siaes_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    # Configuração do Health Check do Docker
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s       # Tempo entre cada checagem
+      timeout: 10s        # Tempo limite para a resposta
+      retries: 3          # Quantidade de falhas antes de marcar como "unhealthy"
+      start_period: 10s   # Tempo de espera inicial antes da primeira checagem

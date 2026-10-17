@@ -1,20 +1,26 @@
-FROM python:3.11-slim
+FROM python:3.12-slim AS builder
 
-# Define o diretório de trabalho dentro do container
+COPY --from=ghcr.io/astral-sh/uv:0.8.22 /uv /uvx /bin/
+
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
 WORKDIR /app
 
-# Instala o curl (necessário para o healthcheck nativo do Docker)
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
 
-# Copia o arquivo de dependências e instala
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+FROM python:3.12-slim
 
-# Copia todo o código do projeto para o container
-COPY . .
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app/src" \
+    PYTHONUNBUFFERED=1
 
-# Expõe a porta que o FastAPI vai utilizar
+WORKDIR /app
+
+COPY --from=builder /app/.venv /app/.venv
+COPY src ./src
+
 EXPOSE 8000
 
-# Comando para iniciar a aplicação mapeando do diretório src
-CMD ["uvicorn", "src.presentation.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "presentation.main:app", "--host", "0.0.0.0", "--port", "8000"]

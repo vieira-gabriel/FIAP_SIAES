@@ -56,29 +56,25 @@ A continuação do fluxo depois de "OS aprovada", incluindo a liberação da OS 
 
 ### 3. Ciclo de Vida da OS Aprovada
 
-Ciclo de vida da OS desde a aprovação do orçamento até a finalização (RF-19 a RF-21, RF-23, RF-24). A área começa no evento "OS aprovada", o mesmo das áreas "Acompanhar OS" e "Criação de ordem de serviço", e marca os dois agregados alterados: `OrdemServico` e `EstoquePeca`. Os eventos "Saldo da peça atualizado" e "OS cancelada" são os mesmos das áreas "Peças" e "Ordens de Serviço" (seções 4.3 e 4.6). Cada linha segue a ordem do fluxo no board.
+Ciclo de vida da OS desde a aprovação do orçamento até a finalização ou o cancelamento (RF-19 a RF-21, RF-23). O board marca os dois agregados da área: "Ordem de Serviço" (`OrdemServico`) e "Estoque de peças" (`EstoquePeca`). O comando "Aprova / reprova OS" e os comandos "Atualizar saldo da peça" e "Cancelar OS" são os mesmos das áreas "Criação de ordem de serviço", "Peças" e "Ordens de Serviço" (seções 2, 4.3 e 4.6). Cada linha segue a ordem do fluxo no board; como na seção 2, as mudanças de status aparecem como políticas.
 
-| Ator | Comando | Política | Agregado | Evento | Requisito |
+| Ator | Comando | Agregado | Evento | Políticas disparadas pelo evento | Requisito |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| — | — | — | `OrdemServico` | OS aprovada | RF-26 |
-| — | — | Confere se há peça pendente | `OrdemServico` | Status OS "Aguardando peça" (`AGUARDANDO_PECA`) ou Status OS "Aguardando execução" (`AGUARDANDO_EXECUCAO`) | RF-26 |
-| Gerente, Mecânico | Atualizar saldo da peça | Validar se é Gerente ou Mecânico | `EstoquePeca` | Saldo da peça atualizado | RF-12 |
-| — (modelo de leitura "OS com pendência da peça por data de abertura") | — | Aloca o saldo às OS com pendência da peça, da OS mais antiga para a mais nova (Aguardando aprovação ou Aguardando peça) | `EstoquePeca` | Pendência convertida em reserva | RF-18, RF-19 |
-| — | — | Confere se a OS em "Aguardando peça" ainda tem pendências | `OrdemServico` | Status OS "Aguardando execução" (`AGUARDANDO_EXECUCAO`), apenas quando não resta pendência; caso contrário, a OS continua em "Aguardando peça" | RF-19 |
-| Mecânico atribuído, Gerente | Iniciar execução | Validar se é o mecânico atribuído ou Gerente | `OrdemServico` | Execução iniciada: Status OS "Em execução" (`EM_EXECUCAO`), com gravação da data de início | RF-20 |
-| — | — | Dar baixa nas peças reservadas | `EstoquePeca` | Peças baixadas | RF-20 |
-| Mecânico, Gerente | Concluir manutenção | Validar se é Mecânico ou Gerente | `OrdemServico` | Manutenção concluída: Status OS "Finalizada" (`FINALIZADA`), com gravação da data de finalização e bloqueio dos itens | RF-21 |
-| — | — | Registra a transição no histórico | `OrdemServico` | Transição registrada no histórico | RF-24 |
-| Gerente | Cancelar OS (com motivo) | Validar se é Gerente | `OrdemServico` | OS cancelada | RF-23 |
-| — | — | Estorna as reservas; peças já baixadas não voltam ao estoque | `EstoquePeca` | Reservas estornadas | RF-18 |
+| Cliente | Aprova / reprova OS | `OrdemServico` | OS aprovada | Confere se há peça pendente → Status OS "Aguardando peça" (`AGUARDANDO_PECA`) ou Status OS "Aguardando execução" (`AGUARDANDO_EXECUCAO`) | RF-26 |
+| Mecânico, Gerente | Atualizar saldo da peça | `EstoquePeca` | Saldo da peça atualizado | Conferir se há OS com pendência da peça atualizada (lê o modelo de leitura "OS com pendência da peça por data de abertura") → Aloca peça pendente nas OS mais antigas → Status OS "Aguardando execução" (`AGUARDANDO_EXECUCAO`) | RF-12, RF-18, RF-19 |
+| Mecânico, Gerente | Inicia execução | `OrdemServico` | Serviço iniciado | Atribui mecânico à OS → evento "Mecânico atribuído"; Status OS "Em execução" (`EM_EXECUCAO`); Grava data e hora de início; Dar baixa nas peças | RF-20 |
+| — (política "Dar baixa nas peças") | — | `EstoquePeca` | Baixa de peças utilizadas | — | RF-20 |
+| Mecânico, Gerente | Concluir manutenção | `OrdemServico` | OS concluída | Status OS "Finalizada" (`FINALIZADA`) | RF-21 |
+| Gerente | Cancelar OS | `OrdemServico` | OS cancelada | Status OS "Cancelada" (`CANCELADA`) | RF-23 |
+| — (política Status OS "Cancelada") | — | `EstoquePeca` | Estorno de peças | — | RF-18, RF-23 |
 
 Ligações entre os post-its:
 
-* "OS aprovada" dispara "Confere se há peça pendente", que leva a "Aguardando peça" ou a "Aguardando execução".
-* No ramo "Aguardando peça", a OS espera o comando "Atualizar saldo da peça". O evento "Saldo da peça atualizado" dispara a alocação, que lê o modelo de leitura das OS pendentes; cada "Pendência convertida em reserva" dispara a conferência das pendências restantes, que libera a OS para "Aguardando execução" (RF-19).
-* A partir de "Aguardando execução", o comando "Iniciar execução" gera "Execução iniciada", que dispara a baixa das peças reservadas na mesma transação (RF-20). O comando "Concluir manutenção" gera "Manutenção concluída", fim da área.
-* Todo evento de mudança de status ("Aguardando peça", "Aguardando execução", "Execução iniciada", "Manutenção concluída" e "OS cancelada") dispara "Registra a transição no histórico" (RF-24).
-* O comando "Cancelar OS" pode partir de "Aguardando peça", "Aguardando execução" ou "Execução iniciada" (RF-23); "OS cancelada" dispara o estorno das reservas (RF-18).
+* A política Status OS "Aguardando peça" e a política "Conferir se há OS com pendência da peça atualizada" estão ligadas: a OS em "Aguardando peça" espera o evento "Saldo da peça atualizado".
+* A política Status OS "Aguardando execução" leva ao comando "Inicia execução".
+* O evento "Serviço iniciado" leva ao comando "Concluir manutenção".
+* O board não indica a condição de liberação do RF-19: a OS só passa para "Aguardando execução" quando não lhe resta nenhuma peça pendente.
+* O board não indica de quais status parte o cancelamento; o RF-23 permite cancelar de `RECEBIDA` até `EM_EXECUCAO`. As peças já baixadas no início da execução não voltam ao estoque (RF-18).
 
 ### 4. Gestão Administrativa
 
@@ -165,13 +161,11 @@ Os nomes do board diferem dos termos da Linguagem Ubíqua em alguns pontos. No c
 | Orçamento reprovado; Aprova / reprova OS → OS reprovada | `rejeitar_orcamento` | Linguagem Ubíqua §5, RF-26 |
 | Estorno de peças | Estorno (das quantidades reservadas) | Linguagem Ubíqua §1, RF-18 |
 | Confere se há OS com pendência da peça atualizada | `liberar_para_execucao` | Linguagem Ubíqua §5, RF-19 |
-| Aloca o saldo às OS com pendência da peça / Pendência convertida em reserva | Peça Pendente (alocação na reposição do estoque) | Linguagem Ubíqua §1, RF-19 |
-| Confere se a OS em "Aguardando peça" ainda tem pendências | `liberar_para_execucao` | Linguagem Ubíqua §5, RF-19 |
-| Iniciar execução / Execução iniciada | `iniciar_execucao` | Linguagem Ubíqua §5, RF-20 |
-| Dar baixa nas peças reservadas / Peças baixadas | Baixa | Linguagem Ubíqua §1, RF-20 |
-| Concluir manutenção / Manutenção concluída | `concluir_manutencao` | Linguagem Ubíqua §5, RF-21 |
-| Registra a transição no histórico | Histórico de Status | RF-24 |
-| Estorna as reservas / Reservas estornadas | Estorno (das quantidades reservadas) | Linguagem Ubíqua §1, RF-18 |
+| Aloca peça pendente nas OS mais antigas | Peça Pendente (alocação na reposição do estoque) | Linguagem Ubíqua §1, RF-19 |
+| Inicia execução / Serviço iniciado | `iniciar_execucao` | Linguagem Ubíqua §5, RF-20 |
+| Dar baixa nas peças / Baixa de peças utilizadas | Baixa | Linguagem Ubíqua §1, RF-20 |
+| Concluir manutenção / OS concluída | `concluir_manutencao` | Linguagem Ubíqua §5, RF-21 |
+| Estorno de peças (após "OS cancelada") | Estorno (das quantidades reservadas) | Linguagem Ubíqua §1, RF-18 |
 | Cancelar OS / OS cancelada | `cancelar(motivo)` | Linguagem Ubíqua §5, RF-23 |
 | Remover serviço, peça, cliente ou veículo | Exclusão lógica | RF-06, RF-09, RF-11, RF-12 |
 | Peça | Peça / Insumo | Linguagem Ubíqua §1 |
@@ -182,9 +176,11 @@ Os nomes do board diferem dos termos da Linguagem Ubíqua em alguns pontos. No c
 | Ponto | Board | Requisitos | Tratamento |
 | :--- | :--- | :--- | :--- |
 | Exclusão lógica | Os eventos "removido" não indicam o tipo de exclusão | RF-06, RF-09, RF-11 e RF-12 definem exclusão lógica | Decisão do grupo: o tipo de exclusão fica registrado só nos requisitos, e o board permanece como está |
-| Etapas sem evento próprio | A entrega do veículo fica no comando genérico "Atualizar status da OS"; relatório e gestão de usuários não aparecem. Início da execução, conclusão e histórico de status estão na área "Ciclo de vida da OS aprovada" (seção 3) | RF-22, RF-27 e RF-03 | Os requisitos e a máquina de estados da Linguagem Ubíqua (§5) prevalecem |
+| Etapas sem evento próprio | A entrega do veículo fica no comando genérico "Atualizar status da OS"; relatório e gestão de usuários não aparecem. Início da execução e conclusão estão na área "Ciclo de vida da OS aprovada" (seção 3) | RF-22, RF-27 e RF-03 | Os requisitos e a máquina de estados da Linguagem Ubíqua (§5) prevalecem |
 | "Atualizar dados da OS" | Permitido a Gerente e Atendente | Nenhum RF define a atualização dos dados da OS; a Linguagem Ubíqua (§3) dá também ao Mecânico a permissão de atualizar OS | Pendente de decisão do grupo |
 | Identificação do cliente | O comando "Entra com credenciais" sugere login | RF-25 e RF-26 dispensam login e exigem número da OS com CPF/CNPJ | Os requisitos prevalecem |
+| Histórico de status | Nenhuma área representa o registro das transições no histórico; cada mudança de status aparece como política separada | RF-24 exige um registro imutável de cada transição | Decisão do grupo: o board mantém as atualizações de status separadas, sem política de histórico; o RF-24 prevalece no código |
+| Atribuição do mecânico no início da execução | O evento "Serviço iniciado" dispara a política "Atribui mecânico à OS", que gera "Mecânico atribuído" | RF-16 atribui o mecânico no início do diagnóstico, e RF-20 permite iniciar a execução apenas ao mecânico atribuído ou ao Gerente | Os requisitos prevalecem |
 | Gerente na abertura e no diagnóstico | "Abrir OS" tem só o Atendente e "Inicia diagnóstico" tem só o Mecânico | RF-13 e RF-16 incluem o Gerente | Os requisitos prevalecem |
 | Agregado de estoque | O agregado `EstoquePeca` aparece só na área "Ciclo de vida da OS aprovada"; nas áreas "Criação de ordem de serviço" e "Peças", a reserva e a atualização de saldo não indicam o agregado | A Linguagem Ubíqua (§1) define o agregado `EstoquePeca` | A Linguagem Ubíqua prevalece |
 | "Atualizar status da OS" | Comando sem política de permissão | RF-16 a RF-22 definem quem faz cada transição; não há alteração arbitrária de status (RF-23) | A máquina de estados da Linguagem Ubíqua (§5) prevalece |

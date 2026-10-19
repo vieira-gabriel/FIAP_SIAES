@@ -52,9 +52,9 @@ O board marca apenas o agregado `OrdemServico` nesta área. A política "Reserva
 | Cliente | Aprova / reprova OS | OS aprovada | Confere se há peça pendente → Status OS "Aguardando execução" (`AGUARDANDO_EXECUCAO`) ou Status OS "Aguardando peça" (`AGUARDANDO_PECA`) | RF-26 |
 | Cliente | Aprova / reprova OS | OS reprovada | Estorno de peças; Status OS "Cancelada" (`CANCELADA`) | RF-18, RF-26 |
 
-A continuação do fluxo depois de "OS aprovada", incluindo a liberação da OS em "Aguardando peça" pela reposição do estoque, está na área "Execução da OS" (seção 3).
+A continuação do fluxo depois de "OS aprovada", incluindo a liberação da OS em "Aguardando peça" pela reposição do estoque, está na área "Ciclo de vida da OS aprovada" (seção 3).
 
-### 3. Execução da Ordem de Serviço
+### 3. Ciclo de Vida da OS Aprovada
 
 Ciclo de vida da OS desde a aprovação do orçamento até a finalização (RF-19 a RF-21, RF-23, RF-24). A área começa no evento "OS aprovada", o mesmo das áreas "Acompanhar OS" e "Criação de ordem de serviço", e marca os dois agregados alterados: `OrdemServico` e `EstoquePeca`. Os eventos "Saldo da peça atualizado" e "OS cancelada" são os mesmos das áreas "Peças" e "Ordens de Serviço" (seções 4.3 e 4.6). Cada linha segue a ordem do fluxo no board.
 
@@ -146,7 +146,7 @@ Comando de entrada: Seleciona opção "OSs" → evento "Lista OSs" (RF-14).
 | Gerente | Cancelar OS | Validar se é Gerente | OS cancelada | RF-23 |
 | Gerente, Atendente, Mecânico | Procurar OS | — | Exibe resultado da busca | RF-14, RF-15 |
 
-O evento "OS cancelada" dispara a política de estorno das reservas (RF-18, RF-23), detalhada na área "Execução da OS" (seção 3).
+O evento "OS cancelada" dispara a política de estorno das reservas (RF-18, RF-23), detalhada na área "Ciclo de vida da OS aprovada" (seção 3).
 
 O cancelamento pelo Gerente substitui o comando "Remover OS" das versões anteriores do board: não há remoção de OS.
 
@@ -182,9 +182,9 @@ Os nomes do board diferem dos termos da Linguagem Ubíqua em alguns pontos. No c
 | Ponto | Board | Requisitos | Tratamento |
 | :--- | :--- | :--- | :--- |
 | Exclusão lógica | Os eventos "removido" não indicam o tipo de exclusão | RF-06, RF-09, RF-11 e RF-12 definem exclusão lógica | Decisão do grupo: o tipo de exclusão fica registrado só nos requisitos, e o board permanece como está |
-| Etapas sem evento próprio | A entrega do veículo fica no comando genérico "Atualizar status da OS"; relatório e gestão de usuários não aparecem. Início da execução, conclusão e histórico de status estão na área "Execução da OS" (seção 3) | RF-22, RF-27 e RF-03 | Os requisitos e a máquina de estados da Linguagem Ubíqua (§5) prevalecem |
+| Etapas sem evento próprio | A entrega do veículo fica no comando genérico "Atualizar status da OS"; relatório e gestão de usuários não aparecem. Início da execução, conclusão e histórico de status estão na área "Ciclo de vida da OS aprovada" (seção 3) | RF-22, RF-27 e RF-03 | Os requisitos e a máquina de estados da Linguagem Ubíqua (§5) prevalecem |
 | "Atualizar dados da OS" | Permitido a Gerente e Atendente | Nenhum RF define a atualização dos dados da OS; a Linguagem Ubíqua (§3) dá também ao Mecânico a permissão de atualizar OS | Pendente de decisão do grupo |
 | Identificação do cliente | O comando "Entra com credenciais" sugere login | RF-25 e RF-26 dispensam login e exigem número da OS com CPF/CNPJ | Os requisitos prevalecem |
 | Gerente na abertura e no diagnóstico | "Abrir OS" tem só o Atendente e "Inicia diagnóstico" tem só o Mecânico | RF-13 e RF-16 incluem o Gerente | Os requisitos prevalecem |
-| Agregado de estoque | O agregado `EstoquePeca` aparece só na área "Execução da OS"; nas áreas "Criação de ordem de serviço" e "Peças", a reserva e a atualização de saldo não indicam o agregado | A Linguagem Ubíqua (§1) define o agregado `EstoquePeca` | A Linguagem Ubíqua prevalece |
+| Agregado de estoque | O agregado `EstoquePeca` aparece só na área "Ciclo de vida da OS aprovada"; nas áreas "Criação de ordem de serviço" e "Peças", a reserva e a atualização de saldo não indicam o agregado | A Linguagem Ubíqua (§1) define o agregado `EstoquePeca` | A Linguagem Ubíqua prevalece |
 | "Atualizar status da OS" | Comando sem política de permissão | RF-16 a RF-22 definem quem faz cada transição; não há alteração arbitrária de status (RF-23) | A máquina de estados da Linguagem Ubíqua (§5) prevalece |

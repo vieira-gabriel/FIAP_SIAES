@@ -22,6 +22,7 @@ Este documento estabelece a **Linguagem Ubíqua** do sistema de gestão da ofici
 | **Estorno** | Devolução das quantidades reservadas ao saldo disponível quando o orçamento é rejeitado ou a OS é cancelada. Peças já baixadas não são estornadas. | Método de `EstoquePeca` |
 | **Histórico de Status** | Registro imutável de cada transição de status da OS, com status anterior, novo status, data/hora, origem, usuário e motivo. | `domain.entities.HistoricoStatusOS` |
 | **Estimativa de Entrega** | Data prevista de conclusão exibida ao cliente, calculada pela soma dos tempos estimados dos serviços e pelo prazo de reposição das peças pendentes. | Método de `OrdemServico` |
+| **Usuário** | Funcionário interno da oficina com acesso autenticado ao sistema (Atendente, Mecânico ou Gerente). Guarda apenas o hash da senha e pode ser desativado pelo Gerente; usuário desativado não faz login. O cliente não é um usuário. | `domain.entities.Usuario` |
 
 ---
 
@@ -36,6 +37,7 @@ Este documento estabelece a **Linguagem Ubíqua** do sistema de gestão da ofici
 | **NumeroOS** | Número da OS no formato `DDD-XXXXXXXX` (3 dígitos do documento e 8 caracteres hexadecimais maiúsculos). Imutável. | `domain.value_objects.NumeroOS` |
 | **StatusOS** | Enumeração dos estados válidos do ciclo de vida da Ordem de Serviço. | `domain.value_objects.StatusOS` |
 | **OrigemTransicao** | Enumeração de quem provocou uma transição de status: `USUARIO`, `CLIENTE` ou `SISTEMA`. | `domain.value_objects.OrigemTransicao` |
+| **PerfilUsuario** | Enumeração dos perfis de acesso dos usuários internos: `ATENDENTE`, `MECANICO` ou `GERENTE`. É o valor da claim `role` do token JWT. | `domain.value_objects.PerfilUsuario` |
 
 ---
 

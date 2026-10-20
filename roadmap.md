@@ -86,7 +86,7 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 | Rate limiting | SlowAPI com contador em memória | RNF-05 |
 | Rotas e DTOs | `presentation/routers/` e `presentation/schemas/`, um arquivo por recurso | Guia §3 e §8.1 |
 | CI | Opcional, somente se houver tempo | Guia §8.1 |
-| Modo do SQLAlchemy (síncrono ou assíncrono) | **Pendente: decidir com o grupo** | Guia §8.2 |
+| Modo do SQLAlchemy | Assíncrono com asyncpg e pytest-asyncio (issue #3) | Guia §8.1 |
 | Migrations | **Pendente: decidir com o grupo** (Alembic, `create_all` ou scripts SQL) | Guia §8.2 |
 | Análise de vulnerabilidades | **Pendente: confirmar com o grupo** (proposta: pip-audit, Bandit, Trivy e Dependabot) | RNF-07, guia §8.2 |
 | Teste de desempenho | **Pendente: decidir** (Locust, k6 ou script próprio) | RNF-10, guia §8.2 |

@@ -1,0 +1,15 @@
+from enum import StrEnum
+
+
+class StatusOS(StrEnum):
+    """Status do ciclo de vida da Ordem de Serviço (Linguagem Ubíqua §5)."""
+
+    RECEBIDA = "RECEBIDA"
+    EM_DIAGNOSTICO = "EM_DIAGNOSTICO"
+    AGUARDANDO_APROVACAO = "AGUARDANDO_APROVACAO"
+    AGUARDANDO_PECA = "AGUARDANDO_PECA"
+    AGUARDANDO_EXECUCAO = "AGUARDANDO_EXECUCAO"
+    EM_EXECUCAO = "EM_EXECUCAO"
+    FINALIZADA = "FINALIZADA"
+    ENTREGUE = "ENTREGUE"
+    CANCELADA = "CANCELADA"

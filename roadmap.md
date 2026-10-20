@@ -189,7 +189,7 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 
 ### Consistência entre Documentos
 
-- [ ] Padronizar os objetos de valor de documento: a linguagem ubíqua define `CPF` e `CNPJ` separados (exemplo `cpf.py`), o modelo C4 usa um único `CpfCnpj` e a estrutura de pastas cita `cpf_cnpj.py`
+- [x] Padronizar os objetos de valor de documento: `CPF` e `CNPJ` em classes separadas (`cpf.py` e `cnpj.py`), como na linguagem ubíqua; modelo C4 e estrutura de pastas atualizados (issue #14)
 - [ ] Incluir na linguagem ubíqua os termos ainda ausentes do modelo C4: `Usuario`, `PerfilUsuario`, `ItemServico`, `ItemPeca` e eventos de domínio
 - [ ] Usar o objeto de valor `Valor` (precisão decimal) nos preços do diagrama de classes, que hoje aparecem como `float`
 - [ ] Completar o diagrama de classes com `Servico` (tempo estimado), `Peca`/`EstoquePeca` (quantidade reservada e prazo de reposição), `Orcamento` e `HistoricoStatusOS`, e esclarecer se `Peca` e `EstoquePeca` são a mesma entidade

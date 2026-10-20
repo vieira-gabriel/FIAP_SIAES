@@ -119,7 +119,7 @@ Toda transição gera um registro no Histórico de Status (RF-24).
 | Conceito da Documentação DDD | Elemento Arquitetural no Código Python | Exemplo no Repositório |
 | :--- | :--- | :--- |
 | **Entidade / Raiz de Agregado** | Classe de Domínio (`dataclass` pura) | `src/domain/entities/ordem_servico.py` |
-| **Objeto de Valor (VO)** | Class / Dataclass Imutável | `src/domain/value_objects/cpf.py` |
+| **Objeto de Valor (VO)** | Class / Dataclass Imutável | `src/domain/value_objects/cpf.py` e `src/domain/value_objects/cnpj.py` |
 | **Caso de Uso (Command Handler)** | Application Service | `src/application/use_cases/aprovar_orcamento.py` |
 | **Porta de Repositório** | Interface Abstrata (`ABC`) | `src/domain/repositories/ordem_servico_repository.py` |
 | **Adaptador de Infraestrutura** | Implementação ORM / SQL (`PostgreSQL`) | `src/infrastructure/repositories/postgres_ordem_servico_repository.py` |

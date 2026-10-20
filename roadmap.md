@@ -175,13 +175,13 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 - [x] Reexportar [event-storming.pdf](docs/ddd/event-storming.pdf) com o texto dos post-its legível com zoom de 100%
 - [x] Garantir acesso público ao board (Miro ou equivalente), sem necessidade de pedir permissão, e registrar o link no repositório ([docs/ddd/event-storming.md](docs/ddd/event-storming.md))
 - [x] Transcrever em texto os eventos de domínio, comandos, políticas e atores levantados, para referência no código e na linguagem ubíqua ([docs/ddd/event-storming.md](docs/ddd/event-storming.md))
-- [ ] Completar o board com o estorno no cancelamento, a aprovação do orçamento em uma única área e um título que identifique o projeto (seção 5 de [docs/ddd/event-storming.md](docs/ddd/event-storming.md))
+- [x] Completar o board com o estorno no cancelamento, a aprovação do orçamento em uma única área e um título que identifique o projeto (seção 6 de [docs/ddd/event-storming.md](docs/ddd/event-storming.md)); a aprovação em uma única área e o título foram descartados pelo grupo (motivo nos comentários da issue #49)
 
-**Lacunas do quadro atual do Event Storming** (levantadas em 15/10/2026 com base nas imagens exportadas do Miro; a seção 5 de [docs/ddd/event-storming.md](docs/ddd/event-storming.md) registra como cada divergência é tratada):
+**Lacunas do quadro atual do Event Storming** (levantadas em 15/10/2026 com base nas imagens exportadas do Miro; a seção 6 de [docs/ddd/event-storming.md](docs/ddd/event-storming.md) registra como cada divergência é tratada):
 
-- [ ] Modelar as etapas finais da OS, hoje reduzidas ao comando genérico "Atualizar status da OS": execução iniciada, manutenção concluída (mecânico) e veículo entregue (atendente), com os timestamps usados no tempo médio de execução
-- [ ] Modelar a baixa do estoque no início da execução e o estorno no cancelamento; a reserva após o orçamento gerado e o estorno na reprovação já constam no board
-- [x] Gestão de peças e insumos: o board separa cadastro, atualização de dados e atualização de saldo da peça e liga o saldo atualizado à liberação das OS com peça pendente; o algoritmo de alocação do RF-19 será detalhado em `docs/ddd/diagramas.pdf`
+- [ ] Modelar as etapas finais da OS, hoje reduzidas ao comando genérico "Atualizar status da OS": execução iniciada, manutenção concluída (mecânico) e veículo entregue (atendente), com os timestamps usados no tempo médio de execução. Execução iniciada e manutenção concluída entram na área "Ciclo de vida da OS aprovada" (issue #19); falta o veículo entregue
+- [ ] Modelar a baixa do estoque no início da execução e o estorno no cancelamento; a reserva após o orçamento gerado e o estorno na reprovação já constam no board. O estorno no cancelamento entrou com a issue #49, e a baixa entra na área "Ciclo de vida da OS aprovada" (issue #19)
+- [x] Gestão de peças e insumos: o board separa cadastro, atualização de dados e atualização de saldo da peça e liga o saldo atualizado à liberação das OS com peça pendente; o algoritmo de alocação do RF-19 é representado no board, na área "Ciclo de vida da OS aprovada"
 - [ ] Incluir os fluxos que os requisitos citam e o quadro não mostra: gestão de usuários internos pelo Gerente e relatório de tempo médio de execução
 - [ ] Incluir os caminhos de erro: credenciais inválidas na consulta pública, estoque insuficiente e transição de status inválida
 - [ ] Representar os demais elementos de DDD exigidos pelo enunciado: o agregado `EstoquePeca` (hoje só aparece `Ordem de Serviço`), entidades, objetos de valor e bounded contexts
@@ -199,8 +199,9 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 
 - [x] Modelo C4 nos níveis de contexto, contêineres, componentes e código
 - [x] Bounded contexts e máquina de estados descritos na linguagem ubíqua
-- [ ] Conferir no material da disciplina de DDD quais diagramas são obrigatórios e produzir os que faltarem
-- [ ] Exportar os diagramas para `docs/ddd/diagramas.pdf`, estrutura sugerida pelo enunciado
+- [x] Conferir no material da disciplina de DDD quais diagramas são obrigatórios e produzir os que faltarem: os professores confirmaram que são o Event Storming ([docs/ddd/event-storming.md](docs/ddd/event-storming.md)) e o modelo C4 ([docs/ddd/c4-model.md](docs/ddd/c4-model.md)), e nenhum faltava
+- [ ] ~~Exportar os diagramas para `docs/ddd/diagramas.pdf`, estrutura sugerida pelo enunciado~~ **Descartado**: os diagramas exigidos são só o Event Storming e o C4, que já têm documento próprio (motivo nos comentários da issue #19)
+- [ ] Completar o Event Storming com o ciclo de vida da OS da aprovação até a finalização (área "Ciclo de vida da OS aprovada", issue #19)
 
 ---
 

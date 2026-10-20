@@ -19,7 +19,7 @@ from domain.repositories.usuario_repository import UsuarioRepository
 from domain.value_objects.perfil_usuario import PerfilUsuario
 from infrastructure.security.bcrypt_password_hasher import BcryptPasswordHasher
 from infrastructure.security.jwt_token_service import JwtTokenService
-from presentation.auth.dependencies import exigir_perfis, obter_usuario_autenticado
+from presentation.middlewares.dependencies import exigir_perfis, obter_usuario_autenticado
 from presentation.routers.autenticacao import router as autenticacao_router
 
 CHAVE = "chave-de-teste-com-pelo-menos-32-bytes!!"

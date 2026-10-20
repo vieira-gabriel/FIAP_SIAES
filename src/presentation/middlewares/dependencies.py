@@ -9,8 +9,8 @@ ou, quando a rota precisa do usuário logado:
     def rota(usuario: Annotated[UsuarioAutenticado, Depends(obter_usuario_autenticado)]): ...
 
 A implementação de `TokenService` e o caso de uso `AutenticarUsuario` são registrados em
-`app.state.token_service` e `app.state.autenticar_usuario` no ponto de montagem da aplicação;
-assim esta camada não importa a infraestrutura (guia, seção 2.1).
+`app.state.token_service` e `app.state.autenticar_usuario` no ponto de montagem da aplicação
+(`presentation/container.py`); assim este módulo não importa a infraestrutura (guia, seção 2.1).
 """
 
 from collections.abc import Callable

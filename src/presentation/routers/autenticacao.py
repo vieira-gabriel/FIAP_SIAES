@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from application.use_cases.autenticar_usuario import AutenticarUsuario
 from domain.exceptions import CredenciaisInvalidas
-from presentation.auth.dependencies import obter_autenticar_usuario
+from presentation.middlewares.dependencies import obter_autenticar_usuario
 from presentation.schemas.autenticacao import LoginRequest, TokenResponse
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])

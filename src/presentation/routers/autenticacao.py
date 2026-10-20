@@ -15,13 +15,13 @@ router = APIRouter(prefix="/auth", tags=["Autenticação"])
     response_model=TokenResponse,
     responses={status.HTTP_401_UNAUTHORIZED: {"description": "E-mail ou senha inválidos."}},
 )
-def login(
+async def login(
     dados: LoginRequest,
     autenticar: Annotated[AutenticarUsuario, Depends(obter_autenticar_usuario)],
 ) -> TokenResponse:
     """Login de usuário interno com e-mail e senha (RF-01)."""
     try:
-        token = autenticar.executar(dados.email, dados.senha)
+        token = await autenticar.executar(dados.email, dados.senha)
     except CredenciaisInvalidas as erro:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

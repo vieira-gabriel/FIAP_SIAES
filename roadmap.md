@@ -14,7 +14,7 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 | :--- | :--- |
 | Requisitos funcionais e não funcionais | Revisados no fechamento da Fase 0 (RF-01 a RF-27, RNF-01 a RNF-16), com peça pendente, fila de execução, histórico de status, listagem e detalhamento de OS e os RNFs exigidos pelo enunciado restaurados |
 | Linguagem ubíqua | Atualizada com os 9 status, a tabela de transições e os termos de estoque; os nomes ainda divergem do modelo C4 em alguns pontos (Fase 1) |
-| Modelo C4 | Documentado nos 4 níveis; camada de entrada renomeada para `src/presentation/`; a estrutura de pastas da seção 6 ainda depende de decisão do grupo |
+| Modelo C4 | Documentado nos 4 níveis; camada de entrada renomeada para `src/presentation/`; estrutura de pastas da seção 6 aprovada pelo grupo (issue #9) |
 | Guia de desenvolvimento e estrutura de pastas | Atualizados para a numeração atual dos requisitos, com as decisões técnicas da seção 8 |
 | Event Storming | PDF reexportado com os fluxos de peça pendente e de cancelamento; link do board registrado em [docs/ddd/event-storming.md](docs/ddd/event-storming.md) |
 | Código (`src/`) e testes | Rota `GET /health` em `src/presentation/api/main.py`. Os demais arquivos das camadas e da autenticação JWT continuam vazios; nenhum teste |
@@ -147,17 +147,17 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 - [x] Reorganizar os arquivos de código em camadas (`domain`, `application`, `infrastructure`, `presentation`) (PR #1)
 - [x] Separar `tests/unit/` e `tests/integration/` e criar `docs/security/` (PR #1)
 - [x] Criar `presentation/routers/` e transformar `presentation/schemas.py` em pasta
-- [ ] **Pendente: decidir com o grupo** a unificação com a seção 6 do modelo C4. A decisão precisa sair antes da implementação de eventos, rate limiting e acesso ao banco
+- [x] Unificar a estrutura de pastas com a seção 6 do modelo C4 (issue #9)
 - [x] Atualizar as seções 1 e 4 do modelo C4 para `src/presentation/`
 
 | Pasta | Modelo C4 (seção 6) | Código e guia |
 | :--- | :--- | :--- |
 | `presentation/routers/` | Prevista | Criada |
 | `presentation/schemas/` | Prevista | Criada |
-| `presentation/middlewares/` | Prevista (JWT e rate limiting) | Autenticação em `presentation/auth/` |
-| `application/events/` e `application/handlers/` | Previstas (Event Dispatcher e `BaixaEstoqueHandler`) | Não existem |
-| `domain/events/` | Prevista (eventos de domínio) | Não existe |
-| `infrastructure/database/` | Prevista (engine e sessões do SQLAlchemy) | Não existe |
+| `presentation/middlewares/` | Prevista (JWT e rate limiting) | Criada; substitui `presentation/auth/` |
+| `application/events/` e `application/handlers/` | Previstas (Event Dispatcher e `BaixaEstoqueHandler`) | Criadas |
+| `domain/events/` | Prevista (eventos de domínio) | Criada |
+| `infrastructure/database/` | Prevista (engine e sessões do SQLAlchemy) | Criada; inclui também os modelos do ORM |
 
 ---
 

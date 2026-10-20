@@ -324,6 +324,8 @@ A estrutura física do repositório reflete exatamente o desacoplamento proposto
 ```text
 src/
 ├── presentation/                  # Nível 3 (Camada de Entrada, Controllers HTTP & Middlewares)
+│   ├── main.py                    # Criação do app FastAPI e registro dos routers
+│   ├── container.py               # Montagem das dependências (único ponto que importa infrastructure)
 │   ├── routers/                   # Route Handlers FastAPI, um arquivo por recurso (Auth, OS, Cliente, Estoque)
 │   ├── middlewares/               # JWT Auth & Rate Limiting Guards (Depends / Security)
 │   └── schemas/                   # Pydantic DTOs, um arquivo por recurso (Validação de Entrada/Saída HTTP)
@@ -338,9 +340,10 @@ src/
 │   ├── events/                    # Definição dos Eventos de Domínio (OrcamentoAprovadoEvent)
 │   └── repositories/              # Interfaces Abstratas dos Repositórios (ABCs)
 └── infrastructure/                # Nível 3 (Adaptadores I/O & Infraestrutura)
-    ├── database/                  # Engine SQLAlchemy, Configurações e Sessions
+    ├── config.py                  # Leitura e validação das variáveis de ambiente (pydantic-settings)
+    ├── database/                  # Engine SQLAlchemy, Sessions, Unidade de Trabalho e Modelos do ORM
     ├── repositories/              # Implementações Concretas com SQLAlchemy (Postgres)
     └── security/                  # Implementações Concretas de Segurança (PyJWT, Passlib/Bcrypt)
 ```
 
-> **Pendente de decisão do grupo:** esta árvore ainda difere da estrutura descrita na seção 2 de `docs/guia-de-desenvolvimento.md`. As pastas `presentation/routers/` e `presentation/schemas/` já foram decididas e valem para os dois documentos. A validação do token continua em `presentation/auth/` até a decisão sobre `presentation/middlewares/`; a criação de `application/events/`, `application/handlers/`, `domain/events/` e `infrastructure/database/` também aguarda essa decisão (ver seção 8 do guia).
+> A árvore acima foi aprovada pelo grupo na issue #9 e coincide com as seções 2 e 3 de `docs/guia-de-desenvolvimento.md`. As migrations do Alembic ficam na pasta `migrations/`, na raiz do projeto.

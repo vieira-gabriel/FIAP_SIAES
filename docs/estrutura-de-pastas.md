@@ -10,23 +10,42 @@ Este documento descreve a reorganização da estrutura de pastas do repositório
 src/
 ├── domain/
 │   ├── entities/
-│   │   └── ordem_servico.py
+│   │   ├── ordem_servico.py
+│   │   └── usuario.py
 │   ├── value_objects/
-│   └── repositories/
-│       └── ordem_servico_repository.py
+│   │   └── perfil_usuario.py
+│   ├── events/
+│   ├── repositories/
+│   │   ├── ordem_servico_repository.py
+│   │   └── usuario_repository.py
+│   └── exceptions.py
 ├── application/
-│   └── use_cases/
-│       └── criar_os.py
+│   ├── use_cases/
+│   │   ├── autenticar_usuario.py
+│   │   └── criar_os.py
+│   ├── ports/
+│   │   ├── password_hasher.py
+│   │   └── token_service.py
+│   ├── events/
+│   └── handlers/
 ├── infrastructure/
-│   └── repositories/
-│       └── postgres_ordem_servico_repository.py
+│   ├── database/
+│   ├── repositories/
+│   │   ├── postgres_ordem_servico_repository.py
+│   │   └── postgres_usuario_repository.py
+│   └── security/
+│       ├── bcrypt_password_hasher.py
+│       └── jwt_token_service.py
 └── presentation/
+    ├── main.py
     ├── routers/
+    │   └── autenticacao.py
     ├── schemas/
-    └── auth/
+    │   └── autenticacao.py
+    └── middlewares/
+        └── dependencies.py
 tests/
 ├── unit/
-│   └── test_ordem_servico.py
 └── integration/
 docs/
 └── security/
@@ -57,6 +76,8 @@ A pasta `src/api/` foi removida, pois a RNF-01 nomeia a camada de entrada como `
 | `src/domain/repositories/ordem_servico_repository.py` | Linguagem Ubíqua §4 — Porta de Repositório (Interface Abstrata); RNF-02 — isolamento do domínio |
 | `tests/integration/` | RNF-13 — testes de integração dos fluxos principais |
 | `src/presentation/routers/` | Decisão do grupo no fechamento da Fase 0: rotas FastAPI, um arquivo por recurso |
+| `src/domain/events/`, `src/application/events/`, `src/application/handlers/` e `src/infrastructure/database/` | Seção 6 do modelo C4, aprovadas pelo grupo na issue #9 |
+| `src/presentation/middlewares/` | Seção 6 do modelo C4, aprovada pelo grupo na issue #9; substitui `src/presentation/auth/` |
 | `docs/security/` | RNF-07 — relatório de análise de vulnerabilidades |
 
 A porta do repositório no domínio é o que permite à camada `application` depender de uma abstração, e não da implementação em PostgreSQL, conforme exige a RNF-02.
@@ -86,7 +107,7 @@ A documentação exige autenticação JWT (RNF-03) e proíbe senhas e segredos e
 | Infraestrutura | `src/infrastructure/security/jwt_token_service.py` | Implementação de `token_service` com uma biblioteca de JWT. |
 | Infraestrutura | `src/infrastructure/security/bcrypt_password_hasher.py` | Implementação de `password_hasher` com bcrypt. |
 | Infraestrutura | `src/infrastructure/repositories/postgres_usuario_repository.py` | Implementação da porta de usuário em PostgreSQL. |
-| Apresentação | `src/presentation/auth/dependencies.py` | Validação do token nas rotas administrativas e operacionais e checagem do perfil exigido. |
+| Apresentação | `src/presentation/middlewares/dependencies.py` | Validação do token nas rotas administrativas e operacionais e checagem do perfil exigido. |
 
 Pontos de atenção:
 
@@ -103,6 +124,6 @@ As classes abaixo são citadas na Linguagem Ubíqua, mas a documentação não d
 * **Entidades** (`src/domain/entities/`): `Cliente`, `Veiculo`, `Servico`, `Peca`.
 * **Objetos de Valor** (`src/domain/value_objects/`): `CPF`, `CNPJ`, `Placa`, `Valor`, `StatusOS`, `Orcamento`.
 
-A pasta `migrations/` do Alembic (guia, seção 8.1) fica na raiz do projeto e será criada com as migrations iniciais.
+A pasta `migrations/` do Alembic (guia, seção 8.1) fica na raiz do projeto e será criada com as migrations iniciais. Também serão criados `src/infrastructure/config.py` (configuração) e `src/presentation/container.py` (montagem das dependências), decididos na issue #9.
 
 Também permanecem pendentes, por dependerem de implementação: a lógica da autenticação JWT (RNF-03, ver seção 5), configuração do PostgreSQL (RNF-08), conteúdo do `Dockerfile` e do `docker-compose.yml` (RNF-15) e medição de cobertura de testes (RNF-14).

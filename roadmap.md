@@ -14,7 +14,7 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 | :--- | :--- |
 | Requisitos funcionais e não funcionais | Revisados no fechamento da Fase 0 (RF-01 a RF-27, RNF-01 a RNF-16), com peça pendente, fila de execução, histórico de status, listagem e detalhamento de OS e os RNFs exigidos pelo enunciado restaurados |
 | Linguagem ubíqua | Atualizada com os 9 status, a tabela de transições e os termos de estoque; os nomes ainda divergem do modelo C4 em alguns pontos (Fase 1) |
-| Modelo C4 | Documentado nos 4 níveis; camada de entrada renomeada para `src/presentation/`; a estrutura de pastas da seção 6 ainda depende de decisão do grupo |
+| Modelo C4 | Documentado nos 4 níveis; camada de entrada renomeada para `src/presentation/`; estrutura de pastas da seção 6 aprovada pelo grupo (issue #9) |
 | Guia de desenvolvimento e estrutura de pastas | Atualizados para a numeração atual dos requisitos, com as decisões técnicas da seção 8 |
 | Event Storming | PDF reexportado com os fluxos de peça pendente e de cancelamento; link do board registrado em [docs/ddd/event-storming.md](docs/ddd/event-storming.md) |
 | Código (`src/`) e testes | Rota `GET /health` em `src/presentation/api/main.py`. Os demais arquivos das camadas e da autenticação JWT continuam vazios; nenhum teste |
@@ -86,8 +86,8 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 | Rate limiting | SlowAPI com contador em memória | RNF-05 |
 | Rotas e DTOs | `presentation/routers/` e `presentation/schemas/`, um arquivo por recurso | Guia §3 e §8.1 |
 | CI | Opcional, somente se houver tempo | Guia §8.1 |
-| Modo do SQLAlchemy (síncrono ou assíncrono) | **Pendente: decidir com o grupo** | Guia §8.2 |
-| Migrations | **Pendente: decidir com o grupo** (Alembic, `create_all` ou scripts SQL) | Guia §8.2 |
+| Modo do SQLAlchemy | Assíncrono com asyncpg e pytest-asyncio (issue #3) | Guia §8.1 |
+| Migrations | Alembic com o template `async`, pasta `migrations/` na raiz (issue #4) | Guia §8.1 |
 | Análise de vulnerabilidades | **Pendente: confirmar com o grupo** (proposta: pip-audit, Bandit, Trivy e Dependabot) | RNF-07, guia §8.2 |
 | Teste de desempenho | **Pendente: decidir** (Locust, k6 ou script próprio) | RNF-10, guia §8.2 |
 
@@ -140,24 +140,24 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 - [ ] Remover da `main` os dois arquivos `.pyc` commitados no health check (`src/presentation/__pycache__/` e `src/presentation/api/__pycache__/`); o `.gitignore` já ignora `__pycache__/`, mas não remove arquivos já versionados
 - [x] Criar `.env.example` com as variáveis necessárias, sem valores reais
 - [ ] Unificar o arquivo de dependências: a `main` tem `requirements.txt` (só `fastapi` e `uvicorn`) e `pyproject.toml`; manter apenas o `pyproject.toml`, conforme a seção 8.1 do guia
-- [ ] Gerar o `uv.lock` com `uv lock` após a decisão do driver do PostgreSQL e da ferramenta de migrations
+- [x] Gerar o `uv.lock` com `uv lock` após a decisão do driver do PostgreSQL e da ferramenta de migrations (issue #8)
 
 ### Estrutura de Pastas
 
 - [x] Reorganizar os arquivos de código em camadas (`domain`, `application`, `infrastructure`, `presentation`) (PR #1)
 - [x] Separar `tests/unit/` e `tests/integration/` e criar `docs/security/` (PR #1)
 - [x] Criar `presentation/routers/` e transformar `presentation/schemas.py` em pasta
-- [ ] **Pendente: decidir com o grupo** a unificação com a seção 6 do modelo C4. A decisão precisa sair antes da implementação de eventos, rate limiting e acesso ao banco
+- [x] Unificar a estrutura de pastas com a seção 6 do modelo C4 (issue #9)
 - [x] Atualizar as seções 1 e 4 do modelo C4 para `src/presentation/`
 
 | Pasta | Modelo C4 (seção 6) | Código e guia |
 | :--- | :--- | :--- |
 | `presentation/routers/` | Prevista | Criada |
 | `presentation/schemas/` | Prevista | Criada |
-| `presentation/middlewares/` | Prevista (JWT e rate limiting) | Autenticação em `presentation/auth/` |
-| `application/events/` e `application/handlers/` | Previstas (Event Dispatcher e `BaixaEstoqueHandler`) | Não existem |
-| `domain/events/` | Prevista (eventos de domínio) | Não existe |
-| `infrastructure/database/` | Prevista (engine e sessões do SQLAlchemy) | Não existe |
+| `presentation/middlewares/` | Prevista (JWT e rate limiting) | Criada; substitui `presentation/auth/` |
+| `application/events/` e `application/handlers/` | Previstas (Event Dispatcher e `BaixaEstoqueHandler`) | Criadas |
+| `domain/events/` | Prevista (eventos de domínio) | Criada |
+| `infrastructure/database/` | Prevista (engine e sessões do SQLAlchemy) | Criada; inclui também os modelos do ORM |
 
 ---
 
@@ -189,7 +189,7 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 
 ### Consistência entre Documentos
 
-- [ ] Padronizar os objetos de valor de documento: a linguagem ubíqua define `CPF` e `CNPJ` separados (exemplo `cpf.py`), o modelo C4 usa um único `CpfCnpj` e a estrutura de pastas cita `cpf_cnpj.py`
+- [x] Padronizar os objetos de valor de documento: `CPF` e `CNPJ` em classes separadas (`cpf.py` e `cnpj.py`), como na linguagem ubíqua; modelo C4 e estrutura de pastas atualizados (issue #14)
 - [ ] Incluir na linguagem ubíqua os termos ainda ausentes do modelo C4: `Usuario`, `PerfilUsuario`, `ItemServico`, `ItemPeca` e eventos de domínio
 - [ ] Usar o objeto de valor `Valor` (precisão decimal) nos preços do diagrama de classes, que hoje aparecem como `float`
 - [ ] Completar o diagrama de classes com `Servico` (tempo estimado), `Peca`/`EstoquePeca` (quantidade reservada e prazo de reposição), `Orcamento` e `HistoricoStatusOS`, e esclarecer se `Peca` e `EstoquePeca` são a mesma entidade
@@ -222,7 +222,7 @@ Tarefas da fase:
 - [ ] Configuração do `PYTHONPATH` (ou empacotamento) para os imports a partir de `src/` funcionarem localmente, no Docker e no pytest
 - [ ] Configuração por variáveis de ambiente, sem segredos no código e com falha na inicialização quando faltar variável obrigatória (RNF-06)
 - [ ] Engine e sessão do SQLAlchemy com controle de transação e rollback completo em caso de falha (RNF-08)
-- [ ] Migrations iniciais (ferramenta pendente de decisão, seção 8.2 do guia)
+- [ ] Migrations iniciais com Alembic (`alembic init -t async migrations`, seção 8.1 do guia)
 - [x] Rota de health check na aplicação FastAPI (`GET /health`)
 - [ ] Conferir o Swagger em `/docs`, exposto automaticamente pelo FastAPI, e documentar o acesso (RNF-16)
 - [ ] Tratamento padronizado de erros, traduzindo as exceções do domínio para códigos HTTP, incluindo `401` e `403` (RNF-03)
@@ -274,7 +274,7 @@ Tarefas da fase:
 
 **Objetivo:** disponibilizar o acesso autenticado com controle por perfil e os cadastros que alimentam a Ordem de Serviço.
 
-**Ponto de partida:** os arquivos da autenticação já existem, vazios, distribuídos pelas camadas conforme a seção 5 de [estrutura-de-pastas.md](docs/estrutura-de-pastas.md) (portas `TokenService` e `PasswordHasher`, caso de uso `autenticar_usuario.py`, adaptadores de JWT e bcrypt e `presentation/auth/dependencies.py`).
+**Ponto de partida:** os arquivos da autenticação já existem, vazios, distribuídos pelas camadas conforme a seção 5 de [estrutura-de-pastas.md](docs/estrutura-de-pastas.md) (portas `TokenService` e `PasswordHasher`, caso de uso `autenticar_usuario.py`, adaptadores de JWT e bcrypt e `presentation/middlewares/dependencies.py`, pasta renomeada na issue #9).
 
 - [ ] Login com e-mail e senha, emitindo JWT com a claim `role` e expiração de 24 horas (RF-01)
 - [ ] Guard de RBAC retornando `401` sem token válido e `403` sem permissão (RF-02, RNF-03)

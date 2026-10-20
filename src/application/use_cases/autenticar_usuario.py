@@ -17,10 +17,10 @@ class AutenticarUsuario:
         self._password_hasher = password_hasher
         self._tokens = tokens
 
-    def executar(self, email: str, senha: str) -> str:
-        usuario = self._usuarios.buscar_por_email(email.strip().lower())
+    async def executar(self, email: str, senha: str) -> str:
+        usuario = await self._usuarios.buscar_por_email(email.strip().lower())
         if usuario is None or not usuario.pode_autenticar():
             raise CredenciaisInvalidas()
-        if not self._password_hasher.verificar(senha, usuario.senha_hash):
+        if not await self._password_hasher.verificar(senha, usuario.senha_hash):
             raise CredenciaisInvalidas()
         return self._tokens.emitir(usuario)

@@ -4,15 +4,16 @@ version = "0.1.0"
 description = "Sistema Integrado de Atendimento e Execução de Serviços - MVP da oficina mecânica (Tech Challenge Fase 1)"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-# O driver do PostgreSQL (psycopg 3 ou asyncpg) e a ferramenta de migrations
-# entram quando o grupo decidir (guia de desenvolvimento, seção 8.2).
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
-    "sqlalchemy>=2.0",
+    "sqlalchemy[asyncio]>=2.0",
     "pyjwt>=2.9",
     "bcrypt>=4.2",
     "slowapi>=0.1.9",
+    "asyncpg>=0.29",
+    "alembic>=1.13",
+    "pydantic-settings>=2.4",
 ]
 
 [dependency-groups]
@@ -21,11 +22,13 @@ dev = [
     "pytest-cov>=5.0",
     "httpx>=0.27",
     "ruff>=0.6",
+    "pytest-asyncio>=0.24",
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+asyncio_mode = "auto"
 
 [tool.coverage.run]
 source = ["src/domain", "src/application"]

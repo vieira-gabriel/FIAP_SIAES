@@ -19,7 +19,7 @@ from domain.repositories.usuario_repository import UsuarioRepository
 from domain.value_objects.perfil_usuario import PerfilUsuario
 from infrastructure.security.bcrypt_password_hasher import BcryptPasswordHasher
 from infrastructure.security.jwt_token_service import JwtTokenService
-from presentation.auth.dependencies import exigir_perfis, obter_usuario_autenticado
+from presentation.middlewares.dependencies import exigir_perfis, obter_usuario_autenticado
 from presentation.routers.autenticacao import router as autenticacao_router
 
 CHAVE = "chave-de-teste-com-pelo-menos-32-bytes!!"
@@ -30,13 +30,17 @@ class UsuarioRepositoryEmMemoria(UsuarioRepository):
     def __init__(self):
         self.dados = {}
 
-    def salvar(self, usuario):
+    async def salvar(self, usuario):
         self.dados[usuario.id] = usuario
 
-    def buscar_por_id(self, id):
+    async def buscar_por_id(self, id):
         return self.dados.get(id)
 
-    def buscar_por_email(self, email):
+    async def buscar_por_email(self, email):
+        return self.por_email(email)
+
+    def por_email(self, email):
+        """Leitura síncrona para os testes, que usam o `TestClient` síncrono."""
         return next((u for u in self.dados.values() if u.email == email), None)
 
 
@@ -54,7 +58,7 @@ def relogio():
 
 
 @pytest.fixture
-def usuarios():
+async def usuarios():
     hasher = BcryptPasswordHasher(rounds=4)
     repositorio = UsuarioRepositoryEmMemoria()
     for nome, perfil in [
@@ -62,11 +66,11 @@ def usuarios():
         ("Atendente", PerfilUsuario.ATENDENTE),
         ("Mecanico", PerfilUsuario.MECANICO),
     ]:
-        repositorio.salvar(
+        await repositorio.salvar(
             Usuario(
                 nome=nome,
                 email=f"{nome.lower()}@oficina.com",
-                senha_hash=hasher.gerar_hash(SENHA),
+                senha_hash=await hasher.gerar_hash(SENHA),
                 perfil=perfil,
             )
         )
@@ -119,7 +123,7 @@ def test_login_valido_devolve_bearer_token(cliente, usuarios):
         options={"verify_exp": False, "verify_iat": False},
     )
     assert claims["role"] == "GERENTE"
-    assert claims["sub"] == str(usuarios.buscar_por_email("gerente@oficina.com").id)
+    assert claims["sub"] == str(usuarios.por_email("gerente@oficina.com").id)
 
 
 @pytest.mark.parametrize(
@@ -137,7 +141,7 @@ def test_login_invalido_retorna_401_com_a_mesma_mensagem(cliente, email, senha):
 
 
 def test_login_de_usuario_desativado_retorna_401(cliente, usuarios):
-    usuarios.buscar_por_email("atendente@oficina.com").desativar()
+    usuarios.por_email("atendente@oficina.com").desativar()
 
     assert login(cliente, "atendente@oficina.com").status_code == 401
 
@@ -153,7 +157,7 @@ def test_token_do_login_acessa_rota_protegida(cliente, usuarios):
 
     assert resposta.status_code == 200
     assert resposta.json() == {
-        "usuario_id": str(usuarios.buscar_por_email("mecanico@oficina.com").id),
+        "usuario_id": str(usuarios.por_email("mecanico@oficina.com").id),
         "perfil": "MECANICO",
     }
 

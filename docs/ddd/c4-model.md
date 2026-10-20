@@ -133,7 +133,7 @@ flowchart TD
         AggOS[("🟩 Agregado: OrdemServico\nEntidade-raiz com regras da máquina de estados.")]
         AggEstoque[("🟩 Agregado: EstoquePeca\nEntidade com controle quantitativo.")]
         Entities["👤 Entidades\nCliente, Veiculo, Usuario."]
-        VOs["💎 Value Objects\nCpfCnpj, Placa, StatusOS, PerfilUsuario."]
+        VOs["💎 Value Objects\nCPF, CNPJ, Placa, StatusOS, PerfilUsuario."]
         DomainEvents["🟧 Eventos de Domínio\nOrcamentoAprovadoEvent, ExecucaoIniciadaEvent, StatusOSAlteradoEvent."]
         IRepositories["🔌 Interfaces de Repositório (ABCs)\nIOrdemServicoRepository, IEstoqueRepository, IUsuarioRepository."]
     end
@@ -177,7 +177,7 @@ flowchart TD
 
 ## 5. Nível 4: Diagrama de Código (Code Diagram)
 
-O Diagrama de Código ilustra a estrutura interna das entidades de domínio (`OrdemServico`, `Cliente`, `Veiculo`, `Usuario`), Objetos de Valor (`CpfCnpj`, `Placa`, `StatusOS`, `PerfilUsuario`) e Eventos, implementados como **`dataclasses` puras do Python** sem acoplamento com frameworks.
+O Diagrama de Código ilustra a estrutura interna das entidades de domínio (`OrdemServico`, `Cliente`, `Veiculo`, `Usuario`), Objetos de Valor (`CPF`, `CNPJ`, `Placa`, `StatusOS`, `PerfilUsuario`) e Eventos, implementados como **`dataclasses` puras do Python** sem acoplamento com frameworks.
 
 ### Diagrama de Classes do Domínio (Mermaid / UML)
 
@@ -186,7 +186,7 @@ classDiagram
     class Cliente {
         +UUID id
         +str nome
-        +CpfCnpj documento
+        +CPF | CNPJ documento
         +str email
         +str telefone
     }
@@ -272,10 +272,14 @@ classDiagram
         +valor_total() float
     }
 
-    class CpfCnpj {
+    class CPF {
         <<Value Object>>
         +str valor
-        +validar() bool
+    }
+
+    class CNPJ {
+        <<Value Object>>
+        +str valor
     }
 
     class Placa {
@@ -297,6 +301,8 @@ classDiagram
     }
 
     Usuario "1" --> "1" PerfilUsuario : possui
+    Cliente --> CPF : documento (pessoa física)
+    Cliente --> CNPJ : documento (pessoa jurídica)
     Veiculo "*" --> "1" Cliente : pertence a (cliente_id)
     OrdemServico "*" --> "1" Cliente : referencia (cliente_id)
     OrdemServico "*" --> "1" Veiculo : referencia (veiculo_id)
@@ -318,6 +324,8 @@ A estrutura física do repositório reflete exatamente o desacoplamento proposto
 ```text
 src/
 ├── presentation/                  # Nível 3 (Camada de Entrada, Controllers HTTP & Middlewares)
+│   ├── main.py                    # Criação do app FastAPI e registro dos routers
+│   ├── container.py               # Montagem das dependências (único ponto que importa infrastructure)
 │   ├── routers/                   # Route Handlers FastAPI, um arquivo por recurso (Auth, OS, Cliente, Estoque)
 │   ├── middlewares/               # JWT Auth & Rate Limiting Guards (Depends / Security)
 │   └── schemas/                   # Pydantic DTOs, um arquivo por recurso (Validação de Entrada/Saída HTTP)
@@ -328,13 +336,14 @@ src/
 │   └── handlers/                  # Event Handlers (BaixaEstoqueHandler)
 ├── domain/                        # Nível 4 (Núcleo Puro de Negócio em Python Dataclasses)
 │   ├── entities/                  # Dataclasses de Agregados e Entidades (OrdemServico, Cliente, Veiculo, Usuario)
-│   ├── value_objects/             # VOs Imutáveis (CpfCnpj, Placa, StatusOS, PerfilUsuario)
+│   ├── value_objects/             # VOs Imutáveis (CPF, CNPJ, Placa, StatusOS, PerfilUsuario)
 │   ├── events/                    # Definição dos Eventos de Domínio (OrcamentoAprovadoEvent)
 │   └── repositories/              # Interfaces Abstratas dos Repositórios (ABCs)
 └── infrastructure/                # Nível 3 (Adaptadores I/O & Infraestrutura)
-    ├── database/                  # Engine SQLAlchemy, Configurações e Sessions
+    ├── config.py                  # Leitura e validação das variáveis de ambiente (pydantic-settings)
+    ├── database/                  # Engine SQLAlchemy, Sessions, Unidade de Trabalho e Modelos do ORM
     ├── repositories/              # Implementações Concretas com SQLAlchemy (Postgres)
     └── security/                  # Implementações Concretas de Segurança (PyJWT, Passlib/Bcrypt)
 ```
 
-> **Pendente de decisão do grupo:** esta árvore ainda difere da estrutura descrita na seção 2 de `docs/guia-de-desenvolvimento.md`. As pastas `presentation/routers/` e `presentation/schemas/` já foram decididas e valem para os dois documentos. A validação do token continua em `presentation/auth/` até a decisão sobre `presentation/middlewares/`; a criação de `application/events/`, `application/handlers/`, `domain/events/` e `infrastructure/database/` também aguarda essa decisão (ver seção 8 do guia).
+> A árvore acima foi aprovada pelo grupo na issue #9 e coincide com as seções 2 e 3 de `docs/guia-de-desenvolvimento.md`. As migrations do Alembic ficam na pasta `migrations/`, na raiz do projeto.

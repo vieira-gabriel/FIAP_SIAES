@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from application.ports.token_service import TokenInvalido, TokenService, UsuarioAutenticado
 from domain.value_objects.perfil_usuario import PerfilUsuario
-from presentation.auth.dependencies import exigir_perfis, obter_usuario_autenticado
+from presentation.middlewares.dependencies import exigir_perfis, obter_usuario_autenticado
 
 
 class TokenServiceFalso(TokenService):

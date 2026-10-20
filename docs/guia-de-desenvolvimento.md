@@ -27,17 +27,25 @@ src/
 ├── domain/           Regras de negócio puras (Python puro)
 │   ├── entities/         Entidades e raízes de agregado
 │   ├── value_objects/    Objetos de valor imutáveis
+│   ├── events/           Eventos de domínio, um arquivo por evento
 │   └── repositories/     Portas (interfaces ABC) de persistência
 ├── application/      Orquestração dos casos de uso
 │   ├── use_cases/        Um arquivo por caso de uso
-│   └── ports/            Interfaces de serviços técnicos (token, hash de senha)
+│   ├── ports/            Interfaces de serviços técnicos (token, hash de senha)
+│   ├── events/           Event Dispatcher síncrono em memória
+│   └── handlers/         Handlers que reagem aos eventos de domínio
 ├── infrastructure/   Detalhes técnicos (banco, bibliotecas externas)
+│   ├── config.py         Leitura e validação das variáveis de ambiente
+│   ├── database/         Engine, sessão, unidade de trabalho e modelos do SQLAlchemy
 │   ├── repositories/     Implementações das portas de repositório (PostgreSQL)
 │   └── security/         Implementações de JWT e hash de senha
 └── presentation/     Entrada HTTP (rotas, DTOs, autenticação das rotas)
+    ├── main.py           Criação do app FastAPI e registro dos routers
+    ├── container.py      Montagem das dependências (único ponto que importa infrastructure)
     ├── routers/          Rotas FastAPI, um arquivo por recurso
     ├── schemas/          DTOs de entrada e saída, um arquivo por recurso
-    └── auth/             Validação do token nas rotas
+    └── middlewares/      Validação do token e rate limiting das rotas
+migrations/           Migrations do Alembic (seção 8.1)
 tests/
 ├── unit/             Testes sem banco e sem HTTP
 └── integration/      Testes dos fluxos de ponta a ponta
@@ -52,9 +60,11 @@ As dependências apontam sempre **para dentro**, em direção ao domínio. Esta 
 | `domain` | Apenas a biblioteca padrão do Python e o próprio `domain` | `application`, `infrastructure`, `presentation`, frameworks web, ORM, drivers de banco, bibliotecas de JWT |
 | `application` | `domain` e `application` | `infrastructure`, `presentation` |
 | `infrastructure` | `domain`, `application` e bibliotecas externas | `presentation` |
-| `presentation` | `application`, `domain` (para tipos) e o framework web | Diretamente de `infrastructure`, exceto no ponto de montagem das dependências |
+| `presentation` | `application`, `domain` (para tipos) e o framework web | `infrastructure`, exceto em `presentation/container.py`, o ponto de montagem das dependências |
 
 Se um caso de uso precisa de algo técnico (banco, token, hash), ele depende de uma **interface** (porta) e recebe a implementação pelo construtor. Nunca instancia a implementação diretamente.
+
+O `presentation/container.py` é o único arquivo que conhece as implementações. Na subida da aplicação, ele lê a configuração e cria os objetos únicos (engine, fábrica de sessões, serviços de token e de hash). Para cada caso de uso, ele oferece às rotas, por `Depends`, uma função `obter_<caso_de_uso>` que monta a sessão, os repositórios e o caso de uso da requisição. O `presentation/main.py` só cria o app, registra os routers e chama o container.
 
 ### 2.2. Porta e Adaptador
 
@@ -88,9 +98,19 @@ Toda dependência externa segue o mesmo padrão:
 | Implementação de serviço técnico | `src/infrastructure/<assunto>/` | tecnologia + serviço | `jwt_token_service.py` |
 | Rota HTTP | `src/presentation/routers/` | nome do recurso no plural | `ordens_servico.py` → `router = APIRouter()` |
 | DTO de entrada ou saída da API | `src/presentation/schemas/` | nome do recurso no singular | `ordem_servico.py` → `CriarOSRequest`, `OSResponse` |
-| Validação de token nas rotas | `src/presentation/auth/` | `dependencies.py` | — |
+| Evento de domínio | `src/domain/events/` | nome do evento + `_event` | `orcamento_aprovado_event.py` → `class OrcamentoAprovadoEvent` |
+| Event Dispatcher | `src/application/events/` | `event_dispatcher.py` | `class EventDispatcher` |
+| Handler de evento | `src/application/handlers/` | ação + `_handler` | `baixa_estoque_handler.py` → `class BaixaEstoqueHandler` |
+| Engine, sessão e unidade de trabalho do SQLAlchemy | `src/infrastructure/database/` | nome do assunto | `engine.py`, `unidade_de_trabalho.py` |
+| Modelo do ORM (tabela) | `src/infrastructure/database/` | `<entidade>_model.py` | `cliente_model.py` → `class ClienteModel` |
+| Configuração por variáveis de ambiente | `src/infrastructure/` | `config.py` | `class Configuracao(BaseSettings)` |
+| Ponto de entrada da API | `src/presentation/` | `main.py` | `app = FastAPI(...)` |
+| Montagem das dependências | `src/presentation/` | `container.py` | `obter_autenticar_usuario()` |
+| Validação de token nas rotas | `src/presentation/middlewares/` | `dependencies.py` | — |
+| Rate limiting das rotas públicas | `src/presentation/middlewares/` | `rate_limit.py` | `limiter = Limiter(...)` |
 | Teste unitário | `tests/unit/` | `test_<arquivo testado>.py` | `test_placa.py` |
 | Teste de integração | `tests/integration/` | `test_<fluxo>.py` | `test_fluxo_aprovacao_orcamento.py` |
+| Migration do banco | `migrations/versions/` (raiz do projeto) | gerado pelo Alembic | `<revisão>_cria_tabela_cliente.py` |
 | Relatório de segurança | `docs/security/` | — | relatório da análise de vulnerabilidades (RNF-07) |
 
 Se algo não se encaixa em nenhuma linha desta tabela, **não crie uma pasta nova por conta própria**: discuta com o grupo e, se aprovado, atualize esta tabela e `docs/estrutura-de-pastas.md` no mesmo PR.
@@ -190,10 +210,10 @@ from domain.entities.cliente import Cliente
 
 class ClienteRepository(ABC):
     @abstractmethod
-    def salvar(self, cliente: Cliente) -> None: ...
+    async def salvar(self, cliente: Cliente) -> None: ...
 
     @abstractmethod
-    def buscar_por_documento(self, documento: str) -> Cliente | None: ...
+    async def buscar_por_documento(self, documento: str) -> Cliente | None: ...
 ```
 
 2. Adaptador na infraestrutura, herdando da porta:
@@ -209,9 +229,11 @@ class PostgresClienteRepository(ClienteRepository):
 
 A porta recebe e devolve **entidades do domínio**, nunca modelos do ORM. A conversão entre entidade e tabela acontece dentro do adaptador.
 
+Os métodos das portas de repositório são `async def`, porque o SQLAlchemy roda no modo assíncrono (seção 8.1). O adaptador carrega as coleções da entidade junto com a consulta (`selectinload`), pois o carregamento preguiçoso não funciona no modo assíncrono.
+
 ### 5.4. Criar um Caso de Uso
 
-Um arquivo por caso de uso. O caso de uso recebe as portas pelo construtor e expõe um único método `executar`.
+Um arquivo por caso de uso. O caso de uso recebe as portas pelo construtor e expõe um único método assíncrono `executar`.
 
 ```python
 # src/application/use_cases/criar_os.py (trecho ilustrativo)
@@ -224,7 +246,8 @@ class CriarOS:
         self._clientes = clientes
         self._ordens = ordens
 
-    def executar(self, documento_cliente: str, placa: str) -> OrdemServico:
+    async def executar(self, documento_cliente: str, placa: str) -> OrdemServico:
+        cliente = await self._clientes.buscar_por_documento(documento_cliente)
         ...
 ```
 
@@ -252,7 +275,7 @@ Nenhuma dessas operações pode deixar o saldo disponível negativo (RF-12).
 
 * **Toda** rota administrativa e operacional exige token (RNF-03).
 * As **únicas** rotas públicas são a consulta de status da OS (RF-25) e a aprovação ou rejeição do orçamento (RF-26). As duas exigem o número da OS junto com o CPF/CNPJ do titular e têm rate limiting com SlowAPI (RNF-05).
-* A validação do token e a checagem do perfil (Atendente, Mecânico, Gerente) ficam em `src/presentation/auth/dependencies.py`.
+* A validação do token e a checagem do perfil (Atendente, Mecânico, Gerente) ficam em `src/presentation/middlewares/dependencies.py`, como dependências do FastAPI (`Depends`). Toda rota protegida declara a dependência, e uma rota sem ela fica pública.
 * O login é o caso de uso `application/use_cases/autenticar_usuario.py`, que usa as portas `TokenService` e `PasswordHasher`.
 * Senhas são guardadas apenas como hash; a chave de assinatura do JWT vem de variável de ambiente (RNF-06).
 
@@ -263,6 +286,8 @@ Nenhuma dessas operações pode deixar o saldo disponível negativo (RF-12).
 | Unitário | `tests/unit/` | Entidades, objetos de valor e casos de uso (RNF-12) | Não: use repositórios em memória que implementam a porta |
 | Integração | `tests/integration/` | Fluxos completos pelas rotas HTTP, com adaptadores reais (RNF-13) | Sim |
 
+Os testes de código assíncrono são funções `async def`; o pytest-asyncio está configurado com `asyncio_mode = "auto"` no `pyproject.toml`, então não é preciso marcar cada teste.
+
 Exemplo de repositório em memória para testes unitários:
 
 ```python
@@ -270,10 +295,10 @@ class OrdemServicoRepositoryEmMemoria(OrdemServicoRepository):
     def __init__(self):
         self.dados = {}
 
-    def salvar(self, os):
+    async def salvar(self, os):
         self.dados[os.id] = os
 
-    def buscar_por_id(self, id):
+    async def buscar_por_id(self, id):
         return self.dados.get(id)
 ```
 
@@ -307,14 +332,19 @@ A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Tod
 | Linguagem | Python 3.12 (RNF-02) |
 | Framework web | FastAPI + Uvicorn, com Swagger em `/docs` (RNF-16) |
 | Banco de dados | PostgreSQL 16 (RNF-09) |
-| ORM | SQLAlchemy 2.0 (RNF-04); o modo síncrono ou assíncrono está pendente (8.2) |
+| ORM | SQLAlchemy 2.0 (RNF-04) |
+| Modo do SQLAlchemy | Assíncrono, com o driver asyncpg (issue #3). São `async def` as portas de repositório, as portas de serviço que bloqueiam (como `PasswordHasher`, que executa o bcrypt com `asyncio.to_thread`), os casos de uso e as rotas. `TokenService` é síncrono, pois não faz I/O. Carregamento preguiçoso proibido: as coleções são carregadas com `selectinload`. Testes com pytest-asyncio (`asyncio_mode = "auto"`) |
 | JWT e hash de senha | PyJWT e bcrypt (RF-01, RF-03) |
 | Gerenciamento de dependências | `uv` com `pyproject.toml` e lockfile `uv.lock`. Comandos: `uv sync` (instala o ambiente), `uv add <pacote>` (adiciona dependência), `uv run pytest` (executa sem ativar o venv) |
 | Imports a partir de `src/` | `PYTHONPATH=src`: `pythonpath = ["src"]` no pytest (`pyproject.toml`), `ENV PYTHONPATH=/app/src` no Dockerfile e `PYTHONPATH=src` no `.env` para a IDE |
 | Lint e formatação | Ruff (`ruff check` e `ruff format`), configurado no `pyproject.toml` |
 | Testes e cobertura | pytest + pytest-cov (RNF-12 a RNF-14) |
+| Migrations | Alembic com o template `async` (issue #4). A pasta `migrations/` e o `alembic.ini` ficam na raiz do projeto; cada mudança de schema é gerada com `uv run alembic revision --autogenerate -m "<descrição>"`, revisada antes do commit e aplicada com `alembic upgrade head` na subida do container. O Dockerfile precisa copiar `migrations/` e `alembic.ini` |
 | Rate limiting | SlowAPI com contador em memória (RNF-05) |
 | Rotas e DTOs | `presentation/routers/` e `presentation/schemas/`, um arquivo por recurso |
+| Estrutura de pastas | Alinhada à seção 6 do modelo C4 (issue #9): `domain/events/`, `application/events/`, `application/handlers/`, `infrastructure/database/` e `presentation/middlewares/` (seções 2 e 3) |
+| Configuração | `infrastructure/config.py` com pydantic-settings (issue #9). A configuração é lida e validada na subida da aplicação, nunca no import do módulo. Só o `presentation/container.py` importa o módulo, e os demais objetos recebem os valores pelo construtor |
+| Ponto de entrada e montagem | `presentation/main.py` cria o app e registra os routers; `presentation/container.py` monta as dependências (issue #9) |
 | CI (GitHub Actions) | Opcional; implementar somente se houver tempo ao final |
 
 ### 8.2. Em Aberto
@@ -323,11 +353,8 @@ Os itens abaixo **ainda não foram decididos** pelo grupo. Não assuma uma escol
 
 | Decisão | Opções levantadas e custos |
 | :--- | :--- |
-| Modo do SQLAlchemy | **Síncrono com psycopg 3:** código sem `async`/`await` em portas, casos de uso e testes; limite de 40 requisições simultâneas por padrão, sem efeito na meta de p95 < 500 ms. **Assíncrono com asyncpg:** maior vazão sob concorrência; `async` em todas as portas e casos de uso, testes com pytest-asyncio e carregamento preguiçoso proibido. |
-| Migrations | **Alembic:** versiona o schema e gera migrations a partir dos modelos; exige pasta `migrations/` e `alembic upgrade head` na subida. **`create_all` na inicialização:** nenhum arquivo extra; não altera tabelas existentes. **Scripts SQL no `initdb`:** SQL explícito; só executa com volume vazio e duplica o schema. |
 | Ferramentas de vulnerabilidade (RNF-07) | Proposta inicial: pip-audit (dependências), Bandit (código), Trivy (imagem Docker) e Dependabot (alertas no GitHub). Falta confirmação do grupo. |
 | Teste de desempenho (RNF-10) | Opções: Locust (cenários em Python, relatório HTML com p95), k6 (limite de p95 declarado no script, em JavaScript) ou script próprio com httpx. |
-| Unificação da estrutura de pastas | Criar ou não `domain/events/`, `application/events/`, `application/handlers/`, `infrastructure/database/` e `presentation/middlewares/`, previstas na seção 6 do modelo C4. |
 
 ## 9. Instruções para Assistentes de IA
 

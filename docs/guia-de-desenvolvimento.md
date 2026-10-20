@@ -91,6 +91,7 @@ Toda dependência externa segue o mesmo padrão:
 | Validação de token nas rotas | `src/presentation/auth/` | `dependencies.py` | — |
 | Teste unitário | `tests/unit/` | `test_<arquivo testado>.py` | `test_placa.py` |
 | Teste de integração | `tests/integration/` | `test_<fluxo>.py` | `test_fluxo_aprovacao_orcamento.py` |
+| Migration do banco | `migrations/versions/` (raiz do projeto) | gerado pelo Alembic | `<revisão>_cria_tabela_cliente.py` |
 | Relatório de segurança | `docs/security/` | — | relatório da análise de vulnerabilidades (RNF-07) |
 
 Se algo não se encaixa em nenhuma linha desta tabela, **não crie uma pasta nova por conta própria**: discuta com o grupo e, se aprovado, atualize esta tabela e `docs/estrutura-de-pastas.md` no mesmo PR.
@@ -319,6 +320,7 @@ A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Tod
 | Imports a partir de `src/` | `PYTHONPATH=src`: `pythonpath = ["src"]` no pytest (`pyproject.toml`), `ENV PYTHONPATH=/app/src` no Dockerfile e `PYTHONPATH=src` no `.env` para a IDE |
 | Lint e formatação | Ruff (`ruff check` e `ruff format`), configurado no `pyproject.toml` |
 | Testes e cobertura | pytest + pytest-cov (RNF-12 a RNF-14) |
+| Migrations | Alembic com o template `async` (issue #4). A pasta `migrations/` e o `alembic.ini` ficam na raiz do projeto; cada mudança de schema é gerada com `uv run alembic revision --autogenerate -m "<descrição>"`, revisada antes do commit e aplicada com `alembic upgrade head` na subida do container. O Dockerfile precisa copiar `migrations/` e `alembic.ini` |
 | Rate limiting | SlowAPI com contador em memória (RNF-05) |
 | Rotas e DTOs | `presentation/routers/` e `presentation/schemas/`, um arquivo por recurso |
 | CI (GitHub Actions) | Opcional; implementar somente se houver tempo ao final |
@@ -329,7 +331,6 @@ Os itens abaixo **ainda não foram decididos** pelo grupo. Não assuma uma escol
 
 | Decisão | Opções levantadas e custos |
 | :--- | :--- |
-| Migrations | **Alembic:** versiona o schema e gera migrations a partir dos modelos; exige pasta `migrations/` e `alembic upgrade head` na subida. **`create_all` na inicialização:** nenhum arquivo extra; não altera tabelas existentes. **Scripts SQL no `initdb`:** SQL explícito; só executa com volume vazio e duplica o schema. |
 | Ferramentas de vulnerabilidade (RNF-07) | Proposta inicial: pip-audit (dependências), Bandit (código), Trivy (imagem Docker) e Dependabot (alertas no GitHub). Falta confirmação do grupo. |
 | Teste de desempenho (RNF-10) | Opções: Locust (cenários em Python, relatório HTML com p95), k6 (limite de p95 declarado no script, em JavaScript) ou script próprio com httpx. |
 | Unificação da estrutura de pastas | Criar ou não `domain/events/`, `application/events/`, `application/handlers/`, `infrastructure/database/` e `presentation/middlewares/`, previstas na seção 6 do modelo C4. |

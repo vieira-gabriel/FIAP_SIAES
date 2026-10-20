@@ -103,4 +103,6 @@ As classes abaixo são citadas na Linguagem Ubíqua, mas a documentação não d
 * **Entidades** (`src/domain/entities/`): `Cliente`, `Veiculo`, `Servico`, `Peca`.
 * **Objetos de Valor** (`src/domain/value_objects/`): `CPF`, `CNPJ`, `Placa`, `Valor`, `StatusOS`, `Orcamento`.
 
+A pasta `migrations/` do Alembic (guia, seção 8.1) fica na raiz do projeto e será criada com as migrations iniciais.
+
 Também permanecem pendentes, por dependerem de implementação: a lógica da autenticação JWT (RNF-03, ver seção 5), configuração do PostgreSQL (RNF-08), conteúdo do `Dockerfile` e do `docker-compose.yml` (RNF-15) e medição de cobertura de testes (RNF-14).

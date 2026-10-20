@@ -87,7 +87,7 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 | Rotas e DTOs | `presentation/routers/` e `presentation/schemas/`, um arquivo por recurso | Guia §3 e §8.1 |
 | CI | Opcional, somente se houver tempo | Guia §8.1 |
 | Modo do SQLAlchemy | Assíncrono com asyncpg e pytest-asyncio (issue #3) | Guia §8.1 |
-| Migrations | **Pendente: decidir com o grupo** (Alembic, `create_all` ou scripts SQL) | Guia §8.2 |
+| Migrations | Alembic com o template `async`, pasta `migrations/` na raiz (issue #4) | Guia §8.1 |
 | Análise de vulnerabilidades | **Pendente: confirmar com o grupo** (proposta: pip-audit, Bandit, Trivy e Dependabot) | RNF-07, guia §8.2 |
 | Teste de desempenho | **Pendente: decidir** (Locust, k6 ou script próprio) | RNF-10, guia §8.2 |
 
@@ -140,7 +140,7 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 - [ ] Remover da `main` os dois arquivos `.pyc` commitados no health check (`src/presentation/__pycache__/` e `src/presentation/api/__pycache__/`); o `.gitignore` já ignora `__pycache__/`, mas não remove arquivos já versionados
 - [x] Criar `.env.example` com as variáveis necessárias, sem valores reais
 - [ ] Unificar o arquivo de dependências: a `main` tem `requirements.txt` (só `fastapi` e `uvicorn`) e `pyproject.toml`; manter apenas o `pyproject.toml`, conforme a seção 8.1 do guia
-- [ ] Gerar o `uv.lock` com `uv lock` após a decisão do driver do PostgreSQL e da ferramenta de migrations
+- [x] Gerar o `uv.lock` com `uv lock` após a decisão do driver do PostgreSQL e da ferramenta de migrations (issue #8)
 
 ### Estrutura de Pastas
 
@@ -222,7 +222,7 @@ Tarefas da fase:
 - [ ] Configuração do `PYTHONPATH` (ou empacotamento) para os imports a partir de `src/` funcionarem localmente, no Docker e no pytest
 - [ ] Configuração por variáveis de ambiente, sem segredos no código e com falha na inicialização quando faltar variável obrigatória (RNF-06)
 - [ ] Engine e sessão do SQLAlchemy com controle de transação e rollback completo em caso de falha (RNF-08)
-- [ ] Migrations iniciais (ferramenta pendente de decisão, seção 8.2 do guia)
+- [ ] Migrations iniciais com Alembic (`alembic init -t async migrations`, seção 8.1 do guia)
 - [x] Rota de health check na aplicação FastAPI (`GET /health`)
 - [ ] Conferir o Swagger em `/docs`, exposto automaticamente pelo FastAPI, e documentar o acesso (RNF-16)
 - [ ] Tratamento padronizado de erros, traduzindo as exceções do domínio para códigos HTTP, incluindo `401` e `403` (RNF-03)

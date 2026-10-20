@@ -346,6 +346,8 @@ A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Tod
 | Configuração | `infrastructure/config.py` com pydantic-settings (issue #9). A configuração é lida e validada na subida da aplicação, nunca no import do módulo. Só o `presentation/container.py` importa o módulo, e os demais objetos recebem os valores pelo construtor |
 | Ponto de entrada e montagem | `presentation/main.py` cria o app e registra os routers; `presentation/container.py` monta as dependências (issue #9) |
 | CI (GitHub Actions) | Opcional; implementar somente se houver tempo ao final |
+| Análise de vulnerabilidades (RNF-07) | pip-audit para as dependências, Bandit para o código-fonte e Trivy para a imagem Docker (issue #5). pip-audit e Bandit entram como dependências de desenvolvimento; o Trivy roda como binário separado ou pela imagem `aquasec/trivy`. Sem Dependabot. A análise roda sobre o commit final da entrega e o relatório vai para `docs/security/` |
+| Teste de desempenho (RNF-10) | Locust, como dependência de desenvolvimento (issue #6). O relatório com o p95 é a evidência da medição; a falha automática quando o p95 passar de 500 ms precisa ser escrita no cenário |
 
 ### 8.2. Em Aberto
 
@@ -353,8 +355,7 @@ Os itens abaixo **ainda não foram decididos** pelo grupo. Não assuma uma escol
 
 | Decisão | Opções levantadas e custos |
 | :--- | :--- |
-| Ferramentas de vulnerabilidade (RNF-07) | Proposta inicial: pip-audit (dependências), Bandit (código), Trivy (imagem Docker) e Dependabot (alertas no GitHub). Falta confirmação do grupo. |
-| Teste de desempenho (RNF-10) | Opções: Locust (cenários em Python, relatório HTML com p95), k6 (limite de p95 declarado no script, em JavaScript) ou script próprio com httpx. |
+| Cenário do teste de desempenho (RNF-10) | O RNF-10 não define as "condições normais de operação local". Falta definir o número de usuários simultâneos, a duração do teste e as rotas medidas. |
 
 ## 9. Instruções para Assistentes de IA
 

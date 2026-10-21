@@ -16,10 +16,14 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app/src" \
     PYTHONUNBUFFERED=1
 
+RUN useradd --system --uid 10001 --no-create-home siaes
+
 WORKDIR /app
 
 COPY --from=builder /app/.venv /app/.venv
 COPY src ./src
+
+USER siaes
 
 EXPOSE 8000
 

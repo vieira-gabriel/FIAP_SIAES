@@ -88,8 +88,8 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 | CI | Opcional, somente se houver tempo | Guia §8.1 |
 | Modo do SQLAlchemy | Assíncrono com asyncpg e pytest-asyncio (issue #3) | Guia §8.1 |
 | Migrations | Alembic com o template `async`, pasta `migrations/` na raiz (issue #4) | Guia §8.1 |
-| Análise de vulnerabilidades | **Pendente: confirmar com o grupo** (proposta: pip-audit, Bandit, Trivy e Dependabot) | RNF-07, guia §8.2 |
-| Teste de desempenho | **Pendente: decidir** (Locust, k6 ou script próprio) | RNF-10, guia §8.2 |
+| Análise de vulnerabilidades | pip-audit, Bandit e Trivy, sem Dependabot (issue #5) | RNF-07, guia §8.1 |
+| Teste de desempenho | Locust (issue #6); cenário de medição pendente | RNF-10, guia §8.1 e §8.2 |
 
 ### Decisões de Domínio
 

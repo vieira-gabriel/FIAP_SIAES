@@ -1,6 +1,18 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
-app = FastAPI()
+from presentation.container import montar_dependencias
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    montar_dependencias(app)
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/health", tags=["Health Check"])

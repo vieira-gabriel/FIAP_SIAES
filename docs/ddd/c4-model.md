@@ -135,8 +135,8 @@ flowchart TD
     subgraph DOMAIN ["3. Camada de Domínio (src/domain/ - Pure Python Dataclasses)"]
         AggOS[("🟩 Agregado: OrdemServico\nEntidade-raiz com regras da máquina de estados.")]
         AggEstoque[("🟩 Agregado: EstoquePeca\nEntidade com controle quantitativo.")]
-        Entities["👤 Entidades\nCliente, Veiculo, Usuario."]
-        VOs["💎 Value Objects\nCPF, CNPJ, Placa, StatusOS, PerfilUsuario."]
+        Entities["👤 Entidades\nCliente, Veiculo, Usuario, Servico, Peca."]
+        VOs["💎 Value Objects\nCPF, CNPJ, Placa, Valor, NumeroOS, Orcamento,\nStatusOS, PerfilUsuario, OrigemTransicao."]
         DomainEvents["🟧 Eventos de Domínio\nOrcamentoFinalizadoEvent, OSCanceladaEvent,\nExecucaoIniciadaEvent, SaldoPecaAtualizadoEvent."]
         IRepositories["🔌 Interfaces de Repositório (ABCs)\nIOrdemServicoRepository, IEstoqueRepository, IUsuarioRepository."]
     end
@@ -194,7 +194,7 @@ flowchart TD
 
 ## 5. Nível 4: Diagrama de Código (Code Diagram)
 
-O Diagrama de Código ilustra a estrutura interna das entidades de domínio (`OrdemServico`, `Cliente`, `Veiculo`, `Usuario`), Objetos de Valor (`CPF`, `CNPJ`, `Placa`, `StatusOS`, `PerfilUsuario`) e Eventos, implementados como **`dataclasses` puras do Python** sem acoplamento com frameworks.
+O Diagrama de Código ilustra a estrutura interna dos agregados (`OrdemServico`, `EstoquePeca`), das entidades (`Cliente`, `Veiculo`, `Usuario`, `Servico`, `Peca`, `ItemServico`, `ItemPeca`, `HistoricoStatusOS`), dos Objetos de Valor (`CPF`, `CNPJ`, `Placa`, `Valor`, `NumeroOS`, `Orcamento`, `StatusOS`, `PerfilUsuario`, `OrigemTransicao`) e dos Eventos de Domínio, implementados como **`dataclasses` puras do Python** sem acoplamento com frameworks. Todo preço e todo total usa o objeto de valor `Valor`, com precisão decimal (RNF-11).
 
 ### Diagrama de Classes do Domínio (Mermaid / UML)
 
@@ -259,10 +259,11 @@ classDiagram
         +datetime data_abertura
         +Optional~datetime~ data_inicio_execucao
         +Optional~datetime~ data_finalizacao
+        +Optional~Orcamento~ orcamento
+        +List~HistoricoStatusOS~ historico
         +List~DomainEvent~ _domain_events
         +atribuir_mecanico(mecanico_id: UUID) void
         +finalizar_orcamento() void
-        +List~HistoricoStatusOS~ historico
         +aprovar_orcamento() void
         +rejeitar_orcamento() void
         +liberar_para_execucao() void
@@ -270,13 +271,15 @@ classDiagram
         +concluir_manutencao() void
         +entregar_veiculo() void
         +cancelar(motivo: str) void
+        +estimar_entrega(momento_consulta: datetime) Optional~datetime~
         +collect_domain_events() List~DomainEvent~
     }
 
     class ItemServico {
         +UUID servico_id
         +str nome
-        +float preco_congelado
+        +Valor preco_congelado
+        +int tempo_estimado_minutos
     }
 
     class ItemPeca {
@@ -285,8 +288,77 @@ classDiagram
         +int quantidade
         +int quantidade_reservada
         +int quantidade_pendente
-        +float preco_unitario_congelado
-        +valor_total() float
+        +Valor preco_unitario_congelado
+        +int prazo_reposicao_dias
+        +valor_total() Valor
+    }
+
+    class Orcamento {
+        <<Value Object>>
+        +Valor subtotal_servicos
+        +Valor subtotal_pecas
+        +Valor total
+    }
+
+    class HistoricoStatusOS {
+        +UUID id
+        +Optional~StatusOS~ status_anterior
+        +StatusOS status_novo
+        +datetime data_hora
+        +OrigemTransicao origem
+        +Optional~UUID~ usuario_id
+        +Optional~str~ motivo
+    }
+
+    class OrigemTransicao {
+        <<enumeration>>
+        USUARIO
+        CLIENTE
+        SISTEMA
+    }
+
+    class Servico {
+        +UUID id
+        +str codigo
+        +str nome
+        +str descricao
+        +Valor valor_base
+        +int tempo_estimado_minutos
+        +bool ativo
+    }
+
+    class Peca {
+        +UUID id
+        +str codigo_referencia
+        +str nome
+        +Valor preco_unitario
+        +int prazo_reposicao_dias
+        +bool ativo
+    }
+
+    class EstoquePeca {
+        +UUID peca_id
+        +int quantidade_fisica
+        +int quantidade_reservada
+        +List~DomainEvent~ _domain_events
+        +saldo_disponivel() int
+        +reservar(quantidade: int) int
+        +baixar(quantidade: int) void
+        +estornar(quantidade: int) void
+        +repor(quantidade: int) void
+        +collect_domain_events() List~DomainEvent~
+    }
+
+    class Valor {
+        <<Value Object>>
+        +Decimal valor
+        +somar(outro: Valor) Valor
+        +multiplicar(quantidade: int) Valor
+    }
+
+    class NumeroOS {
+        <<Value Object>>
+        +str valor
     }
 
     class CPF {
@@ -311,10 +383,20 @@ classDiagram
         +datetime occurred_on
     }
 
-    class OrcamentoAprovadoEvent {
+    class OrcamentoFinalizadoEvent {
         +UUID os_id
-        +UUID cliente_id
-        +List~dict~ itens_pecas
+    }
+
+    class OSCanceladaEvent {
+        +UUID os_id
+    }
+
+    class ExecucaoIniciadaEvent {
+        +UUID os_id
+    }
+
+    class SaldoPecaAtualizadoEvent {
+        +UUID peca_id
     }
 
     Usuario "1" --> "1" PerfilUsuario : possui
@@ -328,9 +410,32 @@ classDiagram
     OrdemServico "1" *-- "*" ItemServico : contem
     OrdemServico "1" *-- "*" ItemPeca : contem
     OrdemServico --> StatusOS : possui estado
-    DomainEvent <|-- OrcamentoAprovadoEvent : herda de
+    OrdemServico --> NumeroOS : numero
+    OrdemServico "1" *-- "0..1" Orcamento : orcamento
+    OrdemServico "1" *-- "*" HistoricoStatusOS : historico
+    HistoricoStatusOS --> OrigemTransicao : origem
+    ItemServico "*" --> "1" Servico : referencia (servico_id)
+    ItemPeca "*" --> "1" Peca : referencia (peca_id)
+    EstoquePeca "1" --> "1" Peca : controla o estoque de (peca_id)
+    ItemServico --> Valor : preco_congelado
+    ItemPeca --> Valor : preco_unitario_congelado
+    Servico --> Valor : valor_base
+    Peca --> Valor : preco_unitario
+    Orcamento --> Valor : subtotais e total
+    DomainEvent <|-- OrcamentoFinalizadoEvent : herda de
+    DomainEvent <|-- OSCanceladaEvent : herda de
+    DomainEvent <|-- ExecucaoIniciadaEvent : herda de
+    DomainEvent <|-- SaldoPecaAtualizadoEvent : herda de
     OrdemServico *-- DomainEvent : acumula eventos
+    EstoquePeca *-- DomainEvent : acumula eventos
 ```
+
+### Decisões do Diagrama de Classes
+
+* **`Peca` e `EstoquePeca` são entidades separadas, na relação 1:1.** `Peca` guarda o cadastro (código de referência, nome, preço unitário, prazo de reposição e exclusão lógica), alterado só pelo Gerente (RF-12). `EstoquePeca` é a raiz do agregado de estoque e guarda as quantidades física e reservada. A separação faz a reserva, a baixa e o estorno bloquearem apenas o registro de estoque, sem disputar o registro do cadastro.
+* **Tempo estimado e prazo de reposição são congelados no item.** Em `finalizar_orcamento`, junto com os preços (RF-17), a OS copia `Servico.tempo_estimado_minutos` para `ItemServico` e `Peca.prazo_reposicao_dias` para `ItemPeca`. Assim, `estimar_entrega` (RF-25) usa só os dados da OS, e a estimativa corresponde ao orçamento apresentado ao cliente. Uma alteração posterior no catálogo não muda a estimativa das OS já orçadas.
+* **Documento do cliente.** `Cliente` usa os objetos de valor `CPF` e `CNPJ`, separados por decisão do grupo na issue #14.
+* **Eventos de domínio.** O diagrama mostra os 4 eventos do catálogo da seção 7 de `docs/ddd/event-storming.md`, com o identificador do agregado emissor; os demais campos de cada evento são definidos na implementação (issue #45).
 
 ---
 
@@ -352,8 +457,8 @@ src/
 │   ├── events/                    # Event Dispatcher In-Memory
 │   └── handlers/                  # Event Handlers (ReservaPecasHandler, EstornoPecasHandler, BaixaEstoqueHandler, AlocacaoPecasPendentesHandler)
 ├── domain/                        # Nível 4 (Núcleo Puro de Negócio em Python Dataclasses)
-│   ├── entities/                  # Dataclasses de Agregados e Entidades (OrdemServico, Cliente, Veiculo, Usuario)
-│   ├── value_objects/             # VOs Imutáveis (CPF, CNPJ, Placa, StatusOS, PerfilUsuario)
+│   ├── entities/                  # Dataclasses de Agregados e Entidades (OrdemServico, EstoquePeca, Cliente, Veiculo, Usuario, Servico, Peca)
+│   ├── value_objects/             # VOs Imutáveis (CPF, CNPJ, Placa, Valor, NumeroOS, Orcamento, StatusOS, PerfilUsuario, OrigemTransicao)
 │   ├── events/                    # Eventos de Domínio (catálogo na seção 7 de docs/ddd/event-storming.md)
 │   └── repositories/              # Interfaces Abstratas dos Repositórios (ABCs)
 └── infrastructure/                # Nível 3 (Adaptadores I/O & Infraestrutura)

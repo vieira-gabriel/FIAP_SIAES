@@ -1,0 +1,19 @@
+# Segredos (RNF-06): o .env chega ao container pelo compose, nunca pela imagem
+.env
+.env.*
+
+# Ambiente virtual e caches locais
+.venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Arquivos que a imagem não usa
+.git/
+.claude/
+docs/
+tests/
+*.pdf

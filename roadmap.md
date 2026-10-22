@@ -193,7 +193,7 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 - [ ] Incluir na linguagem ubíqua os termos ainda ausentes do modelo C4: `Usuario`, `PerfilUsuario`, `ItemServico`, `ItemPeca` e eventos de domínio
 - [ ] Usar o objeto de valor `Valor` (precisão decimal) nos preços do diagrama de classes, que hoje aparecem como `float`
 - [ ] Completar o diagrama de classes com `Servico` (tempo estimado), `Peca`/`EstoquePeca` (quantidade reservada e prazo de reposição), `Orcamento` e `HistoricoStatusOS`, e esclarecer se `Peca` e `EstoquePeca` são a mesma entidade
-- [ ] Listar todos os eventos de domínio; o modelo C4 cita `OrcamentoAprovadoEvent`, `ExecucaoIniciadaEvent` e `StatusOSAlteradoEvent`, mas reserva, estorno, reposição de estoque e liberação de OS também dependem de eventos
+- [x] Listar todos os eventos de domínio; o modelo C4 cita `OrcamentoAprovadoEvent`, `ExecucaoIniciadaEvent` e `StatusOSAlteradoEvent`, mas reserva, estorno, reposição de estoque e liberação de OS também dependem de eventos (seção 7 de [docs/ddd/event-storming.md](docs/ddd/event-storming.md); `OrcamentoAprovadoEvent` e `StatusOSAlteradoEvent` deixaram de ser classes porque nenhum outro agregado os consome)
 
 ### Diagramas
 

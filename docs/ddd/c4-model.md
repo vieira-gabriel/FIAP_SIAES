@@ -126,7 +126,10 @@ flowchart TD
         
         Ports["🔌 Ports (Interfaces de Serviço)\nITokenProvider, IPasswordHasher"]
         EventDispatcher["⚡ EventDispatcher (In-Memory)\nBarramento síncrono para eventos de domínio."]
-        EstoqueHandler["📦 BaixaEstoqueHandler\nEscuta ExecucaoIniciada e efetua a baixa das peças reservadas."]
+        ReservaHandler["📦 ReservaPecasHandler\nEscuta OrcamentoFinalizadoEvent e reserva as peças da OS."]
+        EstornoHandler["📦 EstornoPecasHandler\nEscuta OSCanceladaEvent e estorna as reservas da OS."]
+        EstoqueHandler["📦 BaixaEstoqueHandler\nEscuta ExecucaoIniciadaEvent e efetua a baixa das peças reservadas."]
+        AlocacaoHandler["📦 AlocacaoPecasPendentesHandler\nEscuta SaldoPecaAtualizadoEvent, aloca o saldo às OS pendentes\ne libera as OS sem pendência."]
     end
 
     subgraph DOMAIN ["3. Camada de Domínio (src/domain/ - Pure Python Dataclasses)"]
@@ -134,7 +137,7 @@ flowchart TD
         AggEstoque[("🟩 Agregado: EstoquePeca\nEntidade com controle quantitativo.")]
         Entities["👤 Entidades\nCliente, Veiculo, Usuario."]
         VOs["💎 Value Objects\nCPF, CNPJ, Placa, StatusOS, PerfilUsuario."]
-        DomainEvents["🟧 Eventos de Domínio\nOrcamentoAprovadoEvent, ExecucaoIniciadaEvent, StatusOSAlteradoEvent."]
+        DomainEvents["🟧 Eventos de Domínio\nOrcamentoFinalizadoEvent, OSCanceladaEvent,\nExecucaoIniciadaEvent, SaldoPecaAtualizadoEvent."]
         IRepositories["🔌 Interfaces de Repositório (ABCs)\nIOrdemServicoRepository, IEstoqueRepository, IUsuarioRepository."]
     end
 
@@ -158,9 +161,23 @@ flowchart TD
     
     AprovarOrcamentoUseCase --> AggOS
     IniciarExecucaoUseCase --> AggOS
+    CalcularOrcamentoUseCase --> EventDispatcher
+    AprovarOrcamentoUseCase --> EventDispatcher
     IniciarExecucaoUseCase --> EventDispatcher
+    AggOS -.->|emite| DomainEvents
+    AggEstoque -.->|emite| DomainEvents
+    EventDispatcher -->|OrcamentoFinalizadoEvent| ReservaHandler
+    EventDispatcher -->|OSCanceladaEvent| EstornoHandler
     EventDispatcher -->|ExecucaoIniciadaEvent| EstoqueHandler
-    EstoqueHandler --> PgEstoqueRepo
+    EventDispatcher -->|SaldoPecaAtualizadoEvent| AlocacaoHandler
+    ReservaHandler --> AggEstoque
+    EstornoHandler --> AggEstoque
+    EstoqueHandler --> AggEstoque
+    AlocacaoHandler --> AggOS
+    ReservaHandler --> IRepositories
+    EstornoHandler --> IRepositories
+    EstoqueHandler --> IRepositories
+    AlocacaoHandler --> IRepositories
     
     CriarOSUseCase --> IRepositories
     AprovarOrcamentoUseCase --> IRepositories
@@ -333,11 +350,11 @@ src/
 │   ├── use_cases/                 # Serviços de Orquestração (CriarOS, AprovarOrcamento, Login)
 │   ├── ports/                     # Interfaces Abstratas de Serviços (ITokenProvider, IPasswordHasher)
 │   ├── events/                    # Event Dispatcher In-Memory
-│   └── handlers/                  # Event Handlers (BaixaEstoqueHandler)
+│   └── handlers/                  # Event Handlers (ReservaPecasHandler, EstornoPecasHandler, BaixaEstoqueHandler, AlocacaoPecasPendentesHandler)
 ├── domain/                        # Nível 4 (Núcleo Puro de Negócio em Python Dataclasses)
 │   ├── entities/                  # Dataclasses de Agregados e Entidades (OrdemServico, Cliente, Veiculo, Usuario)
 │   ├── value_objects/             # VOs Imutáveis (CPF, CNPJ, Placa, StatusOS, PerfilUsuario)
-│   ├── events/                    # Definição dos Eventos de Domínio (OrcamentoAprovadoEvent)
+│   ├── events/                    # Eventos de Domínio (catálogo na seção 7 de docs/ddd/event-storming.md)
 │   └── repositories/              # Interfaces Abstratas dos Repositórios (ABCs)
 └── infrastructure/                # Nível 3 (Adaptadores I/O & Infraestrutura)
     ├── config.py                  # Leitura e validação das variáveis de ambiente (pydantic-settings)

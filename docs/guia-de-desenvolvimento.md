@@ -78,6 +78,7 @@ Toda dependência externa segue o mesmo padrão:
 | :--- | :--- |
 | `domain/repositories/ordem_servico_repository.py` | `infrastructure/repositories/postgres_ordem_servico_repository.py` |
 | `domain/repositories/usuario_repository.py` | `infrastructure/repositories/postgres_usuario_repository.py` |
+| `domain/repositories/estoque_repository.py` | `infrastructure/repositories/postgres_estoque_repository.py` |
 | `application/ports/token_service.py` | `infrastructure/security/jwt_token_service.py` |
 | `application/ports/password_hasher.py` | `infrastructure/security/bcrypt_password_hasher.py` |
 
@@ -98,7 +99,7 @@ Toda dependência externa segue o mesmo padrão:
 | Implementação de serviço técnico | `src/infrastructure/<assunto>/` | tecnologia + serviço | `jwt_token_service.py` |
 | Rota HTTP | `src/presentation/routers/` | nome do recurso no plural | `ordens_servico.py` → `router = APIRouter()` |
 | DTO de entrada ou saída da API | `src/presentation/schemas/` | nome do recurso no singular | `ordem_servico.py` → `CriarOSRequest`, `OSResponse` |
-| Evento de domínio | `src/domain/events/` | nome do evento + `_event` | `orcamento_aprovado_event.py` → `class OrcamentoAprovadoEvent` |
+| Evento de domínio | `src/domain/events/` | nome do evento + `_event` | `orcamento_finalizado_event.py` → `class OrcamentoFinalizadoEvent` |
 | Event Dispatcher | `src/application/events/` | `event_dispatcher.py` | `class EventDispatcher` |
 | Handler de evento | `src/application/handlers/` | ação + `_handler` | `baixa_estoque_handler.py` → `class BaixaEstoqueHandler` |
 | Engine, sessão e unidade de trabalho do SQLAlchemy | `src/infrastructure/database/` | nome do assunto | `engine.py`, `unidade_de_trabalho.py` |

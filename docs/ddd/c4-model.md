@@ -106,25 +106,25 @@ O Diagrama de Componentes descreve a organização interna do contêiner da apli
 ```mermaid
 flowchart TD
     subgraph API_LAYER ["1. Camada de Apresentação / Entrada (src/presentation/)"]
-        AuthController["🔐 AuthController\nEndpoints de login e geração de JWT."]
-        OSController["🛠️ OrdemServicoController\nEndpoints administrativos de OS (Criar, Listar, Transicionar)."]
-        ClienteController["👤 ClienteController\nEndpoints de CRUD de Clientes e Veículos."]
-        EstoqueController["📦 EstoqueController\nEndpoints de gestão e entrada de estoque de peças."]
-        PublicController["📲 AcompanhamentoPublicoController\nEndpoint desautenticado de consulta por CPF/OS."]
+        RouterAutenticacao["🔐 routers/autenticacao.py\nRota pública de login e emissão do JWT."]
+        RouterOS["🛠️ routers/ordens_servico.py\nRotas administrativas de OS (Criar, Listar, Transicionar)."]
+        RouterClientes["👤 routers/clientes.py\nRotas de CRUD de Clientes e Veículos."]
+        RouterEstoque["📦 routers/estoque.py\nRotas de gestão e entrada de estoque de peças."]
+        RouterAcompanhamento["📲 routers/acompanhamento_publico.py\nRota desautenticada de consulta por número da OS e CPF/CNPJ."]
         
-        AuthGuard["🛡️ RBACGuard / JWT Middleware\nValida token Bearer e claim 'role' (Atendente, Mecanico, Gerente)."]
-        RateLimiter["⚡ RateLimitingMiddleware\nProtege rotas públicas contra força bruta DoS."]
+        Dependencies["🛡️ middlewares/dependencies.py\nobter_usuario_autenticado e exigir_perfis validam o token Bearer\ne a claim 'role' (Atendente, Mecanico, Gerente)."]
+        RateLimit["⚡ middlewares/rate_limit.py\nlimiter do SlowAPI nas rotas públicas contra força bruta."]
     end
 
     subgraph APPLICATION ["2. Camada de Aplicação (src/application/)"]
-        CriarOSUseCase["⚙️ CriarOrdemServicoUseCase"]
-        IniciardiagnosticoUseCase["⚙️ IniciarDiagnosticoUseCase"]
-        CalcularOrcamentoUseCase["⚙️ CalcularOrcamentoUseCase"]
-        AprovarOrcamentoUseCase["⚙️ AprovarOrcamentoUseCase"]
-        IniciarExecucaoUseCase["⚙️ IniciarExecucaoUseCase"]
-        ConsultarStatusPublicoUseCase["⚙️ ConsultarStatusPublicoUseCase"]
+        CriarOS["⚙️ CriarOS"]
+        IniciarDiagnostico["⚙️ IniciarDiagnostico"]
+        CalcularOrcamento["⚙️ CalcularOrcamento"]
+        AprovarOrcamento["⚙️ AprovarOrcamento"]
+        IniciarExecucao["⚙️ IniciarExecucao"]
+        ConsultarStatusPublico["⚙️ ConsultarStatusPublico"]
         
-        Ports["🔌 Ports (Interfaces de Serviço)\nITokenProvider, IPasswordHasher"]
+        Ports["🔌 Portas de Serviço (application/ports/)\nTokenService, PasswordHasher"]
         EventDispatcher["⚡ EventDispatcher (In-Memory)\nBarramento síncrono para eventos de domínio."]
         ReservaHandler["📦 ReservaPecasHandler\nEscuta OrcamentoFinalizadoEvent e reserva as peças da OS."]
         EstornoHandler["📦 EstornoPecasHandler\nEscuta OSCanceladaEvent e estorna as reservas da OS."]
@@ -138,32 +138,34 @@ flowchart TD
         Entities["👤 Entidades\nCliente, Veiculo, Usuario, Servico, Peca."]
         VOs["💎 Value Objects\nCPF, CNPJ, Placa, Valor, NumeroOS, Orcamento,\nStatusOS, PerfilUsuario, OrigemTransicao."]
         DomainEvents["🟧 Eventos de Domínio\nOrcamentoFinalizadoEvent, OSCanceladaEvent,\nExecucaoIniciadaEvent, SaldoPecaAtualizadoEvent."]
-        IRepositories["🔌 Interfaces de Repositório (ABCs)\nIOrdemServicoRepository, IEstoqueRepository, IUsuarioRepository."]
+        Repositories["🔌 Portas de Repositório (ABCs)\nOrdemServicoRepository, EstoqueRepository, UsuarioRepository."]
     end
 
     subgraph INFRASTRUCTURE ["4. Camada de Infraestrutura (src/infrastructure/)"]
         PgOSRepo["🐘 PostgresOrdemServicoRepository\nImplementação concreta SQLAlchemy."]
         PgEstoqueRepo["🐘 PostgresEstoqueRepository\nImplementação concreta SQLAlchemy com Lock."]
-        JWTProvider["🔐 PyJWTProvider\nImplementação de ITokenProvider."]
-        BcryptHasher["🔐 BcryptPasswordHasher\nImplementação de IPasswordHasher."]
+        JwtTokenService["🔐 JwtTokenService\nImplementação de TokenService com PyJWT."]
+        BcryptHasher["🔐 BcryptPasswordHasher\nImplementação de PasswordHasher."]
         PgDatabase["🐘 SQLAlchemy Session / Postgres Driver"]
     end
 
-    AuthGuard --> AuthController
-    RateLimiter --> PublicController
+    Dependencies --> RouterOS
+    Dependencies --> RouterClientes
+    Dependencies --> RouterEstoque
+    RateLimit --> RouterAcompanhamento
     
-    OSController --> CriarOSUseCase
-    OSController --> IniciardiagnosticoUseCase
-    OSController --> CalcularOrcamentoUseCase
-    OSController --> IniciarExecucaoUseCase
-    PublicController --> AprovarOrcamentoUseCase
-    PublicController --> ConsultarStatusPublicoUseCase
+    RouterOS --> CriarOS
+    RouterOS --> IniciarDiagnostico
+    RouterOS --> CalcularOrcamento
+    RouterOS --> IniciarExecucao
+    RouterAcompanhamento --> AprovarOrcamento
+    RouterAcompanhamento --> ConsultarStatusPublico
     
-    AprovarOrcamentoUseCase --> AggOS
-    IniciarExecucaoUseCase --> AggOS
-    CalcularOrcamentoUseCase --> EventDispatcher
-    AprovarOrcamentoUseCase --> EventDispatcher
-    IniciarExecucaoUseCase --> EventDispatcher
+    AprovarOrcamento --> AggOS
+    IniciarExecucao --> AggOS
+    CalcularOrcamento --> EventDispatcher
+    AprovarOrcamento --> EventDispatcher
+    IniciarExecucao --> EventDispatcher
     AggOS -.->|emite| DomainEvents
     AggEstoque -.->|emite| DomainEvents
     EventDispatcher -->|OrcamentoFinalizadoEvent| ReservaHandler
@@ -174,18 +176,18 @@ flowchart TD
     EstornoHandler --> AggEstoque
     EstoqueHandler --> AggEstoque
     AlocacaoHandler --> AggOS
-    ReservaHandler --> IRepositories
-    EstornoHandler --> IRepositories
-    EstoqueHandler --> IRepositories
-    AlocacaoHandler --> IRepositories
+    ReservaHandler --> Repositories
+    EstornoHandler --> Repositories
+    EstoqueHandler --> Repositories
+    AlocacaoHandler --> Repositories
     
-    CriarOSUseCase --> IRepositories
-    AprovarOrcamentoUseCase --> IRepositories
+    CriarOS --> Repositories
+    AprovarOrcamento --> Repositories
     
-    JWTProvider -.->|Implementa| Ports
+    JwtTokenService -.->|Implementa| Ports
     BcryptHasher -.->|Implementa| Ports
-    PgOSRepo -.->|Implementa| IRepositories
-    PgEstoqueRepo -.->|Implementa| IRepositories
+    PgOSRepo -.->|Implementa| Repositories
+    PgEstoqueRepo -.->|Implementa| Repositories
     PgOSRepo --> PgDatabase
     PgEstoqueRepo --> PgDatabase
 ```
@@ -445,15 +447,15 @@ A estrutura física do repositório reflete exatamente o desacoplamento proposto
 
 ```text
 src/
-├── presentation/                  # Nível 3 (Camada de Entrada, Controllers HTTP & Middlewares)
+├── presentation/                  # Nível 3 (Camada de Entrada, Routers HTTP & Middlewares)
 │   ├── main.py                    # Criação do app FastAPI e registro dos routers
 │   ├── container.py               # Montagem das dependências (único ponto que importa infrastructure)
-│   ├── routers/                   # Route Handlers FastAPI, um arquivo por recurso (Auth, OS, Cliente, Estoque)
+│   ├── routers/                   # Routers FastAPI, um arquivo por recurso (autenticacao, ordens_servico, clientes, estoque, acompanhamento_publico)
 │   ├── middlewares/               # JWT Auth & Rate Limiting Guards (Depends / Security)
 │   └── schemas/                   # Pydantic DTOs, um arquivo por recurso (Validação de Entrada/Saída HTTP)
 ├── application/                   # Nível 3 (Camada de Aplicação & Casos de Uso)
-│   ├── use_cases/                 # Serviços de Orquestração (CriarOS, AprovarOrcamento, Login)
-│   ├── ports/                     # Interfaces Abstratas de Serviços (ITokenProvider, IPasswordHasher)
+│   ├── use_cases/                 # Serviços de Orquestração (CriarOS, AprovarOrcamento, AutenticarUsuario)
+│   ├── ports/                     # Interfaces Abstratas de Serviços (TokenService, PasswordHasher)
 │   ├── events/                    # Event Dispatcher In-Memory
 │   └── handlers/                  # Event Handlers (ReservaPecasHandler, EstornoPecasHandler, BaixaEstoqueHandler, AlocacaoPecasPendentesHandler)
 ├── domain/                        # Nível 4 (Núcleo Puro de Negócio em Python Dataclasses)
@@ -465,7 +467,7 @@ src/
     ├── config.py                  # Leitura e validação das variáveis de ambiente (pydantic-settings)
     ├── database/                  # Engine SQLAlchemy, Sessions, Unidade de Trabalho e Modelos do ORM
     ├── repositories/              # Implementações Concretas com SQLAlchemy (Postgres)
-    └── security/                  # Implementações Concretas de Segurança (PyJWT, Passlib/Bcrypt)
+    └── security/                  # Implementações Concretas de Segurança (JwtTokenService com PyJWT, BcryptPasswordHasher com bcrypt)
 ```
 
 > A árvore acima foi aprovada pelo grupo na issue #9 e coincide com as seções 2 e 3 de `docs/guia-de-desenvolvimento.md`. As migrations do Alembic ficam na pasta `migrations/`, na raiz do projeto.

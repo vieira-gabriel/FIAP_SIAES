@@ -23,3 +23,6 @@ class Placa:
         if not (_PADRAO_ANTIGO.fullmatch(normalizada) or _PADRAO_MERCOSUL.fullmatch(normalizada)):
             raise PlacaInvalida(self.valor)
         object.__setattr__(self, "valor", normalizada)
+
+    def eh_mercosul(self) -> bool:
+        return _PADRAO_MERCOSUL.fullmatch(self.valor) is not None

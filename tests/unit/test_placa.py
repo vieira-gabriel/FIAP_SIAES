@@ -44,6 +44,14 @@ def test_recusa_formato_fora_dos_padroes(invalida):
     assert erro.value.placa == invalida
 
 
+@pytest.mark.parametrize(
+    ("placa", "mercosul"),
+    [("ABC1D23", True), ("abc-1d23", True), ("ABC1234", False), ("abc-1234", False)],
+)
+def test_eh_mercosul_distingue_os_dois_padroes(placa, mercosul):
+    assert Placa(placa).eh_mercosul() is mercosul
+
+
 def test_mesma_placa_digitada_de_formas_diferentes_e_igual():
     assert Placa("abc-1d23") == Placa("ABC1D23")
     assert hash(Placa("abc-1d23")) == hash(Placa("ABC1D23"))

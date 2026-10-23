@@ -40,6 +40,12 @@ class PlacaInvalida(ValorInvalido):
         self.placa = placa
 
 
+class NumeroOSInvalido(ValorInvalido):
+    def __init__(self, numero: str):
+        super().__init__(f"Número da OS inválido: {numero!r}. Use o formato 123-7F3A9C2B.")
+        self.numero = numero
+
+
 class UsuarioInvalido(ValorInvalido):
     def __init__(self, motivo: str):
         super().__init__(f"Usuário inválido: {motivo}")

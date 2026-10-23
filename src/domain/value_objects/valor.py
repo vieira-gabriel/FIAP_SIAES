@@ -14,37 +14,35 @@ class Valor:
     impreciso: `0.1 + 0.2` vale `0.30000000000000004`.
     """
 
-    quantia: Decimal
+    valor: Decimal
 
     def __post_init__(self):
-        object.__setattr__(self, "quantia", _converter_em_centavos(self.quantia))
+        object.__setattr__(self, "valor", _converter_em_centavos(self.valor))
 
-    def __add__(self, outro: "Valor") -> "Valor":
+    def somar(self, outro: "Valor") -> "Valor":
         if not isinstance(outro, Valor):
-            return NotImplemented
-        return Valor(self.quantia + outro.quantia)
+            raise TypeError(f"Só é possível somar Valor com Valor, não {type(outro).__name__}.")
+        return Valor(self.valor + outro.valor)
 
-    def __mul__(self, quantidade: int) -> "Valor":
+    def multiplicar(self, quantidade: int) -> "Valor":
         if not _e_inteiro(quantidade):
-            return NotImplemented
-        return Valor(self.quantia * quantidade)
-
-    __rmul__ = __mul__
+            raise TypeError(f"A quantidade deve ser inteira, não {type(quantidade).__name__}.")
+        return Valor(self.valor * quantidade)
 
 
-def _converter_em_centavos(quantia: object) -> Decimal:
-    if isinstance(quantia, float):
+def _converter_em_centavos(valor: object) -> Decimal:
+    if isinstance(valor, float):
         raise TypeError("Use Decimal ou texto para criar um Valor; float é impreciso.")
-    if not isinstance(quantia, Decimal | str) and not _e_inteiro(quantia):
-        raise TypeError(f"Tipo não suportado para Valor: {type(quantia).__name__}.")
+    if not isinstance(valor, Decimal | str) and not _e_inteiro(valor):
+        raise TypeError(f"Tipo não suportado para Valor: {type(valor).__name__}.")
     try:
-        decimal = Decimal(quantia)
+        decimal = Decimal(valor)
     except InvalidOperation:
-        raise ValorInvalido(f"Valor inválido: {quantia!r}.") from None
+        raise ValorInvalido(f"Valor inválido: {valor!r}.") from None
     if not decimal.is_finite():
-        raise ValorInvalido(f"Valor inválido: {quantia!r}.")
+        raise ValorInvalido(f"Valor inválido: {valor!r}.")
     if decimal < 0:
-        raise ValorInvalido(f"O valor não pode ser negativo: {quantia}.")
+        raise ValorInvalido(f"O valor não pode ser negativo: {valor}.")
     return decimal.copy_abs().quantize(_CENTAVOS, rounding=ROUND_HALF_UP)
 
 

@@ -7,11 +7,11 @@ from domain.value_objects.valor import Valor
 
 
 def test_soma_sem_erro_de_ponto_flutuante():
-    assert Valor("0.10") + Valor("0.20") == Valor("0.30")
+    assert Valor("0.10").somar(Valor("0.20")) == Valor("0.30")
 
 
 @pytest.mark.parametrize(
-    ("entrada", "quantia"),
+    ("entrada", "esperado"),
     [
         ("10", Decimal("10.00")),
         ("10.5", Decimal("10.50")),
@@ -21,8 +21,8 @@ def test_soma_sem_erro_de_ponto_flutuante():
         ("-0", Decimal("0.00")),
     ],
 )
-def test_guarda_com_duas_casas_decimais(entrada, quantia):
-    assert str(Valor(entrada).quantia) == str(quantia)
+def test_guarda_com_duas_casas_decimais(entrada, esperado):
+    assert str(Valor(entrada).valor) == str(esperado)
 
 
 @pytest.mark.parametrize(
@@ -36,7 +36,7 @@ def test_guarda_com_duas_casas_decimais(entrada, quantia):
     ],
 )
 def test_arredonda_meio_centavo_para_cima(entrada, arredondado):
-    assert Valor(entrada).quantia == Decimal(arredondado)
+    assert Valor(entrada).valor == Decimal(arredondado)
 
 
 @pytest.mark.parametrize("negativo", ["-0.01", "-10", Decimal("-0.004"), -1])
@@ -62,29 +62,38 @@ def test_recusa_tipo_nao_suportado(tipo_errado):
         Valor(tipo_errado)
 
 
-def test_multiplica_por_quantidade_inteira_dos_dois_lados():
-    assert Valor("25.00") * 3 == Valor("75.00")
-    assert 3 * Valor("25.00") == Valor("75.00")
+def test_multiplica_por_quantidade_inteira():
+    assert Valor("25.00").multiplicar(3) == Valor("75.00")
 
 
 def test_multiplicar_por_zero_resulta_em_zero():
-    assert Valor("25.00") * 0 == Valor("0")
+    assert Valor("25.00").multiplicar(0) == Valor("0")
 
 
 def test_multiplicar_por_quantidade_negativa_e_recusado():
     with pytest.raises(ValorInvalido):
-        Valor("25.00") * -1
+        Valor("25.00").multiplicar(-1)
 
 
 @pytest.mark.parametrize("quantidade", [1.5, Decimal("2"), True, "3"])
 def test_recusa_multiplicar_por_quantidade_nao_inteira(quantidade):
     with pytest.raises(TypeError):
-        Valor("25.00") * quantidade
+        Valor("25.00").multiplicar(quantidade)
 
 
-def test_recusa_somar_com_numero_que_nao_e_valor():
+@pytest.mark.parametrize("nao_e_valor", [Decimal("1.00"), 1, "1.00", None])
+def test_recusa_somar_com_algo_que_nao_e_valor(nao_e_valor):
     with pytest.raises(TypeError):
-        Valor("1.00") + Decimal("1.00")
+        Valor("1.00").somar(nao_e_valor)
+
+
+def test_somar_e_multiplicar_nao_alteram_o_original():
+    preco = Valor("25.00")
+
+    preco.somar(Valor("1.00"))
+    preco.multiplicar(3)
+
+    assert preco == Valor("25.00")
 
 
 def test_valores_iguais_com_escritas_diferentes_sao_iguais():
@@ -96,4 +105,4 @@ def test_e_imutavel():
     valor = Valor("10.00")
 
     with pytest.raises(AttributeError):
-        valor.quantia = Decimal("20.00")
+        valor.valor = Decimal("20.00")

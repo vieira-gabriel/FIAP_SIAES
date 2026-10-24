@@ -118,8 +118,8 @@ flowchart TD
 
     subgraph APPLICATION ["2. Camada de Aplicação (src/application/)"]
         CriarOS["⚙️ CriarOS"]
-        IniciarDiagnostico["⚙️ IniciarDiagnostico"]
-        CalcularOrcamento["⚙️ CalcularOrcamento"]
+        AtribuirMecanico["⚙️ AtribuirMecanico"]
+        FinalizarOrcamento["⚙️ FinalizarOrcamento"]
         AprovarOrcamento["⚙️ AprovarOrcamento"]
         IniciarExecucao["⚙️ IniciarExecucao"]
         ConsultarStatusPublico["⚙️ ConsultarStatusPublico"]
@@ -155,15 +155,15 @@ flowchart TD
     RateLimit --> RouterAcompanhamento
     
     RouterOS --> CriarOS
-    RouterOS --> IniciarDiagnostico
-    RouterOS --> CalcularOrcamento
+    RouterOS --> AtribuirMecanico
+    RouterOS --> FinalizarOrcamento
     RouterOS --> IniciarExecucao
     RouterAcompanhamento --> AprovarOrcamento
     RouterAcompanhamento --> ConsultarStatusPublico
     
     AprovarOrcamento --> AggOS
     IniciarExecucao --> AggOS
-    CalcularOrcamento --> EventDispatcher
+    FinalizarOrcamento --> EventDispatcher
     AprovarOrcamento --> EventDispatcher
     IniciarExecucao --> EventDispatcher
     AggOS -.->|emite| DomainEvents
@@ -173,8 +173,10 @@ flowchart TD
     EventDispatcher -->|ExecucaoIniciadaEvent| EstoqueHandler
     EventDispatcher -->|SaldoPecaAtualizadoEvent| AlocacaoHandler
     ReservaHandler --> AggEstoque
+    ReservaHandler --> AggOS
     EstornoHandler --> AggEstoque
     EstoqueHandler --> AggEstoque
+    AlocacaoHandler --> AggEstoque
     AlocacaoHandler --> AggOS
     ReservaHandler --> Repositories
     EstornoHandler --> Repositories
@@ -268,6 +270,7 @@ classDiagram
         +finalizar_orcamento() void
         +aprovar_orcamento() void
         +rejeitar_orcamento() void
+        +alocar_peca(peca_id: UUID, quantidade: int) void
         +liberar_para_execucao() void
         +iniciar_execucao(usuario_id: UUID) void
         +concluir_manutencao() void
@@ -345,10 +348,31 @@ classDiagram
         +List~DomainEvent~ _domain_events
         +saldo_disponivel() int
         +reservar(quantidade: int) int
+        +alocar_pendencias(pendencias: List~PendenciaPeca~) List~AlocacaoPeca~
         +baixar(quantidade: int) void
         +estornar(quantidade: int) void
         +repor(quantidade: int) void
+        +ajustar_quantidade_fisica(nova_quantidade: int) void
         +collect_domain_events() List~DomainEvent~
+    }
+
+    class PendenciaPeca {
+        <<Value Object>>
+        +UUID os_id
+        +datetime data_abertura_os
+        +int quantidade_pendente
+    }
+
+    class AlocacaoPeca {
+        <<Value Object>>
+        +UUID os_id
+        +int quantidade_reservada
+    }
+
+    class QuantidadePeca {
+        <<Value Object>>
+        +UUID peca_id
+        +int quantidade
     }
 
     class Valor {
@@ -391,10 +415,12 @@ classDiagram
 
     class OSCanceladaEvent {
         +UUID os_id
+        +List~QuantidadePeca~ estornos
     }
 
     class ExecucaoIniciadaEvent {
         +UUID os_id
+        +List~QuantidadePeca~ baixas
     }
 
     class SaldoPecaAtualizadoEvent {
@@ -430,6 +456,10 @@ classDiagram
     DomainEvent <|-- SaldoPecaAtualizadoEvent : herda de
     OrdemServico *-- DomainEvent : acumula eventos
     EstoquePeca *-- DomainEvent : acumula eventos
+    EstoquePeca ..> PendenciaPeca : recebe
+    EstoquePeca ..> AlocacaoPeca : devolve
+    OSCanceladaEvent --> QuantidadePeca : estornos
+    ExecucaoIniciadaEvent --> QuantidadePeca : baixas
 ```
 
 ### Decisões do Diagrama de Classes
@@ -437,7 +467,10 @@ classDiagram
 * **`Peca` e `EstoquePeca` são entidades separadas, na relação 1:1.** `Peca` guarda o cadastro (código de referência, nome, preço unitário, prazo de reposição e exclusão lógica), alterado só pelo Gerente (RF-12). `EstoquePeca` é a raiz do agregado de estoque e guarda as quantidades física e reservada. A separação faz a reserva, a baixa e o estorno bloquearem apenas o registro de estoque, sem disputar o registro do cadastro.
 * **Tempo estimado e prazo de reposição são congelados no item.** Em `finalizar_orcamento`, junto com os preços (RF-17), a OS copia `Servico.tempo_estimado_minutos` para `ItemServico` e `Peca.prazo_reposicao_dias` para `ItemPeca`. Assim, `estimar_entrega` (RF-25) usa só os dados da OS, e a estimativa corresponde ao orçamento apresentado ao cliente. Uma alteração posterior no catálogo não muda a estimativa das OS já orçadas.
 * **Documento do cliente.** `Cliente` usa os objetos de valor `CPF` e `CNPJ`, separados por decisão do grupo na issue #14.
-* **Eventos de domínio.** O diagrama mostra os 4 eventos do catálogo da seção 7 de `docs/ddd/event-storming.md`, com o identificador do agregado emissor; os demais campos de cada evento são definidos na implementação (issue #45).
+* **Prioridade pela OS mais antiga.** `EstoquePeca.alocar_pendencias` recebe as pendências da peça, ordena pela data de abertura da OS e reserva o saldo da mais antiga para a mais nova (RF-18, RF-19). A conclusão do orçamento e o aumento de saldo usam o mesmo método, e `OrdemServico.alocar_peca` converte a quantidade pendente do item em reservada.
+* **Estorno e baixa.** `cancelar` e `rejeitar_orcamento` calculam as quantidades a estornar a partir do status da OS e as enviam em `OSCanceladaEvent.estornos`. A OS cancelada em `EM_EXECUCAO` envia a lista vazia, porque `iniciar_execucao` já deu baixa em todas as reservas (RF-20); por isso `ItemPeca` não guarda quantidade baixada.
+* **Ajuste de estoque.** `ajustar_quantidade_fisica` corrige a quantidade física para perda, quebra ou inventário (RF-12). O valor novo não pode ficar abaixo da quantidade reservada, e o método emite `SaldoPecaAtualizadoEvent` só quando o saldo disponível aumenta.
+* **Eventos de domínio.** O diagrama mostra os 4 eventos do catálogo da seção 7 de `docs/ddd/event-storming.md`, com o identificador do agregado emissor e as quantidades que o consumidor precisa; os demais campos de cada evento são definidos na implementação (issue #45).
 
 ---
 

@@ -90,6 +90,7 @@ Toda dependência externa segue o mesmo padrão:
 | :--- | :--- | :--- | :--- |
 | Entidade ou raiz de agregado | `src/domain/entities/` | nome da entidade em snake_case | `veiculo.py` → `class Veiculo` |
 | Objeto de valor | `src/domain/value_objects/` | nome do VO em snake_case | `placa.py` → `class Placa` |
+| Base comum de objetos de valor | `src/domain/value_objects/` | nome da base em snake_case | `documento.py` → `class Documento` |
 | Enumeração do domínio | `src/domain/value_objects/` | nome do enum | `status_os.py` → `class StatusOS` |
 | Exceção de regra de negócio | `src/domain/` | `exceptions.py` | `TransicaoDeStatusInvalida` |
 | Interface de persistência | `src/domain/repositories/` | `<entidade>_repository.py` | `cliente_repository.py` → `class ClienteRepository(ABC)` |

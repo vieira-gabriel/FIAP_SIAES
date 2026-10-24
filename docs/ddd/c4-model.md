@@ -136,7 +136,7 @@ flowchart TD
         AggOS[("🟩 Agregado: OrdemServico\nEntidade-raiz com regras da máquina de estados.")]
         AggEstoque[("🟩 Agregado: EstoquePeca\nEntidade com controle quantitativo.")]
         Entities["👤 Entidades\nCliente, Veiculo, Usuario, Servico, Peca."]
-        VOs["💎 Value Objects\nCPF, CNPJ, Placa, Valor, NumeroOS, Orcamento,\nStatusOS, PerfilUsuario, OrigemTransicao."]
+        VOs["💎 Value Objects\nDocumento, CPF, CNPJ, Placa, Valor, NumeroOS, Orcamento,\nStatusOS, PerfilUsuario, OrigemTransicao."]
         DomainEvents["🟧 Eventos de Domínio\nOrcamentoFinalizadoEvent, OSCanceladaEvent,\nExecucaoIniciadaEvent, SaldoPecaAtualizadoEvent."]
         Repositories["🔌 Portas de Repositório (ABCs)\nOrdemServicoRepository, EstoqueRepository, UsuarioRepository."]
     end
@@ -198,7 +198,7 @@ flowchart TD
 
 ## 5. Nível 4: Diagrama de Código (Code Diagram)
 
-O Diagrama de Código ilustra a estrutura interna dos agregados (`OrdemServico`, `EstoquePeca`), das entidades (`Cliente`, `Veiculo`, `Usuario`, `Servico`, `Peca`, `ItemServico`, `ItemPeca`, `HistoricoStatusOS`), dos Objetos de Valor (`CPF`, `CNPJ`, `Placa`, `Valor`, `NumeroOS`, `Orcamento`, `StatusOS`, `PerfilUsuario`, `OrigemTransicao`) e dos Eventos de Domínio, implementados como **`dataclasses` puras do Python** sem acoplamento com frameworks. Todo preço e todo total usa o objeto de valor `Valor`, com precisão decimal (RNF-11).
+O Diagrama de Código ilustra a estrutura interna dos agregados (`OrdemServico`, `EstoquePeca`), das entidades (`Cliente`, `Veiculo`, `Usuario`, `Servico`, `Peca`, `ItemServico`, `ItemPeca`, `HistoricoStatusOS`), dos Objetos de Valor (`Documento`, `CPF`, `CNPJ`, `Placa`, `Valor`, `NumeroOS`, `Orcamento`, `StatusOS`, `PerfilUsuario`, `OrigemTransicao`) e dos Eventos de Domínio, implementados como **`dataclasses` puras do Python** sem acoplamento com frameworks. Todo preço e todo total usa o objeto de valor `Valor`, com precisão decimal (RNF-11).
 
 ### Diagrama de Classes do Domínio (Mermaid / UML)
 
@@ -207,7 +207,7 @@ classDiagram
     class Cliente {
         +UUID id
         +str nome
-        +CPF | CNPJ documento
+        +Documento documento
         +str email
         +str telefone
     }
@@ -387,14 +387,18 @@ classDiagram
         +str valor
     }
 
+    class Documento {
+        <<abstract>>
+        +str valor
+        +tres_primeiros_digitos() str
+    }
+
     class CPF {
         <<Value Object>>
-        +str valor
     }
 
     class CNPJ {
         <<Value Object>>
-        +str valor
     }
 
     class Placa {
@@ -428,8 +432,10 @@ classDiagram
     }
 
     Usuario "1" --> "1" PerfilUsuario : possui
-    Cliente --> CPF : documento (pessoa física)
-    Cliente --> CNPJ : documento (pessoa jurídica)
+    Cliente --> Documento : documento
+    Documento <|-- CPF : pessoa física
+    Documento <|-- CNPJ : pessoa jurídica
+    NumeroOS ..> Documento : usa tres_primeiros_digitos
     Veiculo "*" --> "1" Cliente : pertence a (cliente_id)
     OrdemServico "*" --> "1" Cliente : referencia (cliente_id)
     OrdemServico "*" --> "1" Veiculo : referencia (veiculo_id)
@@ -466,7 +472,7 @@ classDiagram
 
 * **`Peca` e `EstoquePeca` são entidades separadas, na relação 1:1.** `Peca` guarda o cadastro (código de referência, nome, preço unitário, prazo de reposição e exclusão lógica), alterado só pelo Gerente (RF-12). `EstoquePeca` é a raiz do agregado de estoque e guarda as quantidades física e reservada. A separação faz a reserva, a baixa e o estorno bloquearem apenas o registro de estoque, sem disputar o registro do cadastro.
 * **Tempo estimado e prazo de reposição são congelados no item.** Em `finalizar_orcamento`, junto com os preços (RF-17), a OS copia `Servico.tempo_estimado_minutos` para `ItemServico` e `Peca.prazo_reposicao_dias` para `ItemPeca`. Assim, `estimar_entrega` (RF-25) usa só os dados da OS, e a estimativa corresponde ao orçamento apresentado ao cliente. Uma alteração posterior no catálogo não muda a estimativa das OS já orçadas.
-* **Documento do cliente.** `Cliente` usa os objetos de valor `CPF` e `CNPJ`, separados por decisão do grupo na issue #14.
+* **Documento do cliente.** `CPF` e `CNPJ` são objetos de valor separados, por decisão do grupo na issue #14, e herdam da base abstrata `Documento`. A base guarda só os dígitos, aplica o cálculo do módulo 11 com o tamanho e os pesos de cada subclasse e expõe `tres_primeiros_digitos()`, usado no número da OS (RF-05, RF-13). `Cliente.documento` é do tipo `Documento`, e por isso `Cliente` e a consulta pública (RF-25) trabalham com um só tipo.
 * **Prioridade pela OS mais antiga.** `EstoquePeca.alocar_pendencias` recebe as pendências da peça, ordena pela data de abertura da OS e reserva o saldo da mais antiga para a mais nova (RF-18, RF-19). A conclusão do orçamento e o aumento de saldo usam o mesmo método, e `OrdemServico.alocar_peca` converte a quantidade pendente do item em reservada.
 * **Estorno e baixa.** `cancelar` e `rejeitar_orcamento` calculam as quantidades a estornar a partir do status da OS e as enviam em `OSCanceladaEvent.estornos`. A OS cancelada em `EM_EXECUCAO` envia a lista vazia, porque `iniciar_execucao` já deu baixa em todas as reservas (RF-20); por isso `ItemPeca` não guarda quantidade baixada.
 * **Ajuste de estoque.** `ajustar_quantidade_fisica` corrige a quantidade física para perda, quebra ou inventário (RF-12). O valor novo não pode ficar abaixo da quantidade reservada, e o método emite `SaldoPecaAtualizadoEvent` só quando o saldo disponível aumenta.
@@ -493,7 +499,7 @@ src/
 │   └── handlers/                  # Event Handlers (ReservaPecasHandler, EstornoPecasHandler, BaixaEstoqueHandler, AlocacaoPecasPendentesHandler)
 ├── domain/                        # Nível 4 (Núcleo Puro de Negócio em Python Dataclasses)
 │   ├── entities/                  # Dataclasses de Agregados e Entidades (OrdemServico, EstoquePeca, Cliente, Veiculo, Usuario, Servico, Peca)
-│   ├── value_objects/             # VOs Imutáveis (CPF, CNPJ, Placa, Valor, NumeroOS, Orcamento, StatusOS, PerfilUsuario, OrigemTransicao)
+│   ├── value_objects/             # VOs Imutáveis (Documento, CPF, CNPJ, Placa, Valor, NumeroOS, Orcamento, StatusOS, PerfilUsuario, OrigemTransicao)
 │   ├── events/                    # Eventos de Domínio (catálogo na seção 7 de docs/ddd/event-storming.md)
 │   └── repositories/              # Interfaces Abstratas dos Repositórios (ABCs)
 └── infrastructure/                # Nível 3 (Adaptadores I/O & Infraestrutura)

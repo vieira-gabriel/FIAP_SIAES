@@ -80,6 +80,7 @@ Toda dependência externa segue o mesmo padrão:
 | `domain/repositories/usuario_repository.py` | `infrastructure/repositories/postgres_usuario_repository.py` |
 | `application/ports/token_service.py` | `infrastructure/security/jwt_token_service.py` |
 | `application/ports/password_hasher.py` | `infrastructure/security/bcrypt_password_hasher.py` |
+| `application/ports/unidade_de_trabalho.py` | `infrastructure/database/unidade_de_trabalho.py` |
 
 ---
 

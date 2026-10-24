@@ -36,7 +36,7 @@ Este documento estabelece a **Linguagem Ubíqua** do sistema de gestão da ofici
 | **CPF** | Identificador de cliente pessoa física com validação matemática rigorosa de dígitos verificadores. Imutável. | `domain.value_objects.CPF` |
 | **CNPJ** | Identificador de cliente pessoa jurídica com validação matemática rigorosa de dígitos verificadores. Imutável. | `domain.value_objects.CNPJ` |
 | **Documento** | Base abstrata de CPF e CNPJ. Remove a pontuação, valida o tamanho e os dígitos verificadores e fornece os 3 primeiros dígitos usados no Número da OS. Não é instanciada diretamente. É o tipo do documento do Cliente. | `domain.value_objects.Documento` |
-| **Placa** | Identificador de veículo compatível com formatos padrão antigo (`ABC1234`) e Padrão Mercosul (`ABC1D23`). | `domain.value_objects.Placa` |
+| **Placa** | Identificador de veículo compatível com formatos padrão antigo (`ABC1234`) e Padrão Mercosul (`ABC1D23`). Converte as letras para maiúsculas, remove hífens e espaços e guarda o valor normalizado, para que a mesma placa digitada de formas diferentes seja igual. Imutável. | `domain.value_objects.Placa` |
 | **Valor** | Representação numérica com precisão decimal adequada para valores financeiros e totais em reais. | `domain.value_objects.Valor` |
 | **NumeroOS** | Número da OS no formato `DDD-XXXXXXXX` (3 dígitos do documento e 8 caracteres hexadecimais maiúsculos). Imutável. | `domain.value_objects.NumeroOS` |
 | **StatusOS** | Enumeração dos estados válidos do ciclo de vida da Ordem de Serviço. | `domain.value_objects.StatusOS` |

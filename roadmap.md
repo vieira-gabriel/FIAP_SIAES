@@ -222,7 +222,7 @@ Tarefas da fase:
 - [ ] Configuração do `PYTHONPATH` (ou empacotamento) para os imports a partir de `src/` funcionarem localmente, no Docker e no pytest
 - [ ] Configuração por variáveis de ambiente, sem segredos no código e com falha na inicialização quando faltar variável obrigatória (RNF-06)
 - [x] Engine e sessão do SQLAlchemy com controle de transação e rollback completo em caso de falha (RNF-08; issue #24)
-- [ ] Migrations iniciais com Alembic (`alembic init -t async migrations`, seção 8.1 do guia)
+- [x] Migrations iniciais com Alembic (`alembic init -t async migrations`, seção 8.1 do guia; issue #25): revisão de base vazia aplicada antes do Uvicorn; as tabelas entram com cada entidade
 - [x] Rota de health check na aplicação FastAPI (`GET /health`)
 - [ ] Conferir o Swagger em `/docs`, exposto automaticamente pelo FastAPI, e documentar o acesso (RNF-16)
 - [ ] Tratamento padronizado de erros, traduzindo as exceções do domínio para códigos HTTP, incluindo `401` e `403` (RNF-03)

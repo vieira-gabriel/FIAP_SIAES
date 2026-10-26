@@ -19,7 +19,10 @@ class Placa:
     valor: str
 
     def __post_init__(self):
-        normalizada = _SEPARADORES.sub("", self.valor).upper()
+        normalizada = _SEPARADORES.sub("", self.valor)
+        if not normalizada.isascii():
+            raise PlacaInvalida(self.valor)
+        normalizada = normalizada.upper()
         if not (_PADRAO_ANTIGO.fullmatch(normalizada) or _PADRAO_MERCOSUL.fullmatch(normalizada)):
             raise PlacaInvalida(self.valor)
         object.__setattr__(self, "valor", normalizada)

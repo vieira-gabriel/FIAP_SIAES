@@ -208,6 +208,7 @@ Regras que **ficam obrigatoriamente no domínio**:
 from abc import ABC, abstractmethod
 
 from domain.entities.cliente import Cliente
+from domain.value_objects.documento import Documento
 
 
 class ClienteRepository(ABC):
@@ -215,7 +216,7 @@ class ClienteRepository(ABC):
     async def salvar(self, cliente: Cliente) -> None: ...
 
     @abstractmethod
-    async def buscar_por_documento(self, documento: str) -> Cliente | None: ...
+    async def buscar_por_documento(self, documento: Documento) -> Cliente | None: ...
 ```
 
 2. Adaptador na infraestrutura, herdando da porta:
@@ -229,7 +230,7 @@ class PostgresClienteRepository(ClienteRepository):
     ...
 ```
 
-A porta recebe e devolve **entidades do domínio**, nunca modelos do ORM. A conversão entre entidade e tabela acontece dentro do adaptador.
+A porta recebe e devolve **entidades do domínio**, nunca modelos do ORM. Os critérios de busca também são objetos de valor (`Documento`, `Placa`), e não `str`: assim o valor chega à porta já validado e normalizado. A conversão entre entidade e tabela acontece dentro do adaptador.
 
 Os métodos das portas de repositório são `async def`, porque o SQLAlchemy roda no modo assíncrono (seção 8.1). O adaptador carrega as coleções da entidade junto com a consulta (`selectinload`), pois o carregamento preguiçoso não funciona no modo assíncrono.
 
@@ -248,7 +249,7 @@ class CriarOS:
         self._clientes = clientes
         self._ordens = ordens
 
-    async def executar(self, documento_cliente: str, placa: str) -> OrdemServico:
+    async def executar(self, documento_cliente: Documento, placa: Placa) -> OrdemServico:
         cliente = await self._clientes.buscar_por_documento(documento_cliente)
         ...
 ```

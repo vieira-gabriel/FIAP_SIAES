@@ -123,5 +123,9 @@ def test_aplicacao_nao_inicia_sem_variavel_obrigatoria(ambiente):
 
 def test_aplicacao_inicia_com_configuracao_valida(ambiente):
     with TestClient(app) as cliente:
-        assert cliente.get("/health").status_code == 200
-        assert cliente.app.state.token_service is not None
+        estado = cliente.app.state
+        assert estado.token_service is not None
+        assert estado.engine is not None
+        assert estado.fabrica_de_sessoes is not None
+        assert estado.password_hasher is not None
+        assert estado.verificador_do_banco is not None

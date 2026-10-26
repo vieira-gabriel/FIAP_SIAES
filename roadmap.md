@@ -223,8 +223,9 @@ Tarefas da fase:
 - [ ] Configuração por variáveis de ambiente, sem segredos no código e com falha na inicialização quando faltar variável obrigatória (RNF-06)
 - [x] Engine e sessão do SQLAlchemy com controle de transação e rollback completo em caso de falha (RNF-08; issue #24)
 - [ ] Migrations iniciais com Alembic (`alembic init -t async migrations`, seção 8.1 do guia)
-- [x] Rota de health check na aplicação FastAPI (`GET /health`)
-- [ ] Conferir o Swagger em `/docs`, exposto automaticamente pelo FastAPI, e documentar o acesso (RNF-16)
+- [x] Rota de health check na aplicação FastAPI (`GET /health`), agora consultando o banco: `200` com o banco disponível e `503` sem ele (issue #26)
+- [x] Swagger em `/docs` com título, versão, descrição e o esquema Bearer JWT (botão "Authorize") (RNF-16; issue #26)
+- [ ] Ligar o login à aplicação: `obter_autenticar_usuario` no container e registro do router de autenticação. Depende do repositório de usuários em PostgreSQL (modelo do ORM, tabela e adaptador), cujo card ainda não existe
 - [ ] Tratamento padronizado de erros, traduzindo as exceções do domínio para códigos HTTP, incluindo `401` e `403` (RNF-03)
 - [ ] Event Dispatcher síncrono em memória (Modelo C4)
 - [ ] Estrutura para testes de integração com banco PostgreSQL de teste (RNF-13)

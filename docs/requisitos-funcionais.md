@@ -2,7 +2,7 @@
 
 Este documento especifica todos os **Requisitos Funcionais (RF)** do MVP do sistema de gestão da oficina mecânica, estabelecendo as regras de negócio operacionais para as duas frentes do sistema: a **Frente da Loja** (acesso autenticado e controlado por perfis - RBAC) e a **Frente do Cliente** (acompanhamento público desautenticado e seguro).
 
-> Documento atualizado em 14/10/2026 - Versão 1.1
+> Documento atualizado em 24/10/2026 - Versão 1.2
 ---
 
 ## Matriz de Perfis e Permissões de Acesso (RBAC)
@@ -183,9 +183,9 @@ O sistema deve permitir que o mecânico assuma a OS, vinculando seu ID à Ordem 
 ###### Critério de Aceite / Validação
 * O status deve alterar para `EM_DIAGNOSTICO` imediatamente ao atribuir o ID do mecânico responsável.
 
-##### **RF-17** - Inclusão de Itens e Congelamento de Preços no Orçamento
+##### **RF-17** - Inclusão de Itens e Congelamento de Valores no Orçamento
 ###### Descrição do Domínio
-O sistema deve permitir incluir serviços e peças na OS durante a fase de diagnóstico. Ao concluir o orçamento, o sistema busca os valores vigentes dos serviços e peças e congela estes valores na OS, garantindo que reajustes futuros no catálogo não alterem o valor cotado.
+O sistema deve permitir incluir serviços e peças na OS durante a fase de diagnóstico. Ao concluir o orçamento, o sistema busca os preços vigentes dos serviços e peças, o tempo estimado de cada serviço (RF-11) e o prazo de reposição de cada peça (RF-12), e congela esses valores na OS. Assim, reajustes futuros no catálogo não alteram o valor cotado nem a estimativa de entrega (RF-25).
 ###### Perfis de Acesso
 `Mecânico`, `Gerente`
 ###### Critério de Aceite / Validação
@@ -275,7 +275,7 @@ O sistema deve disponibilizar um endpoint público (sem exigência de JWT) permi
 * Retornar o status atual, descrição resumida dos serviços, peças pendentes, valor total do orçamento e estimativa de entrega.
 * Ocultar dados pessoais sensíveis do cliente e custos internos de fornecedores.
 * Retornar a mesma resposta de "não encontrada" quando o número não existir ou o CPF/CNPJ não corresponder, sem indicar qual dos dois está errado.
-* Calcular a estimativa de entrega como uma data, em tempo corrido, a partir da duração dos serviços (soma dos tempos estimados do RF-11) e do prazo de peças (maior prazo de reposição do RF-12 entre as peças pendentes):
+* Calcular a estimativa de entrega como uma data, em tempo corrido, a partir da duração dos serviços (soma dos tempos estimados congelados na OS, RF-17) e do prazo de peças (maior prazo de reposição congelado na OS entre as peças pendentes, RF-17):
 
 | Status da OS | Estimativa de entrega |
 | :--- | :--- |

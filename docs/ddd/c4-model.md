@@ -106,69 +106,90 @@ O Diagrama de Componentes descreve a organização interna do contêiner da apli
 ```mermaid
 flowchart TD
     subgraph API_LAYER ["1. Camada de Apresentação / Entrada (src/presentation/)"]
-        AuthController["🔐 AuthController\nEndpoints de login e geração de JWT."]
-        OSController["🛠️ OrdemServicoController\nEndpoints administrativos de OS (Criar, Listar, Transicionar)."]
-        ClienteController["👤 ClienteController\nEndpoints de CRUD de Clientes e Veículos."]
-        EstoqueController["📦 EstoqueController\nEndpoints de gestão e entrada de estoque de peças."]
-        PublicController["📲 AcompanhamentoPublicoController\nEndpoint desautenticado de consulta por CPF/OS."]
+        RouterAutenticacao["🔐 routers/autenticacao.py\nRota pública de login e emissão do JWT."]
+        RouterOS["🛠️ routers/ordens_servico.py\nRotas administrativas de OS (Criar, Listar, Transicionar)."]
+        RouterClientes["👤 routers/clientes.py\nRotas de CRUD de Clientes e Veículos."]
+        RouterEstoque["📦 routers/estoque.py\nRotas de gestão e entrada de estoque de peças."]
+        RouterAcompanhamento["📲 routers/acompanhamento_publico.py\nRota desautenticada de consulta por número da OS e CPF/CNPJ."]
         
-        AuthGuard["🛡️ RBACGuard / JWT Middleware\nValida token Bearer e claim 'role' (Atendente, Mecanico, Gerente)."]
-        RateLimiter["⚡ RateLimitingMiddleware\nProtege rotas públicas contra força bruta DoS."]
+        Dependencies["🛡️ middlewares/dependencies.py\nobter_usuario_autenticado e exigir_perfis validam o token Bearer\ne a claim 'role' (Atendente, Mecanico, Gerente)."]
+        RateLimit["⚡ middlewares/rate_limit.py\nlimiter do SlowAPI nas rotas públicas contra força bruta."]
     end
 
     subgraph APPLICATION ["2. Camada de Aplicação (src/application/)"]
-        CriarOSUseCase["⚙️ CriarOrdemServicoUseCase"]
-        IniciardiagnosticoUseCase["⚙️ IniciarDiagnosticoUseCase"]
-        CalcularOrcamentoUseCase["⚙️ CalcularOrcamentoUseCase"]
-        AprovarOrcamentoUseCase["⚙️ AprovarOrcamentoUseCase"]
-        IniciarExecucaoUseCase["⚙️ IniciarExecucaoUseCase"]
-        ConsultarStatusPublicoUseCase["⚙️ ConsultarStatusPublicoUseCase"]
+        CriarOS["⚙️ CriarOS"]
+        AtribuirMecanico["⚙️ AtribuirMecanico"]
+        FinalizarOrcamento["⚙️ FinalizarOrcamento"]
+        AprovarOrcamento["⚙️ AprovarOrcamento"]
+        IniciarExecucao["⚙️ IniciarExecucao"]
+        ConsultarStatusPublico["⚙️ ConsultarStatusPublico"]
         
-        Ports["🔌 Ports (Interfaces de Serviço)\nITokenProvider, IPasswordHasher"]
+        Ports["🔌 Portas de Serviço (application/ports/)\nTokenService, PasswordHasher"]
         EventDispatcher["⚡ EventDispatcher (In-Memory)\nBarramento síncrono para eventos de domínio."]
-        EstoqueHandler["📦 BaixaEstoqueHandler\nEscuta ExecucaoIniciada e efetua a baixa das peças reservadas."]
+        ReservaHandler["📦 ReservaPecasHandler\nEscuta OrcamentoFinalizadoEvent e reserva as peças da OS."]
+        EstornoHandler["📦 EstornoPecasHandler\nEscuta OSCanceladaEvent e estorna as reservas da OS."]
+        EstoqueHandler["📦 BaixaEstoqueHandler\nEscuta ExecucaoIniciadaEvent e efetua a baixa das peças reservadas."]
+        AlocacaoHandler["📦 AlocacaoPecasPendentesHandler\nEscuta SaldoPecaAtualizadoEvent, aloca o saldo às OS pendentes\ne libera as OS sem pendência."]
     end
 
     subgraph DOMAIN ["3. Camada de Domínio (src/domain/ - Pure Python Dataclasses)"]
         AggOS[("🟩 Agregado: OrdemServico\nEntidade-raiz com regras da máquina de estados.")]
         AggEstoque[("🟩 Agregado: EstoquePeca\nEntidade com controle quantitativo.")]
-        Entities["👤 Entidades\nCliente, Veiculo, Usuario."]
-        VOs["💎 Value Objects\nCPF, CNPJ, Placa, StatusOS, PerfilUsuario."]
-        DomainEvents["🟧 Eventos de Domínio\nOrcamentoAprovadoEvent, ExecucaoIniciadaEvent, StatusOSAlteradoEvent."]
-        IRepositories["🔌 Interfaces de Repositório (ABCs)\nIOrdemServicoRepository, IEstoqueRepository, IUsuarioRepository."]
+        Entities["👤 Entidades\nCliente, Veiculo, Usuario, Servico, Peca."]
+        VOs["💎 Value Objects\nDocumento, CPF, CNPJ, Placa, Valor, NumeroOS, Orcamento,\nStatusOS, PerfilUsuario, OrigemTransicao."]
+        DomainEvents["🟧 Eventos de Domínio\nOrcamentoFinalizadoEvent, OSCanceladaEvent,\nExecucaoIniciadaEvent, SaldoPecaAtualizadoEvent."]
+        Repositories["🔌 Portas de Repositório (ABCs)\nOrdemServicoRepository, EstoqueRepository, UsuarioRepository."]
     end
 
     subgraph INFRASTRUCTURE ["4. Camada de Infraestrutura (src/infrastructure/)"]
         PgOSRepo["🐘 PostgresOrdemServicoRepository\nImplementação concreta SQLAlchemy."]
         PgEstoqueRepo["🐘 PostgresEstoqueRepository\nImplementação concreta SQLAlchemy com Lock."]
-        JWTProvider["🔐 PyJWTProvider\nImplementação de ITokenProvider."]
-        BcryptHasher["🔐 BcryptPasswordHasher\nImplementação de IPasswordHasher."]
+        JwtTokenService["🔐 JwtTokenService\nImplementação de TokenService com PyJWT."]
+        BcryptHasher["🔐 BcryptPasswordHasher\nImplementação de PasswordHasher."]
         PgDatabase["🐘 SQLAlchemy Session / Postgres Driver"]
     end
 
-    AuthGuard --> AuthController
-    RateLimiter --> PublicController
+    Dependencies --> RouterOS
+    Dependencies --> RouterClientes
+    Dependencies --> RouterEstoque
+    RateLimit --> RouterAcompanhamento
     
-    OSController --> CriarOSUseCase
-    OSController --> IniciardiagnosticoUseCase
-    OSController --> CalcularOrcamentoUseCase
-    OSController --> IniciarExecucaoUseCase
-    PublicController --> AprovarOrcamentoUseCase
-    PublicController --> ConsultarStatusPublicoUseCase
+    RouterOS --> CriarOS
+    RouterOS --> AtribuirMecanico
+    RouterOS --> FinalizarOrcamento
+    RouterOS --> IniciarExecucao
+    RouterAcompanhamento --> AprovarOrcamento
+    RouterAcompanhamento --> ConsultarStatusPublico
     
-    AprovarOrcamentoUseCase --> AggOS
-    IniciarExecucaoUseCase --> AggOS
-    IniciarExecucaoUseCase --> EventDispatcher
+    AprovarOrcamento --> AggOS
+    IniciarExecucao --> AggOS
+    FinalizarOrcamento --> EventDispatcher
+    AprovarOrcamento --> EventDispatcher
+    IniciarExecucao --> EventDispatcher
+    AggOS -.->|emite| DomainEvents
+    AggEstoque -.->|emite| DomainEvents
+    EventDispatcher -->|OrcamentoFinalizadoEvent| ReservaHandler
+    EventDispatcher -->|OSCanceladaEvent| EstornoHandler
     EventDispatcher -->|ExecucaoIniciadaEvent| EstoqueHandler
-    EstoqueHandler --> PgEstoqueRepo
+    EventDispatcher -->|SaldoPecaAtualizadoEvent| AlocacaoHandler
+    ReservaHandler --> AggEstoque
+    ReservaHandler --> AggOS
+    EstornoHandler --> AggEstoque
+    EstoqueHandler --> AggEstoque
+    AlocacaoHandler --> AggEstoque
+    AlocacaoHandler --> AggOS
+    ReservaHandler --> Repositories
+    EstornoHandler --> Repositories
+    EstoqueHandler --> Repositories
+    AlocacaoHandler --> Repositories
     
-    CriarOSUseCase --> IRepositories
-    AprovarOrcamentoUseCase --> IRepositories
+    CriarOS --> Repositories
+    AprovarOrcamento --> Repositories
     
-    JWTProvider -.->|Implementa| Ports
+    JwtTokenService -.->|Implementa| Ports
     BcryptHasher -.->|Implementa| Ports
-    PgOSRepo -.->|Implementa| IRepositories
-    PgEstoqueRepo -.->|Implementa| IRepositories
+    PgOSRepo -.->|Implementa| Repositories
+    PgEstoqueRepo -.->|Implementa| Repositories
     PgOSRepo --> PgDatabase
     PgEstoqueRepo --> PgDatabase
 ```
@@ -177,7 +198,7 @@ flowchart TD
 
 ## 5. Nível 4: Diagrama de Código (Code Diagram)
 
-O Diagrama de Código ilustra a estrutura interna das entidades de domínio (`OrdemServico`, `Cliente`, `Veiculo`, `Usuario`), Objetos de Valor (`CPF`, `CNPJ`, `Placa`, `StatusOS`, `PerfilUsuario`) e Eventos, implementados como **`dataclasses` puras do Python** sem acoplamento com frameworks.
+O Diagrama de Código ilustra a estrutura interna dos agregados (`OrdemServico`, `EstoquePeca`), das entidades (`Cliente`, `Veiculo`, `Usuario`, `Servico`, `Peca`, `ItemServico`, `ItemPeca`, `HistoricoStatusOS`), dos Objetos de Valor (`Documento`, `CPF`, `CNPJ`, `Placa`, `Valor`, `NumeroOS`, `Orcamento`, `StatusOS`, `PerfilUsuario`, `OrigemTransicao`) e dos Eventos de Domínio, implementados como **`dataclasses` puras do Python** sem acoplamento com frameworks. Todo preço e todo total usa o objeto de valor `Valor`, com precisão decimal (RNF-11).
 
 ### Diagrama de Classes do Domínio (Mermaid / UML)
 
@@ -186,7 +207,7 @@ classDiagram
     class Cliente {
         +UUID id
         +str nome
-        +CPF | CNPJ documento
+        +Documento documento
         +str email
         +str telefone
     }
@@ -242,24 +263,28 @@ classDiagram
         +datetime data_abertura
         +Optional~datetime~ data_inicio_execucao
         +Optional~datetime~ data_finalizacao
+        +Optional~Orcamento~ orcamento
+        +List~HistoricoStatusOS~ historico
         +List~DomainEvent~ _domain_events
         +atribuir_mecanico(mecanico_id: UUID) void
         +finalizar_orcamento() void
-        +List~HistoricoStatusOS~ historico
         +aprovar_orcamento() void
         +rejeitar_orcamento() void
+        +alocar_peca(peca_id: UUID, quantidade: int) void
         +liberar_para_execucao() void
         +iniciar_execucao(usuario_id: UUID) void
         +concluir_manutencao() void
         +entregar_veiculo() void
         +cancelar(motivo: str) void
+        +estimar_entrega(momento_consulta: datetime) Optional~datetime~
         +collect_domain_events() List~DomainEvent~
     }
 
     class ItemServico {
         +UUID servico_id
         +str nome
-        +float preco_congelado
+        +Valor preco_congelado
+        +int tempo_estimado_minutos
     }
 
     class ItemPeca {
@@ -268,18 +293,112 @@ classDiagram
         +int quantidade
         +int quantidade_reservada
         +int quantidade_pendente
-        +float preco_unitario_congelado
-        +valor_total() float
+        +Valor preco_unitario_congelado
+        +int prazo_reposicao_dias
+        +valor_total() Valor
+    }
+
+    class Orcamento {
+        <<Value Object>>
+        +Valor subtotal_servicos
+        +Valor subtotal_pecas
+        +Valor total
+    }
+
+    class HistoricoStatusOS {
+        +UUID id
+        +Optional~StatusOS~ status_anterior
+        +StatusOS status_novo
+        +datetime data_hora
+        +OrigemTransicao origem
+        +Optional~UUID~ usuario_id
+        +Optional~str~ motivo
+    }
+
+    class OrigemTransicao {
+        <<enumeration>>
+        USUARIO
+        CLIENTE
+        SISTEMA
+    }
+
+    class Servico {
+        +UUID id
+        +str codigo
+        +str nome
+        +str descricao
+        +Valor valor_base
+        +int tempo_estimado_minutos
+        +bool ativo
+    }
+
+    class Peca {
+        +UUID id
+        +str codigo_referencia
+        +str nome
+        +Valor preco_unitario
+        +int prazo_reposicao_dias
+        +bool ativo
+    }
+
+    class EstoquePeca {
+        +UUID peca_id
+        +int quantidade_fisica
+        +int quantidade_reservada
+        +List~DomainEvent~ _domain_events
+        +saldo_disponivel() int
+        +reservar(quantidade: int) int
+        +alocar_pendencias(pendencias: List~PendenciaPeca~) List~AlocacaoPeca~
+        +baixar(quantidade: int) void
+        +estornar(quantidade: int) void
+        +repor(quantidade: int) void
+        +ajustar_quantidade_fisica(nova_quantidade: int) void
+        +collect_domain_events() List~DomainEvent~
+    }
+
+    class PendenciaPeca {
+        <<Value Object>>
+        +UUID os_id
+        +datetime data_abertura_os
+        +int quantidade_pendente
+    }
+
+    class AlocacaoPeca {
+        <<Value Object>>
+        +UUID os_id
+        +int quantidade_reservada
+    }
+
+    class QuantidadePeca {
+        <<Value Object>>
+        +UUID peca_id
+        +int quantidade
+    }
+
+    class Valor {
+        <<Value Object>>
+        +Decimal valor
+        +somar(outro: Valor) Valor
+        +multiplicar(quantidade: int) Valor
+    }
+
+    class NumeroOS {
+        <<Value Object>>
+        +str valor
+    }
+
+    class Documento {
+        <<abstract>>
+        +str valor
+        +tres_primeiros_digitos() str
     }
 
     class CPF {
         <<Value Object>>
-        +str valor
     }
 
     class CNPJ {
         <<Value Object>>
-        +str valor
     }
 
     class Placa {
@@ -294,15 +413,29 @@ classDiagram
         +datetime occurred_on
     }
 
-    class OrcamentoAprovadoEvent {
+    class OrcamentoFinalizadoEvent {
         +UUID os_id
-        +UUID cliente_id
-        +List~dict~ itens_pecas
+    }
+
+    class OSCanceladaEvent {
+        +UUID os_id
+        +List~QuantidadePeca~ estornos
+    }
+
+    class ExecucaoIniciadaEvent {
+        +UUID os_id
+        +List~QuantidadePeca~ baixas
+    }
+
+    class SaldoPecaAtualizadoEvent {
+        +UUID peca_id
     }
 
     Usuario "1" --> "1" PerfilUsuario : possui
-    Cliente --> CPF : documento (pessoa física)
-    Cliente --> CNPJ : documento (pessoa jurídica)
+    Cliente --> Documento : documento
+    Documento <|-- CPF : pessoa física
+    Documento <|-- CNPJ : pessoa jurídica
+    NumeroOS ..> Documento : usa tres_primeiros_digitos
     Veiculo "*" --> "1" Cliente : pertence a (cliente_id)
     OrdemServico "*" --> "1" Cliente : referencia (cliente_id)
     OrdemServico "*" --> "1" Veiculo : referencia (veiculo_id)
@@ -311,9 +444,39 @@ classDiagram
     OrdemServico "1" *-- "*" ItemServico : contem
     OrdemServico "1" *-- "*" ItemPeca : contem
     OrdemServico --> StatusOS : possui estado
-    DomainEvent <|-- OrcamentoAprovadoEvent : herda de
+    OrdemServico --> NumeroOS : numero
+    OrdemServico "1" *-- "0..1" Orcamento : orcamento
+    OrdemServico "1" *-- "*" HistoricoStatusOS : historico
+    HistoricoStatusOS --> OrigemTransicao : origem
+    ItemServico "*" --> "1" Servico : referencia (servico_id)
+    ItemPeca "*" --> "1" Peca : referencia (peca_id)
+    EstoquePeca "1" --> "1" Peca : controla o estoque de (peca_id)
+    ItemServico --> Valor : preco_congelado
+    ItemPeca --> Valor : preco_unitario_congelado
+    Servico --> Valor : valor_base
+    Peca --> Valor : preco_unitario
+    Orcamento --> Valor : subtotais e total
+    DomainEvent <|-- OrcamentoFinalizadoEvent : herda de
+    DomainEvent <|-- OSCanceladaEvent : herda de
+    DomainEvent <|-- ExecucaoIniciadaEvent : herda de
+    DomainEvent <|-- SaldoPecaAtualizadoEvent : herda de
     OrdemServico *-- DomainEvent : acumula eventos
+    EstoquePeca *-- DomainEvent : acumula eventos
+    EstoquePeca ..> PendenciaPeca : recebe
+    EstoquePeca ..> AlocacaoPeca : devolve
+    OSCanceladaEvent --> QuantidadePeca : estornos
+    ExecucaoIniciadaEvent --> QuantidadePeca : baixas
 ```
+
+### Decisões do Diagrama de Classes
+
+* **`Peca` e `EstoquePeca` são entidades separadas, na relação 1:1.** `Peca` guarda o cadastro (código de referência, nome, preço unitário, prazo de reposição e exclusão lógica), alterado só pelo Gerente (RF-12). `EstoquePeca` é a raiz do agregado de estoque e guarda as quantidades física e reservada. A separação faz a reserva, a baixa e o estorno bloquearem apenas o registro de estoque, sem disputar o registro do cadastro.
+* **Tempo estimado e prazo de reposição são congelados no item.** Em `finalizar_orcamento`, junto com os preços (RF-17), a OS copia `Servico.tempo_estimado_minutos` para `ItemServico` e `Peca.prazo_reposicao_dias` para `ItemPeca`. Assim, `estimar_entrega` (RF-25) usa só os dados da OS, e a estimativa corresponde ao orçamento apresentado ao cliente. Uma alteração posterior no catálogo não muda a estimativa das OS já orçadas.
+* **Documento do cliente.** `CPF` e `CNPJ` são objetos de valor separados, por decisão do grupo na issue #14, e herdam da base abstrata `Documento`. A base guarda só os dígitos, aplica o cálculo do módulo 11 com o tamanho e os pesos de cada subclasse e expõe `tres_primeiros_digitos()`, usado no número da OS (RF-05, RF-13). `Cliente.documento` é do tipo `Documento`, e por isso `Cliente` e a consulta pública (RF-25) trabalham com um só tipo.
+* **Prioridade pela OS mais antiga.** `EstoquePeca.alocar_pendencias` recebe as pendências da peça, ordena pela data de abertura da OS e reserva o saldo da mais antiga para a mais nova (RF-18, RF-19). A conclusão do orçamento e o aumento de saldo usam o mesmo método, e `OrdemServico.alocar_peca` converte a quantidade pendente do item em reservada.
+* **Estorno e baixa.** `cancelar` e `rejeitar_orcamento` calculam as quantidades a estornar a partir do status da OS e as enviam em `OSCanceladaEvent.estornos`. A OS cancelada em `EM_EXECUCAO` envia a lista vazia, porque `iniciar_execucao` já deu baixa em todas as reservas (RF-20); por isso `ItemPeca` não guarda quantidade baixada.
+* **Ajuste de estoque.** `ajustar_quantidade_fisica` corrige a quantidade física para perda, quebra ou inventário (RF-12). O valor novo não pode ficar abaixo da quantidade reservada, e o método emite `SaldoPecaAtualizadoEvent` só quando o saldo disponível aumenta.
+* **Eventos de domínio.** O diagrama mostra os 4 eventos do catálogo da seção 7 de `docs/ddd/event-storming.md`, com o identificador do agregado emissor e as quantidades que o consumidor precisa; os demais campos de cada evento são definidos na implementação (issue #45).
 
 ---
 
@@ -323,27 +486,27 @@ A estrutura física do repositório reflete exatamente o desacoplamento proposto
 
 ```text
 src/
-├── presentation/                  # Nível 3 (Camada de Entrada, Controllers HTTP & Middlewares)
+├── presentation/                  # Nível 3 (Camada de Entrada, Routers HTTP & Middlewares)
 │   ├── main.py                    # Criação do app FastAPI e registro dos routers
 │   ├── container.py               # Montagem das dependências (único ponto que importa infrastructure)
-│   ├── routers/                   # Route Handlers FastAPI, um arquivo por recurso (Auth, OS, Cliente, Estoque)
+│   ├── routers/                   # Routers FastAPI, um arquivo por recurso (autenticacao, ordens_servico, clientes, estoque, acompanhamento_publico)
 │   ├── middlewares/               # JWT Auth & Rate Limiting Guards (Depends / Security)
 │   └── schemas/                   # Pydantic DTOs, um arquivo por recurso (Validação de Entrada/Saída HTTP)
 ├── application/                   # Nível 3 (Camada de Aplicação & Casos de Uso)
-│   ├── use_cases/                 # Serviços de Orquestração (CriarOS, AprovarOrcamento, Login)
-│   ├── ports/                     # Interfaces Abstratas de Serviços (ITokenProvider, IPasswordHasher)
+│   ├── use_cases/                 # Serviços de Orquestração (CriarOS, AprovarOrcamento, AutenticarUsuario)
+│   ├── ports/                     # Interfaces Abstratas de Serviços (TokenService, PasswordHasher)
 │   ├── events/                    # Event Dispatcher In-Memory
-│   └── handlers/                  # Event Handlers (BaixaEstoqueHandler)
+│   └── handlers/                  # Event Handlers (ReservaPecasHandler, EstornoPecasHandler, BaixaEstoqueHandler, AlocacaoPecasPendentesHandler)
 ├── domain/                        # Nível 4 (Núcleo Puro de Negócio em Python Dataclasses)
-│   ├── entities/                  # Dataclasses de Agregados e Entidades (OrdemServico, Cliente, Veiculo, Usuario)
-│   ├── value_objects/             # VOs Imutáveis (CPF, CNPJ, Placa, StatusOS, PerfilUsuario)
-│   ├── events/                    # Definição dos Eventos de Domínio (OrcamentoAprovadoEvent)
+│   ├── entities/                  # Dataclasses de Agregados e Entidades (OrdemServico, EstoquePeca, Cliente, Veiculo, Usuario, Servico, Peca)
+│   ├── value_objects/             # VOs Imutáveis (Documento, CPF, CNPJ, Placa, Valor, NumeroOS, Orcamento, StatusOS, PerfilUsuario, OrigemTransicao)
+│   ├── events/                    # Eventos de Domínio (catálogo na seção 7 de docs/ddd/event-storming.md)
 │   └── repositories/              # Interfaces Abstratas dos Repositórios (ABCs)
 └── infrastructure/                # Nível 3 (Adaptadores I/O & Infraestrutura)
     ├── config.py                  # Leitura e validação das variáveis de ambiente (pydantic-settings)
     ├── database/                  # Engine SQLAlchemy, Sessions, Unidade de Trabalho e Modelos do ORM
     ├── repositories/              # Implementações Concretas com SQLAlchemy (Postgres)
-    └── security/                  # Implementações Concretas de Segurança (PyJWT, Passlib/Bcrypt)
+    └── security/                  # Implementações Concretas de Segurança (JwtTokenService com PyJWT, BcryptPasswordHasher com bcrypt)
 ```
 
 > A árvore acima foi aprovada pelo grupo na issue #9 e coincide com as seções 2 e 3 de `docs/guia-de-desenvolvimento.md`. As migrations do Alembic ficam na pasta `migrations/`, na raiz do projeto.

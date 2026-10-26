@@ -46,6 +46,18 @@ class UsuarioInvalido(ValorInvalido):
         self.motivo = motivo
 
 
+class ClienteInvalido(ValorInvalido):
+    def __init__(self, motivo: str):
+        super().__init__(f"Cliente inválido: {motivo}")
+        self.motivo = motivo
+
+
+class VeiculoInvalido(ValorInvalido):
+    def __init__(self, motivo: str):
+        super().__init__(f"Veículo inválido: {motivo}")
+        self.motivo = motivo
+
+
 class TransicaoDeStatusInvalida(RegraDeNegocioViolada):
     def __init__(self, status_atual: StatusOS, status_pretendido: StatusOS):
         super().__init__(

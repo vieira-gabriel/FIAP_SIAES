@@ -44,7 +44,7 @@ src/
     ├── container.py      Montagem das dependências (único ponto que importa infrastructure)
     ├── routers/          Rotas FastAPI, um arquivo por recurso
     ├── schemas/          DTOs de entrada e saída, um arquivo por recurso
-    └── middlewares/      Validação do token e rate limiting das rotas
+    └── middlewares/      Validação do token, rate limiting e tratamento de erros das rotas
 migrations/           Migrations do Alembic (seção 8.1)
 tests/
 ├── unit/             Testes sem banco e sem HTTP
@@ -112,6 +112,7 @@ Toda dependência externa segue o mesmo padrão:
 | Montagem das dependências | `src/presentation/` | `container.py` | `obter_token_service()` |
 | Validação de token nas rotas | `src/presentation/middlewares/` | `dependencies.py` | — |
 | Rate limiting das rotas públicas | `src/presentation/middlewares/` | `rate_limit.py` | `limiter = Limiter(...)` |
+| Tradução das exceções em respostas HTTP | `src/presentation/middlewares/` | `tratamento_de_erros.py` | `registrar_tratamento_de_erros(app)` |
 | Teste unitário | `tests/unit/` | `test_<arquivo testado>.py` | `test_placa.py` |
 | Teste de integração | `tests/integration/` | `test_<fluxo>.py` | `test_fluxo_aprovacao_orcamento.py` |
 | Migration do banco | `migrations/versions/` (raiz do projeto) | gerado pelo Alembic | `<revisão>_cria_tabela_cliente.py` |
@@ -275,6 +276,21 @@ Nenhuma dessas operações pode deixar o saldo disponível negativo (RF-12).
 2. A rota converte o DTO de entrada, chama o caso de uso e converte o resultado no DTO de saída.
 3. A rota **não contém regra de negócio** e não acessa o repositório diretamente.
 4. Use os códigos HTTP `200`, `201`, `400`, `401`, `403`, `404`, `422` e `500`. `401` indica token ausente ou inválido e `403` indica perfil sem permissão (RNF-03). Exceções do domínio são traduzidas para esses códigos na camada `presentation`.
+5. Basta a rota deixar a exceção do domínio subir: os tratadores de `presentation/middlewares/tratamento_de_erros.py` fazem a tradução, sempre com o corpo `ErroResponse` (`presentation/schemas/erro.py`):
+
+   | Exceção | Código HTTP | `codigo` no corpo |
+   | :--- | :--- | :--- |
+   | `ValorInvalido` (CPF, placa, número da OS...) | `400` | `VALOR_INVALIDO` |
+   | `CredenciaisInvalidas` e token ausente ou inválido | `401` | `NAO_AUTENTICADO` |
+   | Perfil sem permissão | `403` | `SEM_PERMISSAO` |
+   | `EntidadeNaoEncontrada` | `404` | `ENTIDADE_NAO_ENCONTRADA` |
+   | `RegraDeNegocioViolada` (transição inválida, saldo insuficiente...) | `422` | `REGRA_DE_NEGOCIO_VIOLADA` |
+   | Corpo da requisição fora do DTO (campo ausente, tipo errado) | `422` | `ENTRADA_INVALIDA`, com os campos em `detalhes` |
+   | Qualquer outra exceção | `500` | `ERRO_INTERNO`, sem mensagem interna nem stack trace; a causa vai para o log |
+
+   ```json
+   {"codigo": "VALOR_INVALIDO", "mensagem": "CPF inválido.", "detalhes": []}
+   ```
 
 ### 5.6. Proteger uma Rota com JWT
 
@@ -292,6 +308,33 @@ Nenhuma dessas operações pode deixar o saldo disponível negativo (RF-12).
 | Integração | `tests/integration/` | Fluxos completos pelas rotas HTTP, com adaptadores reais (RNF-13) | Sim |
 
 Os testes de código assíncrono são funções `async def`; o pytest-asyncio está configurado com `asyncio_mode = "auto"` no `pyproject.toml`, então não é preciso marcar cada teste.
+
+Como executar:
+
+```bash
+# Só os testes unitários, sem banco
+uv run pytest tests/unit
+
+# Testes de integração: com o .env preenchido, suba o PostgreSQL publicado em 127.0.0.1
+docker compose -f docker-compose.yml -f docker-compose.testes.yml up -d db
+uv run pytest tests/integration
+```
+
+Sem o `.env` preenchido ou sem o banco no ar, os testes de integração são pulados, e `uv run pytest` roda só os unitários.
+
+As fixtures de `tests/integration/conftest.py` servem de base para todo teste de integração:
+
+| Fixture | O que oferece |
+| :--- | :--- |
+| `banco_de_teste` | Banco `<POSTGRES_DB>_test`, recriado no início da sessão de testes, com as migrations aplicadas, e apagado no final. O banco de desenvolvimento não é tocado |
+| `engine` | Engine conectada ao banco de teste |
+| `conexao` | Conexão com uma transação desfeita ao final do teste, para um teste não enxergar o que outro gravou |
+| `fabrica_de_sessoes` | Sessões presas à transação do teste; o `commit` da unidade de trabalho só fecha um savepoint |
+| `cliente_http` | Cliente `httpx` da aplicação real, com o ciclo de vida executado e as sessões presas à transação do teste |
+| `banco_temporario` | Banco vazio e só do teste, para quem precisa de um banco próprio (migrations, login pela aplicação inteira); aponta `POSTGRES_DB` para ele |
+| `banco_migrado` | O `banco_temporario` com as migrations aplicadas |
+
+Exemplos de uso em `tests/integration/test_estrutura_de_integracao.py`.
 
 Exemplo de repositório em memória para testes unitários:
 
@@ -344,6 +387,7 @@ A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Tod
 | Imports a partir de `src/` | `PYTHONPATH=src`: `pythonpath = ["src"]` no pytest (`pyproject.toml`), `ENV PYTHONPATH=/app/src` no Dockerfile e `PYTHONPATH=src` no `.env` para a IDE |
 | Lint e formatação | Ruff (`ruff check` e `ruff format`), configurado no `pyproject.toml` |
 | Testes e cobertura | pytest + pytest-cov (RNF-12 a RNF-14) |
+| Banco dos testes de integração | Banco `<POSTGRES_DB>_test` no mesmo container `db` do Compose, publicado em `127.0.0.1` pelo `docker-compose.testes.yml` (issue #28). Nenhuma dependência nova; os testes de integração exigem o banco no ar e são pulados sem ele. As fixtures e os comandos estão na seção 5.7 |
 | Migrations | Alembic com o template `async` (issue #4). A pasta `migrations/` e o `alembic.ini` ficam na raiz do projeto; cada mudança de schema é gerada com `uv run alembic revision --autogenerate -m "<descrição>"`, revisada antes do commit e aplicada com `alembic upgrade head` no `CMD` do Dockerfile, antes do Uvicorn (issue #25). O `migrations/env.py` é o ponto de montagem do Alembic e, por isso, é a exceção à regra de que só o `presentation/container.py` importa `infrastructure/config.py`: ele lê a configuração com `carregar_configuracao()` e cria a conexão com `criar_engine`. O `target_metadata` é o `Base.metadata` de `infrastructure/database/base.py`; cada modelo novo precisa ser importado no `env.py` para entrar no `--autogenerate`. A primeira revisão, `0001_schema_base`, é vazia; a `0002` cria a tabela `usuarios`. Um teste de integração compara os modelos com o banco migrado e falha se faltar migration |
 | Rate limiting | SlowAPI com contador em memória (RNF-05) |
 | Rotas e DTOs | `presentation/routers/` e `presentation/schemas/`, um arquivo por recurso |

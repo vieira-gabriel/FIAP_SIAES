@@ -9,6 +9,7 @@ from presentation.container import (
     executar_carga_inicial,
     montar_dependencias,
 )
+from presentation.middlewares.tratamento_de_erros import registrar_tratamento_de_erros
 from presentation.routers import autenticacao, saude
 
 # Mesma versão do pyproject.toml; o pacote não é instalado na imagem, então não há metadados.
@@ -36,6 +37,7 @@ app = FastAPI(
     description=DESCRICAO_DA_API,
     lifespan=lifespan,
 )
+registrar_tratamento_de_erros(app)
 app.include_router(saude.router)
 app.include_router(autenticacao.router)
 

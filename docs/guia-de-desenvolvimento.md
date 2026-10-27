@@ -293,6 +293,31 @@ Nenhuma dessas operações pode deixar o saldo disponível negativo (RF-12).
 
 Os testes de código assíncrono são funções `async def`; o pytest-asyncio está configurado com `asyncio_mode = "auto"` no `pyproject.toml`, então não é preciso marcar cada teste.
 
+Como executar:
+
+```bash
+# Só os testes unitários, sem banco
+uv run pytest tests/unit
+
+# Testes de integração: com o .env preenchido, suba o PostgreSQL publicado em 127.0.0.1
+docker compose -f docker-compose.yml -f docker-compose.testes.yml up -d db
+uv run pytest tests/integration
+```
+
+Sem o `.env` preenchido ou sem o banco no ar, os testes de integração são pulados, e `uv run pytest` roda só os unitários.
+
+As fixtures de `tests/integration/conftest.py` servem de base para todo teste de integração:
+
+| Fixture | O que oferece |
+| :--- | :--- |
+| `banco_de_teste` | Banco `<POSTGRES_DB>_test`, recriado no início da sessão de testes, com as migrations aplicadas, e apagado no final. O banco de desenvolvimento não é tocado |
+| `engine` | Engine conectada ao banco de teste |
+| `conexao` | Conexão com uma transação desfeita ao final do teste, para um teste não enxergar o que outro gravou |
+| `fabrica_de_sessoes` | Sessões presas à transação do teste; o `commit` da unidade de trabalho só fecha um savepoint |
+| `cliente_http` | Cliente `httpx` da aplicação real, com o ciclo de vida executado e as sessões presas à transação do teste |
+
+Exemplos de uso em `tests/integration/test_estrutura_de_integracao.py`.
+
 Exemplo de repositório em memória para testes unitários:
 
 ```python
@@ -344,6 +369,7 @@ A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Tod
 | Imports a partir de `src/` | `PYTHONPATH=src`: `pythonpath = ["src"]` no pytest (`pyproject.toml`), `ENV PYTHONPATH=/app/src` no Dockerfile e `PYTHONPATH=src` no `.env` para a IDE |
 | Lint e formatação | Ruff (`ruff check` e `ruff format`), configurado no `pyproject.toml` |
 | Testes e cobertura | pytest + pytest-cov (RNF-12 a RNF-14) |
+| Banco dos testes de integração | Banco `<POSTGRES_DB>_test` no mesmo container `db` do Compose, publicado em `127.0.0.1` pelo `docker-compose.testes.yml` (issue #28). Nenhuma dependência nova; os testes de integração exigem o banco no ar e são pulados sem ele. As fixtures e os comandos estão na seção 5.7 |
 | Migrations | Alembic com o template `async` (issue #4). A pasta `migrations/` e o `alembic.ini` ficam na raiz do projeto; cada mudança de schema é gerada com `uv run alembic revision --autogenerate -m "<descrição>"`, revisada antes do commit e aplicada com `alembic upgrade head` no `CMD` do Dockerfile, antes do Uvicorn (issue #25). O `migrations/env.py` é o ponto de montagem do Alembic e, por isso, é a exceção à regra de que só o `presentation/container.py` importa `infrastructure/config.py`: ele lê a configuração com `carregar_configuracao()` e cria a conexão com `criar_engine`. Sem modelos do ORM ainda, `target_metadata` é `None`; a primeira entidade cria a `Base` e liga o `--autogenerate`. A primeira revisão, `0001_schema_base`, é vazia |
 | Rate limiting | SlowAPI com contador em memória (RNF-05) |
 | Rotas e DTOs | `presentation/routers/` e `presentation/schemas/`, um arquivo por recurso |

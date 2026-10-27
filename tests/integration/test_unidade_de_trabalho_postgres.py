@@ -4,38 +4,8 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
-from infrastructure.config import ConfiguracaoInvalida, carregar_configuracao
-from infrastructure.database.engine import criar_engine, criar_fabrica_de_sessoes
+from infrastructure.database.engine import criar_fabrica_de_sessoes
 from infrastructure.database.unidade_de_trabalho import UnidadeDeTrabalhoSqlAlchemy
-
-# O .env aponta para o host `db`, que só existe na rede do Compose; o teste roda fora dela.
-HOST_DO_TESTE = "localhost"
-
-
-@pytest.fixture
-async def engine():
-    try:
-        configuracao = carregar_configuracao()
-    except ConfiguracaoInvalida:
-        pytest.skip("Preencha o .env para rodar os testes de integração.")
-    engine = criar_engine(
-        host=HOST_DO_TESTE,
-        porta=configuracao.postgres_port,
-        banco=configuracao.postgres_db,
-        usuario=configuracao.postgres_user,
-        senha=configuracao.postgres_password.get_secret_value(),
-    )
-    try:
-        async with engine.connect() as conexao:
-            await conexao.execute(text("SELECT 1"))
-    except OSError:
-        await engine.dispose()
-        pytest.skip(
-            "PostgreSQL indisponível em localhost: suba o db com "
-            "`docker compose -f docker-compose.yml -f docker-compose.testes.yml up -d db`."
-        )
-    yield engine
-    await engine.dispose()
 
 
 @pytest.fixture

@@ -228,7 +228,7 @@ Tarefas da fase:
 - [ ] Ligar o login à aplicação: `obter_autenticar_usuario` no container e registro do router de autenticação. Depende do repositório de usuários em PostgreSQL (modelo do ORM, tabela e adaptador), cujo card ainda não existe
 - [ ] Tratamento padronizado de erros, traduzindo as exceções do domínio para códigos HTTP, incluindo `401` e `403` (RNF-03)
 - [ ] Event Dispatcher síncrono em memória (Modelo C4)
-- [ ] Estrutura para testes de integração com banco PostgreSQL de teste (RNF-13)
+- [x] Estrutura para testes de integração com banco PostgreSQL de teste (RNF-13; issue #28): banco `<POSTGRES_DB>_test` no container `db`, fixtures em `tests/integration/conftest.py` e comandos na seção 5.7 do guia
 - [ ] (Opcional, se houver tempo) Pipeline de CI no GitHub Actions executando lint, testes e cobertura em cada Pull Request
 
 ---

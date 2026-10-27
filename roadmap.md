@@ -221,7 +221,7 @@ Tarefas da fase:
 - [ ] `docker-compose.yml` com os serviços `app` e `db` (PostgreSQL 16), volume persistente para o banco e healthcheck, subindo com `docker compose up --build` (RNF-15); hoje existe só o serviço `api`
 - [ ] Configuração do `PYTHONPATH` (ou empacotamento) para os imports a partir de `src/` funcionarem localmente, no Docker e no pytest
 - [ ] Configuração por variáveis de ambiente, sem segredos no código e com falha na inicialização quando faltar variável obrigatória (RNF-06)
-- [ ] Engine e sessão do SQLAlchemy com controle de transação e rollback completo em caso de falha (RNF-08)
+- [x] Engine e sessão do SQLAlchemy com controle de transação e rollback completo em caso de falha (RNF-08; issue #24)
 - [ ] Migrations iniciais com Alembic (`alembic init -t async migrations`, seção 8.1 do guia)
 - [x] Rota de health check na aplicação FastAPI (`GET /health`)
 - [ ] Conferir o Swagger em `/docs`, exposto automaticamente pelo FastAPI, e documentar o acesso (RNF-16)

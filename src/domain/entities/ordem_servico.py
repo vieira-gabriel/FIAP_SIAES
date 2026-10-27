@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+from domain.entities.historico_status_os import HistoricoStatusOS
 from domain.entities.item_peca import ItemPeca
 from domain.entities.item_servico import ItemServico
 from domain.entities.peca import Peca
@@ -21,6 +22,7 @@ from domain.exceptions import (
 )
 from domain.value_objects.numero_os import NumeroOS
 from domain.value_objects.orcamento import Orcamento
+from domain.value_objects.origem_transicao import OrigemTransicao
 from domain.value_objects.perfil_usuario import PerfilUsuario
 from domain.value_objects.status_os import StatusOS
 from domain.value_objects.valor import Valor
@@ -34,7 +36,8 @@ class OrdemServico:
 
     Os itens só mudam durante o diagnóstico e só aceitam serviços e peças ativos (RF-17). O
     orçamento soma os valores congelados nos itens (RNF-11). Apenas as transições da Linguagem
-    Ubíqua (§5) são permitidas, cada uma por um método que declara de quais status parte.
+    Ubíqua (§5) são permitidas, cada uma por um método que declara de quais status parte, e
+    cada transição gera um registro no histórico (RF-24).
     """
 
     numero: NumeroOS
@@ -50,6 +53,7 @@ class OrdemServico:
     servicos: list[ItemServico] = field(default_factory=list)
     pecas: list[ItemPeca] = field(default_factory=list)
     orcamento: Orcamento | None = None
+    historico: list[HistoricoStatusOS] = field(default_factory=list)
 
     def __post_init__(self):
         if not isinstance(self.numero, NumeroOS):
@@ -61,6 +65,10 @@ class OrdemServico:
         ):
             if not isinstance(identificador, UUID):
                 raise OrdemServicoInvalida(f"{nome} é obrigatório")
+        if not isinstance(self.data_abertura, datetime):
+            raise OrdemServicoInvalida("a data de abertura é obrigatória")
+        if self.status is StatusOS.RECEBIDA and not self.historico:
+            self._registrar_abertura()
 
     def __eq__(self, outro: object) -> bool:
         return isinstance(outro, OrdemServico) and outro.id == self.id
@@ -128,21 +136,35 @@ class OrdemServico:
         """O mecânico assume a OS, que passa a `EM_DIAGNOSTICO` (RF-16)."""
         if not isinstance(mecanico_id, UUID):
             raise OrdemServicoInvalida("o mecânico é obrigatório")
-        self._mudar_status(StatusOS.EM_DIAGNOSTICO, de={StatusOS.RECEBIDA})
+        self._mudar_status(
+            StatusOS.EM_DIAGNOSTICO,
+            de={StatusOS.RECEBIDA},
+            origem=OrigemTransicao.USUARIO,
+            usuario_id=mecanico_id,
+        )
         self.mecanico_id = mecanico_id
 
     def finalizar_orcamento(
-        self, servicos_vigentes: Iterable[Servico], pecas_vigentes: Iterable[Peca]
+        self,
+        usuario_id: UUID,
+        servicos_vigentes: Iterable[Servico],
+        pecas_vigentes: Iterable[Peca],
     ) -> None:
         """Congela os valores vigentes e envia o orçamento ao cliente (RF-17).
 
         A quantidade de cada peça fica toda pendente, até a reserva de estoque (RF-18).
         """
+        _exigir_usuario(usuario_id)
         self._validar_transicao(StatusOS.AGUARDANDO_APROVACAO, de={StatusOS.EM_DIAGNOSTICO})
         self.congelar_valores(servicos_vigentes, pecas_vigentes)
         for item in self.pecas:
             item.marcar_como_pendente()
-        self._mudar_status(StatusOS.AGUARDANDO_APROVACAO, de={StatusOS.EM_DIAGNOSTICO})
+        self._mudar_status(
+            StatusOS.AGUARDANDO_APROVACAO,
+            de={StatusOS.EM_DIAGNOSTICO},
+            origem=OrigemTransicao.USUARIO,
+            usuario_id=usuario_id,
+        )
 
     def aprovar_orcamento(self) -> None:
         """Com peças pendentes a OS espera a reposição; sem elas, aguarda a execução (RF-26)."""
@@ -151,17 +173,25 @@ class OrdemServico:
             if self._nomes_das_pecas_pendentes()
             else StatusOS.AGUARDANDO_EXECUCAO
         )
-        self._mudar_status(destino, de={StatusOS.AGUARDANDO_APROVACAO})
+        self._mudar_status(
+            destino, de={StatusOS.AGUARDANDO_APROVACAO}, origem=OrigemTransicao.CLIENTE
+        )
 
     def rejeitar_orcamento(self) -> None:
-        self._mudar_status(StatusOS.CANCELADA, de={StatusOS.AGUARDANDO_APROVACAO})
+        self._mudar_status(
+            StatusOS.CANCELADA, de={StatusOS.AGUARDANDO_APROVACAO}, origem=OrigemTransicao.CLIENTE
+        )
 
     def liberar_para_execucao(self) -> None:
         """A OS só sai de `AGUARDANDO_PECA` quando todas as peças estão reservadas (RF-19)."""
         self._validar_transicao(StatusOS.AGUARDANDO_EXECUCAO, de={StatusOS.AGUARDANDO_PECA})
         if pendentes := self._nomes_das_pecas_pendentes():
             raise PecasPendentes(pendentes)
-        self._mudar_status(StatusOS.AGUARDANDO_EXECUCAO, de={StatusOS.AGUARDANDO_PECA})
+        self._mudar_status(
+            StatusOS.AGUARDANDO_EXECUCAO,
+            de={StatusOS.AGUARDANDO_PECA},
+            origem=OrigemTransicao.SISTEMA,
+        )
 
     def iniciar_execucao(self, usuario: Usuario) -> None:
         """Só o mecânico atribuído ou o Gerente iniciam; grava o momento do início (RF-20)."""
@@ -170,24 +200,46 @@ class OrdemServico:
         self._validar_transicao(StatusOS.EM_EXECUCAO, de={StatusOS.AGUARDANDO_EXECUCAO})
         if usuario.perfil != PerfilUsuario.GERENTE and usuario.id != self.mecanico_id:
             raise AcessoNegado("Apenas o mecânico atribuído ou o Gerente pode iniciar a execução.")
-        self._mudar_status(StatusOS.EM_EXECUCAO, de={StatusOS.AGUARDANDO_EXECUCAO})
-        self.data_inicio_execucao = datetime.now(UTC)
+        self.data_inicio_execucao = self._mudar_status(
+            StatusOS.EM_EXECUCAO,
+            de={StatusOS.AGUARDANDO_EXECUCAO},
+            origem=OrigemTransicao.USUARIO,
+            usuario_id=usuario.id,
+        )
 
-    def cancelar(self, motivo: str) -> None:
-        """Vale de `RECEBIDA` até `EM_EXECUCAO` e exige o motivo (RF-23)."""
+    def cancelar(self, usuario_id: UUID, motivo: str) -> None:
+        """Vale de `RECEBIDA` até `EM_EXECUCAO` e exige o motivo, que vai ao histórico (RF-23)."""
+        _exigir_usuario(usuario_id)
         self._validar_transicao(StatusOS.CANCELADA, de=_CANCELAVEIS)
         if not isinstance(motivo, str) or not motivo.strip():
             raise MotivoObrigatorio()
-        self._mudar_status(StatusOS.CANCELADA, de=_CANCELAVEIS)
+        self._mudar_status(
+            StatusOS.CANCELADA,
+            de=_CANCELAVEIS,
+            origem=OrigemTransicao.USUARIO,
+            usuario_id=usuario_id,
+            motivo=motivo,
+        )
 
-    def concluir_manutencao(self) -> None:
+    def concluir_manutencao(self, usuario_id: UUID) -> None:
         """Grava o momento da conclusão técnica (RF-21)."""
-        self._mudar_status(StatusOS.FINALIZADA, de={StatusOS.EM_EXECUCAO})
-        self.data_finalizacao = datetime.now(UTC)
+        _exigir_usuario(usuario_id)
+        self.data_finalizacao = self._mudar_status(
+            StatusOS.FINALIZADA,
+            de={StatusOS.EM_EXECUCAO},
+            origem=OrigemTransicao.USUARIO,
+            usuario_id=usuario_id,
+        )
 
-    def entregar_veiculo(self) -> None:
+    def entregar_veiculo(self, usuario_id: UUID) -> None:
         """Entrega ao cliente após o acerto comercial, estado final (RF-22)."""
-        self._mudar_status(StatusOS.ENTREGUE, de={StatusOS.FINALIZADA})
+        _exigir_usuario(usuario_id)
+        self._mudar_status(
+            StatusOS.ENTREGUE,
+            de={StatusOS.FINALIZADA},
+            origem=OrigemTransicao.USUARIO,
+            usuario_id=usuario_id,
+        )
 
     def _exigir_itens_editaveis(self) -> None:
         if self.status != StatusOS.EM_DIAGNOSTICO:
@@ -200,9 +252,42 @@ class OrdemServico:
         if self.status not in de:
             raise TransicaoDeStatusInvalida(self.status, destino)
 
-    def _mudar_status(self, destino: StatusOS, *, de: Collection[StatusOS]) -> None:
+    def _mudar_status(
+        self,
+        destino: StatusOS,
+        *,
+        de: Collection[StatusOS],
+        origem: OrigemTransicao,
+        usuario_id: UUID | None = None,
+        motivo: str | None = None,
+    ) -> datetime:
+        """Único ponto que altera o status: valida a origem e registra a transição (RF-24).
+
+        Devolve o instante do registro, que os timestamps da OS reaproveitam.
+        """
         self._validar_transicao(destino, de=de)
+        momento = datetime.now(UTC)
+        self.historico.append(
+            HistoricoStatusOS(self.status, destino, momento, origem, usuario_id, motivo)
+        )
         self.status = destino
+        return momento
+
+    def _registrar_abertura(self) -> None:
+        self.historico.append(
+            HistoricoStatusOS(
+                status_anterior=None,
+                status_novo=StatusOS.RECEBIDA,
+                data_hora=self.data_abertura,
+                origem=OrigemTransicao.USUARIO,
+                usuario_id=self.atendente_id,
+            )
+        )
+
+
+def _exigir_usuario(usuario_id: UUID) -> None:
+    if not isinstance(usuario_id, UUID):
+        raise OrdemServicoInvalida("o usuário é obrigatório")
 
 
 def _somar(valores: Iterable[Valor]) -> Valor:

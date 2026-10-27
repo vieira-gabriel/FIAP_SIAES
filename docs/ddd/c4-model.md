@@ -274,15 +274,15 @@ classDiagram
         +remover_servico(servico_id: UUID) void
         +remover_peca(peca_id: UUID) void
         +congelar_valores(servicos_vigentes: List~Servico~, pecas_vigentes: List~Peca~) void
-        +finalizar_orcamento(servicos_vigentes: List~Servico~, pecas_vigentes: List~Peca~) void
+        +finalizar_orcamento(usuario_id: UUID, servicos_vigentes: List~Servico~, pecas_vigentes: List~Peca~) void
         +aprovar_orcamento() void
         +rejeitar_orcamento() void
         +alocar_peca(peca_id: UUID, quantidade: int) void
         +liberar_para_execucao() void
         +iniciar_execucao(usuario: Usuario) void
-        +concluir_manutencao() void
-        +entregar_veiculo() void
-        +cancelar(motivo: str) void
+        +concluir_manutencao(usuario_id: UUID) void
+        +entregar_veiculo(usuario_id: UUID) void
+        +cancelar(usuario_id: UUID, motivo: str) void
         +estimar_entrega(momento_consulta: datetime) Optional~datetime~
         +collect_domain_events() List~DomainEvent~
     }
@@ -485,6 +485,7 @@ classDiagram
 * **A OS não consulta o catálogo.** `congelar_valores` recebe do caso de uso o `Servico` e a `Peca` vigentes de cada item, atualiza os valores congelados e calcula o `Orcamento`; `finalizar_orcamento(servicos_vigentes, pecas_vigentes)` o chama antes da transição, depois de validar o status de origem. Os itens só mudam em `EM_DIAGNOSTICO` (RF-17), e a OS recusa itens inativos, o mesmo serviço ou peça repetidos e peça com quantidade que não seja um inteiro maior que zero. `Orcamento` guarda os subtotais de serviços e de peças e calcula o total na criação.
 * **Documento do cliente.** `CPF` e `CNPJ` são objetos de valor separados, por decisão do grupo na issue #14, e herdam da base abstrata `Documento`. A base guarda só os dígitos, aplica o cálculo do módulo 11 com o tamanho e os pesos de cada subclasse e expõe `tres_primeiros_digitos()`, usado no número da OS (RF-05, RF-13). `Cliente.documento` é do tipo `Documento`, e por isso `Cliente` e a consulta pública (RF-25) trabalham com um só tipo.
 * **Transições e quem as executa.** Cada método da máquina de estados declara de quais status parte, e só `_mudar_status` altera o `status`, o ponto onde o histórico e os eventos se encaixam. `iniciar_execucao` recebe o `Usuario` e só aceita o mecânico atribuído à OS ou o Gerente; outro usuário recebe `AcessoNegado` (`403`). `liberar_para_execucao` recusa a OS que ainda tem peça pendente (`PecasPendentes`), e `cancelar` exige o motivo (`MotivoObrigatorio`). `finalizar_orcamento` deixa toda a quantidade de cada `ItemPeca` pendente, e a reserva de estoque converte a pendente em reservada (RF-18). A conferência do perfil (Mecânico, Gerente, Atendente) de cada operação fica na camada `presentation`.
+* **Histórico de status.** `_mudar_status` é o único ponto que altera o `status` e grava um `HistoricoStatusOS` por transição, com o mesmo instante de `data_inicio_execucao` e `data_finalizacao`. A origem segue a coluna "Quem executa" da Linguagem Ubíqua: as transições feitas por Mecânico, Gerente ou Atendente gravam `USUARIO` e o `usuario_id` (por isso os métodos recebem o usuário como primeiro parâmetro); `aprovar_orcamento` e `rejeitar_orcamento` gravam `CLIENTE` e `liberar_para_execucao` grava `SISTEMA`, ambos sem usuário. O registro da abertura nasce com a OS (`RECEBIDA` sem histórico), sem status anterior e com o atendente como usuário; uma OS reconstituída da persistência já traz o histórico e não ganha outro. `cancelar` grava o motivo. O registro é imutável (`dataclass` congelada), e a lista só recebe registros dos métodos de transição.
 * **Prioridade pela OS mais antiga.** `EstoquePeca.alocar_pendencias` recebe as pendências da peça, ordena pela data de abertura da OS e reserva o saldo da mais antiga para a mais nova (RF-18, RF-19). A conclusão do orçamento e o aumento de saldo usam o mesmo método, e `OrdemServico.alocar_peca` converte a quantidade pendente do item em reservada.
 * **Estorno e baixa.** `cancelar` e `rejeitar_orcamento` calculam as quantidades a estornar a partir do status da OS e as enviam em `OSCanceladaEvent.estornos`. A OS cancelada em `EM_EXECUCAO` envia a lista vazia, porque `iniciar_execucao` já deu baixa em todas as reservas (RF-20); por isso `ItemPeca` não guarda quantidade baixada.
 * **Ajuste de estoque.** `ajustar_quantidade_fisica` corrige a quantidade física para perda, quebra ou inventário (RF-12). O valor novo não pode ficar abaixo da quantidade reservada, e o método emite `SaldoPecaAtualizadoEvent` só quando o saldo disponível aumenta.

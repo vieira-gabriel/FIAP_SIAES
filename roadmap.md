@@ -258,7 +258,7 @@ Tarefas da fase:
 - [x] Máquina de estados com os 9 status e bloqueio de transições inválidas: `atribuir_mecanico`, `finalizar_orcamento`, `aprovar_orcamento`, `rejeitar_orcamento`, `liberar_para_execucao`, `iniciar_execucao`, `concluir_manutencao`, `entregar_veiculo` e `cancelar` (linguagem ubíqua §5; issue #40): cada método declara de quais status parte, e o histórico (#41) e os eventos (#45) se encaixam no `_mudar_status`
 - [x] Registro dos timestamps de abertura, início da execução e finalização (RF-13, RF-20, RF-21; issue #40)
 - [x] Bloqueio de alteração de itens após `FINALIZADA` (RF-21; issue #40): os itens só mudam em `EM_DIAGNOSTICO`
-- [ ] Histórico de status com origem, usuário e motivo obrigatório no cancelamento (RF-24, RF-23)
+- [x] Histórico de status com origem, usuário e motivo obrigatório no cancelamento (RF-24, RF-23; issue #41): `HistoricoStatusOS` imutável, registro de abertura automático e um registro por transição, gravado pelo `_mudar_status`
 - [ ] Agregado `EstoquePeca` com quantidade física, reserva, pendência, baixa e estorno, sem permitir saldo negativo (RF-12, RF-18, RF-20)
 - [ ] Regra de prioridade pela OS mais antiga na reserva e na alocação de peças repostas (RF-18, RF-19)
 - [ ] Cálculo da estimativa de entrega por status (RF-25)

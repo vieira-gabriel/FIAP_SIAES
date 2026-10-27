@@ -185,23 +185,43 @@ Entidades têm identidade e **protegem as próprias regras**. Quem altera o esta
 # src/domain/entities/ordem_servico.py (trecho ilustrativo)
 from collections.abc import Collection
 from datetime import UTC, datetime
+from uuid import UUID
 
+from domain.entities.historico_status_os import HistoricoStatusOS
 from domain.exceptions import TransicaoDeStatusInvalida
+from domain.value_objects.origem_transicao import OrigemTransicao
 from domain.value_objects.status_os import StatusOS
 
 
 class OrdemServico:
-    def concluir_manutencao(self) -> None:
-        self._mudar_status(StatusOS.FINALIZADA, de={StatusOS.EM_EXECUCAO})
-        self.data_finalizacao = datetime.now(UTC)
+    def concluir_manutencao(self, usuario_id: UUID) -> None:
+        self.data_finalizacao = self._mudar_status(
+            StatusOS.FINALIZADA,
+            de={StatusOS.EM_EXECUCAO},
+            origem=OrigemTransicao.USUARIO,
+            usuario_id=usuario_id,
+        )
 
-    def _mudar_status(self, destino: StatusOS, *, de: Collection[StatusOS]) -> None:
+    def _mudar_status(
+        self,
+        destino: StatusOS,
+        *,
+        de: Collection[StatusOS],
+        origem: OrigemTransicao,
+        usuario_id: UUID | None = None,
+        motivo: str | None = None,
+    ) -> datetime:
         if self.status not in de:
             raise TransicaoDeStatusInvalida(self.status, destino)
+        momento = datetime.now(UTC)
+        self.historico.append(
+            HistoricoStatusOS(self.status, destino, momento, origem, usuario_id, motivo)
+        )
         self.status = destino
+        return momento
 ```
 
-Cada transição declara de quais status parte, e só `_mudar_status` altera o `status`: o histórico (RF-24) e os eventos de domínio se encaixam nesse ponto único.
+Cada transição declara de quais status parte, e só `_mudar_status` altera o `status` e grava o registro no histórico (RF-24); os eventos de domínio se encaixam nesse mesmo ponto. A origem do registro (`USUARIO`, `CLIENTE` ou `SISTEMA`) vem de quem executa a transição, conforme a Linguagem Ubíqua §5.
 
 Regras que **ficam obrigatoriamente no domínio**:
 - Máquina de estados da OS e bloqueio de transições inválidas (Linguagem Ubíqua §5, RF-16 a RF-26).

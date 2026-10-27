@@ -1,8 +1,10 @@
+from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
 
+from domain.entities.historico_status_os import HistoricoStatusOS
 from domain.entities.ordem_servico import OrdemServico
 from domain.entities.peca import Peca
 from domain.entities.servico import Servico
@@ -21,11 +23,13 @@ from domain.exceptions import (
 )
 from domain.value_objects.numero_os import NumeroOS
 from domain.value_objects.orcamento import Orcamento
+from domain.value_objects.origem_transicao import OrigemTransicao
 from domain.value_objects.perfil_usuario import PerfilUsuario
 from domain.value_objects.status_os import StatusOS
 from domain.value_objects.valor import Valor
 
 STATUS_SEM_EDICAO_DE_ITENS = [s for s in StatusOS if s is not StatusOS.EM_DIAGNOSTICO]
+USUARIO_ID = uuid4()
 
 
 def criar_os(**alteracoes) -> OrdemServico:
@@ -370,7 +374,7 @@ def test_finalizar_orcamento_congela_os_valores_vigentes_e_aguarda_a_aprovacao()
     os.incluir_peca(peca, quantidade=2)
     reajustar_servico(servico, "150.00")
 
-    os.finalizar_orcamento([servico], [peca])
+    os.finalizar_orcamento(USUARIO_ID, [servico], [peca])
 
     assert os.status is StatusOS.AGUARDANDO_APROVACAO
     assert os.orcamento.total == Valor("221.80")
@@ -381,7 +385,7 @@ def test_finalizar_orcamento_so_a_partir_de_em_diagnostico(status):
     os = criar_os(status=status)
 
     with pytest.raises(TransicaoDeStatusInvalida) as erro:
-        os.finalizar_orcamento([], [])
+        os.finalizar_orcamento(USUARIO_ID, [], [])
 
     assert erro.value.status_pretendido is StatusOS.AGUARDANDO_APROVACAO
     assert os.status is status
@@ -393,7 +397,7 @@ def test_finalizar_orcamento_sem_valor_vigente_mantem_o_diagnostico():
     os.incluir_peca(criar_peca(), quantidade=1)
 
     with pytest.raises(OrdemServicoInvalida):
-        os.finalizar_orcamento([], [])
+        os.finalizar_orcamento(USUARIO_ID, [], [])
 
     assert os.status is StatusOS.EM_DIAGNOSTICO
     assert os.orcamento is None
@@ -408,7 +412,7 @@ def os_aguardando_aprovacao_com_peca_pendente() -> OrdemServico:
     peca = criar_peca()
     os = criar_os(status=StatusOS.EM_DIAGNOSTICO)
     os.incluir_peca(peca, quantidade=2)
-    os.finalizar_orcamento([], [peca])
+    os.finalizar_orcamento(USUARIO_ID, [], [peca])
     os.pecas[0].quantidade_reservada = 1
     os.pecas[0].quantidade_pendente = 1
     return os
@@ -418,7 +422,7 @@ def test_aprovar_orcamento_sem_pecas_pendentes_aguarda_a_execucao():
     peca = criar_peca()
     os = criar_os()
     os.incluir_peca(peca, quantidade=2)
-    os.finalizar_orcamento([], [peca])
+    os.finalizar_orcamento(USUARIO_ID, [], [peca])
     os.pecas[0].quantidade_reservada, os.pecas[0].quantidade_pendente = 2, 0
 
     os.aprovar_orcamento()
@@ -431,7 +435,7 @@ def test_finalizar_orcamento_deixa_toda_a_quantidade_das_pecas_pendente_de_reser
     os = criar_os()
     os.incluir_peca(peca, quantidade=3)
 
-    os.finalizar_orcamento([], [peca])
+    os.finalizar_orcamento(USUARIO_ID, [], [peca])
 
     assert (os.pecas[0].quantidade_reservada, os.pecas[0].quantidade_pendente) == (0, 3)
 
@@ -440,7 +444,7 @@ def test_aprovar_antes_da_reserva_de_estoque_aguarda_a_peca():
     peca = criar_peca()
     os = criar_os()
     os.incluir_peca(peca, quantidade=1)
-    os.finalizar_orcamento([], [peca])
+    os.finalizar_orcamento(USUARIO_ID, [], [peca])
 
     os.aprovar_orcamento()
 
@@ -577,7 +581,7 @@ def test_iniciar_execucao_so_a_partir_de_aguardando_execucao(status):
 def test_cancelar_de_recebida_ate_em_execucao(status):
     os = criar_os(status=status)
 
-    os.cancelar("Cliente desistiu do serviço")
+    os.cancelar(USUARIO_ID, "Cliente desistiu do serviço")
 
     assert os.status is StatusOS.CANCELADA
 
@@ -587,7 +591,7 @@ def test_nao_cancela_os_finalizada_entregue_ou_cancelada(status):
     os = criar_os(status=status)
 
     with pytest.raises(TransicaoDeStatusInvalida) as erro:
-        os.cancelar("Qualquer motivo")
+        os.cancelar(USUARIO_ID, "Qualquer motivo")
 
     assert erro.value.status_pretendido is StatusOS.CANCELADA
     assert os.status is status
@@ -598,7 +602,7 @@ def test_cancelar_exige_o_motivo(motivo):
     os = criar_os(status=StatusOS.AGUARDANDO_PECA)
 
     with pytest.raises(MotivoObrigatorio):
-        os.cancelar(motivo)
+        os.cancelar(USUARIO_ID, motivo)
 
     assert os.status is StatusOS.AGUARDANDO_PECA
 
@@ -610,11 +614,11 @@ def test_fluxo_completo_sem_pecas_pendentes():
 
     os.atribuir_mecanico(mecanico.id)
     os.incluir_servico(servico)
-    os.finalizar_orcamento([servico], [])
+    os.finalizar_orcamento(USUARIO_ID, [servico], [])
     os.aprovar_orcamento()
     os.iniciar_execucao(mecanico)
-    os.concluir_manutencao()
-    os.entregar_veiculo()
+    os.concluir_manutencao(USUARIO_ID)
+    os.entregar_veiculo(USUARIO_ID)
 
     assert os.status is StatusOS.ENTREGUE
     assert os.orcamento.total == Valor("120.00")
@@ -639,7 +643,7 @@ def test_concluir_manutencao_grava_o_momento_da_conclusao():
     os = criar_os(status=StatusOS.EM_EXECUCAO)
     antes = datetime.now(UTC)
 
-    os.concluir_manutencao()
+    os.concluir_manutencao(USUARIO_ID)
 
     assert os.status is StatusOS.FINALIZADA
     assert os.data_finalizacao.tzinfo is UTC
@@ -651,7 +655,7 @@ def test_concluir_manutencao_so_a_partir_de_em_execucao(status):
     os = criar_os(status=status)
 
     with pytest.raises(TransicaoDeStatusInvalida) as erro:
-        os.concluir_manutencao()
+        os.concluir_manutencao(USUARIO_ID)
 
     assert erro.value.status_pretendido is StatusOS.FINALIZADA
     assert os.status is status
@@ -660,7 +664,7 @@ def test_concluir_manutencao_so_a_partir_de_em_execucao(status):
 
 def test_itens_ficam_bloqueados_depois_de_finalizada():
     os = criar_os(status=StatusOS.EM_EXECUCAO)
-    os.concluir_manutencao()
+    os.concluir_manutencao(USUARIO_ID)
 
     with pytest.raises(ItensBloqueados) as erro:
         os.incluir_servico(criar_servico())
@@ -671,7 +675,7 @@ def test_itens_ficam_bloqueados_depois_de_finalizada():
 def test_entregar_veiculo_leva_a_os_finalizada_para_entregue():
     os = criar_os(status=StatusOS.FINALIZADA)
 
-    os.entregar_veiculo()
+    os.entregar_veiculo(USUARIO_ID)
 
     assert os.status is StatusOS.ENTREGUE
 
@@ -681,7 +685,7 @@ def test_entregar_veiculo_so_a_partir_de_finalizada(status):
     os = criar_os(status=status)
 
     with pytest.raises(TransicaoDeStatusInvalida) as erro:
-        os.entregar_veiculo()
+        os.entregar_veiculo(USUARIO_ID)
 
     assert erro.value.status_pretendido is StatusOS.ENTREGUE
     assert os.status is status
@@ -693,6 +697,178 @@ def test_a_os_abre_sem_mecanico_e_sem_timestamps_de_execucao():
     assert os.mecanico_id is None
     assert os.data_inicio_execucao is None
     assert os.data_finalizacao is None
+
+
+def sequencia(os: OrdemServico) -> list[tuple]:
+    return [(r.status_anterior, r.status_novo, r.origem, r.usuario_id) for r in os.historico]
+
+
+def test_a_abertura_gera_o_primeiro_registro_do_historico_sem_status_anterior():
+    atendente_id = uuid4()
+
+    os = OrdemServico(
+        numero=NumeroOS("529-7F3A9C2B"),
+        cliente_id=uuid4(),
+        veiculo_id=uuid4(),
+        atendente_id=atendente_id,
+    )
+
+    assert len(os.historico) == 1
+    registro = os.historico[0]
+    assert registro.status_anterior is None
+    assert registro.status_novo is StatusOS.RECEBIDA
+    assert registro.origem is OrigemTransicao.USUARIO
+    assert registro.usuario_id == atendente_id
+    assert registro.data_hora == os.data_abertura
+
+
+def test_os_reconstituida_nao_ganha_registro_de_abertura():
+    existente = HistoricoStatusOS(
+        status_anterior=None,
+        status_novo=StatusOS.RECEBIDA,
+        data_hora=datetime.now(UTC),
+        origem=OrigemTransicao.USUARIO,
+        usuario_id=uuid4(),
+    )
+
+    assert criar_os(status=StatusOS.EM_EXECUCAO).historico == []
+    assert criar_os(status=StatusOS.RECEBIDA, historico=[existente]).historico == [existente]
+
+
+def test_recusa_data_de_abertura_que_nao_e_data():
+    with pytest.raises(OrdemServicoInvalida):
+        criar_os(data_abertura="ontem")
+
+
+def test_fluxo_completo_registra_a_sequencia_de_transicoes():
+    atendente_id = uuid4()
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
+    servico = criar_servico()
+    os = criar_os(status=StatusOS.RECEBIDA, atendente_id=atendente_id)
+
+    os.atribuir_mecanico(mecanico.id)
+    os.incluir_servico(servico)
+    os.finalizar_orcamento(mecanico.id, [servico], [])
+    os.aprovar_orcamento()
+    os.iniciar_execucao(mecanico)
+    os.concluir_manutencao(mecanico.id)
+    os.entregar_veiculo(atendente_id)
+
+    usuario, cliente = OrigemTransicao.USUARIO, OrigemTransicao.CLIENTE
+    assert sequencia(os) == [
+        (None, StatusOS.RECEBIDA, usuario, atendente_id),
+        (StatusOS.RECEBIDA, StatusOS.EM_DIAGNOSTICO, usuario, mecanico.id),
+        (StatusOS.EM_DIAGNOSTICO, StatusOS.AGUARDANDO_APROVACAO, usuario, mecanico.id),
+        (StatusOS.AGUARDANDO_APROVACAO, StatusOS.AGUARDANDO_EXECUCAO, cliente, None),
+        (StatusOS.AGUARDANDO_EXECUCAO, StatusOS.EM_EXECUCAO, usuario, mecanico.id),
+        (StatusOS.EM_EXECUCAO, StatusOS.FINALIZADA, usuario, mecanico.id),
+        (StatusOS.FINALIZADA, StatusOS.ENTREGUE, usuario, atendente_id),
+    ]
+    datas = [registro.data_hora for registro in os.historico]
+    assert datas == sorted(datas)
+
+
+def test_fluxo_com_espera_de_peca_registra_a_liberacao_pelo_sistema():
+    os = os_aguardando_aprovacao_com_peca_pendente()
+    os.aprovar_orcamento()
+    os.pecas[0].quantidade_reservada, os.pecas[0].quantidade_pendente = 2, 0
+
+    os.liberar_para_execucao()
+
+    assert sequencia(os)[-2:] == [
+        (StatusOS.AGUARDANDO_APROVACAO, StatusOS.AGUARDANDO_PECA, OrigemTransicao.CLIENTE, None),
+        (StatusOS.AGUARDANDO_PECA, StatusOS.AGUARDANDO_EXECUCAO, OrigemTransicao.SISTEMA, None),
+    ]
+
+
+def test_rejeitar_orcamento_registra_a_origem_cliente_sem_usuario_nem_motivo():
+    os = criar_os(status=StatusOS.AGUARDANDO_APROVACAO)
+
+    os.rejeitar_orcamento()
+
+    registro = os.historico[-1]
+    assert registro.status_novo is StatusOS.CANCELADA
+    assert registro.origem is OrigemTransicao.CLIENTE
+    assert registro.usuario_id is None
+    assert registro.motivo is None
+
+
+def test_cancelar_registra_o_usuario_e_o_motivo_no_historico():
+    gerente_id = uuid4()
+    os = criar_os(status=StatusOS.EM_EXECUCAO)
+
+    os.cancelar(gerente_id, "  Cliente desistiu do serviço ")
+
+    registro = os.historico[-1]
+    assert (registro.status_anterior, registro.status_novo) == (
+        StatusOS.EM_EXECUCAO,
+        StatusOS.CANCELADA,
+    )
+    assert registro.origem is OrigemTransicao.USUARIO
+    assert registro.usuario_id == gerente_id
+    assert registro.motivo == "Cliente desistiu do serviço"
+
+
+def test_o_registro_usa_o_mesmo_instante_dos_timestamps_da_os():
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
+    os = criar_os(status=StatusOS.AGUARDANDO_EXECUCAO, mecanico_id=mecanico.id)
+
+    os.iniciar_execucao(mecanico)
+    assert os.historico[-1].data_hora == os.data_inicio_execucao
+
+    os.concluir_manutencao(mecanico.id)
+    assert os.historico[-1].data_hora == os.data_finalizacao
+
+
+def test_transicao_recusada_nao_gera_registro():
+    os = criar_os(status=StatusOS.RECEBIDA)
+
+    with pytest.raises(TransicaoDeStatusInvalida):
+        os.concluir_manutencao(USUARIO_ID)
+    with pytest.raises(MotivoObrigatorio):
+        os.cancelar(USUARIO_ID, "")
+
+    assert len(os.historico) == 1
+    assert os.status is StatusOS.RECEBIDA
+
+
+@pytest.mark.parametrize("usuario_id", ["nao-e-uuid", None])
+def test_transicoes_feitas_por_usuario_exigem_o_usuario(usuario_id):
+    os = criar_os()
+
+    with pytest.raises(OrdemServicoInvalida):
+        os.finalizar_orcamento(usuario_id, [], [])
+    with pytest.raises(OrdemServicoInvalida):
+        os.cancelar(usuario_id, "Motivo")
+    with pytest.raises(OrdemServicoInvalida):
+        os.concluir_manutencao(usuario_id)
+    with pytest.raises(OrdemServicoInvalida):
+        os.entregar_veiculo(usuario_id)
+
+    assert os.status is StatusOS.EM_DIAGNOSTICO
+    assert os.historico == []
+
+
+def test_finalizar_orcamento_com_usuario_invalido_nao_congela_os_itens():
+    servico = criar_servico(valor_base=Valor("120.00"))
+    os = criar_os()
+    os.incluir_servico(servico)
+    reajustar_servico(servico, "150.00")
+
+    with pytest.raises(OrdemServicoInvalida):
+        os.finalizar_orcamento(None, [servico], [])
+
+    assert os.servicos[0].preco_congelado == Valor("120.00")
+    assert os.orcamento is None
+
+
+def test_registro_do_historico_nao_pode_ser_alterado_pela_os():
+    os = criar_os(status=StatusOS.RECEBIDA)
+
+    with pytest.raises(FrozenInstanceError):
+        os.historico[0].status_novo = StatusOS.CANCELADA
+
+    assert os.historico[0].status_novo is StatusOS.RECEBIDA
 
 
 def _catalogo_de(os: OrdemServico) -> tuple[list[Servico], list[Peca]]:

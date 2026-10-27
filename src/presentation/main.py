@@ -5,6 +5,7 @@ from typing import Any
 from fastapi import FastAPI
 
 from presentation.container import encerrar_dependencias, montar_dependencias
+from presentation.middlewares.tratamento_de_erros import registrar_tratamento_de_erros
 from presentation.routers import saude
 
 # Mesma versão do pyproject.toml; o pacote não é instalado na imagem, então não há metadados.
@@ -31,6 +32,7 @@ app = FastAPI(
     description=DESCRICAO_DA_API,
     lifespan=lifespan,
 )
+registrar_tratamento_de_erros(app)
 app.include_router(saude.router)
 
 

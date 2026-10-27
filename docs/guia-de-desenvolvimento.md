@@ -44,7 +44,7 @@ src/
     ├── container.py      Montagem das dependências (único ponto que importa infrastructure)
     ├── routers/          Rotas FastAPI, um arquivo por recurso
     ├── schemas/          DTOs de entrada e saída, um arquivo por recurso
-    └── middlewares/      Validação do token e rate limiting das rotas
+    └── middlewares/      Validação do token, rate limiting e tratamento de erros das rotas
 migrations/           Migrations do Alembic (seção 8.1)
 tests/
 ├── unit/             Testes sem banco e sem HTTP
@@ -112,6 +112,7 @@ Toda dependência externa segue o mesmo padrão:
 | Montagem das dependências | `src/presentation/` | `container.py` | `obter_token_service()` |
 | Validação de token nas rotas | `src/presentation/middlewares/` | `dependencies.py` | — |
 | Rate limiting das rotas públicas | `src/presentation/middlewares/` | `rate_limit.py` | `limiter = Limiter(...)` |
+| Tradução das exceções em respostas HTTP | `src/presentation/middlewares/` | `tratamento_de_erros.py` | `registrar_tratamento_de_erros(app)` |
 | Teste unitário | `tests/unit/` | `test_<arquivo testado>.py` | `test_placa.py` |
 | Teste de integração | `tests/integration/` | `test_<fluxo>.py` | `test_fluxo_aprovacao_orcamento.py` |
 | Migration do banco | `migrations/versions/` (raiz do projeto) | gerado pelo Alembic | `<revisão>_cria_tabela_cliente.py` |
@@ -275,6 +276,21 @@ Nenhuma dessas operações pode deixar o saldo disponível negativo (RF-12).
 2. A rota converte o DTO de entrada, chama o caso de uso e converte o resultado no DTO de saída.
 3. A rota **não contém regra de negócio** e não acessa o repositório diretamente.
 4. Use os códigos HTTP `200`, `201`, `400`, `401`, `403`, `404`, `422` e `500`. `401` indica token ausente ou inválido e `403` indica perfil sem permissão (RNF-03). Exceções do domínio são traduzidas para esses códigos na camada `presentation`.
+5. Basta a rota deixar a exceção do domínio subir: os tratadores de `presentation/middlewares/tratamento_de_erros.py` fazem a tradução, sempre com o corpo `ErroResponse` (`presentation/schemas/erro.py`):
+
+   | Exceção | Código HTTP | `codigo` no corpo |
+   | :--- | :--- | :--- |
+   | `ValorInvalido` (CPF, placa, número da OS...) | `400` | `VALOR_INVALIDO` |
+   | `CredenciaisInvalidas` e token ausente ou inválido | `401` | `NAO_AUTENTICADO` |
+   | Perfil sem permissão | `403` | `SEM_PERMISSAO` |
+   | `EntidadeNaoEncontrada` | `404` | `ENTIDADE_NAO_ENCONTRADA` |
+   | `RegraDeNegocioViolada` (transição inválida, saldo insuficiente...) | `422` | `REGRA_DE_NEGOCIO_VIOLADA` |
+   | Corpo da requisição fora do DTO (campo ausente, tipo errado) | `422` | `ENTRADA_INVALIDA`, com os campos em `detalhes` |
+   | Qualquer outra exceção | `500` | `ERRO_INTERNO`, sem mensagem interna nem stack trace; a causa vai para o log |
+
+   ```json
+   {"codigo": "VALOR_INVALIDO", "mensagem": "CPF inválido.", "detalhes": []}
+   ```
 
 ### 5.6. Proteger uma Rota com JWT
 

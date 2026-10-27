@@ -226,7 +226,7 @@ Tarefas da fase:
 - [x] Rota de health check na aplicação FastAPI (`GET /health`), agora consultando o banco: `200` com o banco disponível e `503` sem ele (issue #26)
 - [x] Swagger em `/docs` com título, versão, descrição e o esquema Bearer JWT (botão "Authorize") (RNF-16; issue #26)
 - [ ] Ligar o login à aplicação: `obter_autenticar_usuario` no container e registro do router de autenticação. Depende do repositório de usuários em PostgreSQL (modelo do ORM, tabela e adaptador), cujo card ainda não existe
-- [ ] Tratamento padronizado de erros, traduzindo as exceções do domínio para códigos HTTP, incluindo `401` e `403` (RNF-03)
+- [x] Tratamento padronizado de erros, traduzindo as exceções do domínio para códigos HTTP, incluindo `401` e `403` (RNF-03; issue #30): corpo único `ErroResponse` e tabela na seção 5.5 do guia
 - [ ] Event Dispatcher síncrono em memória (Modelo C4)
 - [ ] Estrutura para testes de integração com banco PostgreSQL de teste (RNF-13)
 - [ ] (Opcional, se houver tempo) Pipeline de CI no GitHub Actions executando lint, testes e cobertura em cada Pull Request

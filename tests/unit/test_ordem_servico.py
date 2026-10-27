@@ -871,6 +871,184 @@ def test_registro_do_historico_nao_pode_ser_alterado_pela_os():
     assert os.historico[0].status_novo is StatusOS.RECEBIDA
 
 
+MOMENTO_DA_CONSULTA = datetime(2026, 10, 27, 12, 0, tzinfo=UTC)
+
+
+def os_com_itens(status: StatusOS, *, minutos=(), pecas=(), **alteracoes) -> OrdemServico:
+    """OS no status pedido, com serviços de `minutos` e peças de (prazo, quantidade pendente).
+
+    Cada peça tem 2 unidades; o que não está pendente já está reservado.
+    """
+    os = criar_os(status=StatusOS.EM_DIAGNOSTICO)
+    for numero, tempo in enumerate(minutos):
+        os.incluir_servico(criar_servico(codigo=f"SRV-{numero}", tempo_estimado_minutos=tempo))
+    for numero, (prazo, pendente) in enumerate(pecas):
+        os.incluir_peca(
+            criar_peca(codigo_referencia=f"P-{numero}", prazo_reposicao_dias=prazo), quantidade=2
+        )
+        os.pecas[numero].quantidade_pendente = pendente
+        os.pecas[numero].quantidade_reservada = 2 - pendente
+    os.status = status
+    for campo, valor in alteracoes.items():
+        setattr(os, campo, valor)
+    return os
+
+
+@pytest.mark.parametrize("status", [StatusOS.RECEBIDA, StatusOS.EM_DIAGNOSTICO, StatusOS.CANCELADA])
+def test_nao_estima_a_entrega_antes_da_definicao_dos_servicos_nem_se_cancelada(status):
+    os = os_com_itens(status, minutos=(60,), pecas=((3, 1),))
+
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA) is None
+
+
+@pytest.mark.parametrize("status", [StatusOS.AGUARDANDO_APROVACAO, StatusOS.AGUARDANDO_PECA])
+def test_aguardando_aprovacao_ou_peca_soma_consulta_prazo_das_pecas_e_duracao(status):
+    os = os_com_itens(status, minutos=(60, 120), pecas=((3, 1), (5, 2)))
+
+    estimativa = os.estimar_entrega(MOMENTO_DA_CONSULTA)
+
+    assert estimativa == MOMENTO_DA_CONSULTA + timedelta(days=5, hours=3)
+
+
+def test_aguardando_execucao_soma_consulta_e_duracao_ignorando_o_prazo_das_pecas():
+    os = os_com_itens(StatusOS.AGUARDANDO_EXECUCAO, minutos=(60, 120), pecas=((9, 1),))
+
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA) == MOMENTO_DA_CONSULTA + timedelta(hours=3)
+
+
+def test_em_execucao_soma_o_inicio_da_execucao_e_a_duracao_sem_usar_a_consulta():
+    inicio = MOMENTO_DA_CONSULTA - timedelta(hours=2)
+    os = os_com_itens(StatusOS.EM_EXECUCAO, minutos=(60, 120), data_inicio_execucao=inicio)
+
+    esperada = inicio + timedelta(hours=3)
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA) == esperada
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA + timedelta(days=9)) == esperada
+
+
+@pytest.mark.parametrize("status", [StatusOS.FINALIZADA, StatusOS.ENTREGUE])
+def test_finalizada_ou_entregue_devolve_a_data_de_finalizacao(status):
+    finalizacao = MOMENTO_DA_CONSULTA - timedelta(days=1)
+    os = os_com_itens(status, minutos=(60,), data_finalizacao=finalizacao)
+
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA) == finalizacao
+
+
+def test_o_prazo_das_pecas_e_o_maior_entre_as_pendentes():
+    os = os_com_itens(StatusOS.AGUARDANDO_PECA, pecas=((2, 1), (7, 2), (4, 1)))
+
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA) == MOMENTO_DA_CONSULTA + timedelta(days=7)
+
+
+def test_peca_ja_reservada_nao_conta_para_o_prazo():
+    os = os_com_itens(StatusOS.AGUARDANDO_APROVACAO, pecas=((9, 0), (2, 1)))
+
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA) == MOMENTO_DA_CONSULTA + timedelta(days=2)
+
+
+def test_sem_pecas_pendentes_o_prazo_das_pecas_e_zero():
+    os = os_com_itens(StatusOS.AGUARDANDO_APROVACAO, minutos=(30,), pecas=((9, 0),))
+
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA) == MOMENTO_DA_CONSULTA + timedelta(minutes=30)
+
+
+def test_os_sem_servicos_tem_duracao_zero():
+    os = os_com_itens(StatusOS.AGUARDANDO_EXECUCAO)
+
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA) == MOMENTO_DA_CONSULTA
+
+
+def test_a_estimativa_usa_os_valores_congelados_e_nao_os_do_catalogo():
+    servico = criar_servico(tempo_estimado_minutos=60)
+    peca = criar_peca(prazo_reposicao_dias=3)
+    os = criar_os()
+    os.incluir_servico(servico)
+    os.incluir_peca(peca, quantidade=1)
+    os.finalizar_orcamento(USUARIO_ID, [servico], [peca])
+    servico.atualizar_dados(
+        codigo=servico.codigo,
+        nome=servico.nome,
+        descricao=servico.descricao,
+        valor_base=servico.valor_base,
+        tempo_estimado_minutos=600,
+    )
+    peca.atualizar_dados(
+        codigo_referencia=peca.codigo_referencia,
+        nome=peca.nome,
+        preco_unitario=peca.preco_unitario,
+        prazo_reposicao_dias=30,
+    )
+
+    estimativa = os.estimar_entrega(MOMENTO_DA_CONSULTA)
+
+    assert estimativa == MOMENTO_DA_CONSULTA + timedelta(days=3, hours=1)
+
+
+@pytest.mark.parametrize(
+    "momento",
+    [datetime(2026, 10, 27, 12, 0), "2026-10-27", None, 1_800_000_000],
+    ids=["sem fuso", "texto", "nulo", "numero"],
+)
+def test_recusa_momento_da_consulta_sem_fuso_horario_mesmo_nos_status_que_o_ignoram(momento):
+    os = os_com_itens(StatusOS.EM_DIAGNOSTICO)
+
+    with pytest.raises(OrdemServicoInvalida):
+        os.estimar_entrega(momento)
+
+
+def test_os_em_execucao_sem_inicio_registrado_e_recusada():
+    os = os_com_itens(StatusOS.EM_EXECUCAO, minutos=(60,))
+
+    with pytest.raises(OrdemServicoInvalida, match="início da execução"):
+        os.estimar_entrega(MOMENTO_DA_CONSULTA)
+
+
+@pytest.mark.parametrize("status", [StatusOS.FINALIZADA, StatusOS.ENTREGUE])
+def test_os_finalizada_ou_entregue_sem_finalizacao_registrada_e_recusada(status):
+    os = os_com_itens(status)
+
+    with pytest.raises(OrdemServicoInvalida, match="finalização"):
+        os.estimar_entrega(MOMENTO_DA_CONSULTA)
+
+
+def test_prazos_que_estouram_o_limite_de_datas_viram_erro_de_dominio():
+    os = os_com_itens(StatusOS.AGUARDANDO_EXECUCAO, minutos=(10**13,))
+
+    with pytest.raises(OrdemServicoInvalida, match="limite de datas"):
+        os.estimar_entrega(MOMENTO_DA_CONSULTA)
+
+
+def test_a_estimativa_acompanha_o_fluxo_real_da_os():
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
+    servico = criar_servico(tempo_estimado_minutos=90)
+    peca = criar_peca(prazo_reposicao_dias=4)
+    os = criar_os(status=StatusOS.RECEBIDA, mecanico_id=None)
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA) is None
+
+    os.atribuir_mecanico(mecanico.id)
+    os.incluir_servico(servico)
+    os.incluir_peca(peca, quantidade=1)
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA) is None
+
+    os.finalizar_orcamento(mecanico.id, [servico], [peca])
+    esperada = MOMENTO_DA_CONSULTA + timedelta(days=4, minutes=90)
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA) == esperada
+
+    os.aprovar_orcamento()
+    assert os.status is StatusOS.AGUARDANDO_PECA
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA) == esperada
+
+    os.pecas[0].quantidade_reservada, os.pecas[0].quantidade_pendente = 1, 0
+    os.liberar_para_execucao()
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA) == MOMENTO_DA_CONSULTA + timedelta(minutes=90)
+
+    os.iniciar_execucao(mecanico)
+    previsto_a_partir_do_inicio = os.data_inicio_execucao + timedelta(minutes=90)
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA) == previsto_a_partir_do_inicio
+
+    os.concluir_manutencao(mecanico.id)
+    assert os.estimar_entrega(MOMENTO_DA_CONSULTA) == os.data_finalizacao
+
+
 def _catalogo_de(os: OrdemServico) -> tuple[list[Servico], list[Peca]]:
     """Serviços e peças do catálogo com os mesmos ids e dados dos itens da OS."""
     servicos = [

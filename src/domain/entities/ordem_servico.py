@@ -1,6 +1,6 @@
 from collections.abc import Collection, Iterable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from domain.entities.historico_status_os import HistoricoStatusOS
@@ -241,6 +241,40 @@ class OrdemServico:
             usuario_id=usuario_id,
         )
 
+    def estimar_entrega(self, momento_consulta: datetime) -> datetime | None:
+        """Data prevista de entrega pela tabela do RF-25, com os valores congelados nos itens.
+
+        O momento da consulta vem de fora para o cálculo ser testável. O tempo é corrido, e o
+        prazo das peças é o maior entre as que ainda estão pendentes.
+        """
+        if not isinstance(momento_consulta, datetime) or momento_consulta.tzinfo is None:
+            raise OrdemServicoInvalida("o momento da consulta deve ter fuso horário")
+        try:
+            return self._estimativa(momento_consulta)
+        except OverflowError:
+            raise OrdemServicoInvalida("os prazos dos itens passam do limite de datas") from None
+
+    def _estimativa(self, momento_consulta: datetime) -> datetime | None:
+        match self.status:
+            case StatusOS.RECEBIDA | StatusOS.EM_DIAGNOSTICO | StatusOS.CANCELADA:
+                return None
+            case StatusOS.AGUARDANDO_APROVACAO | StatusOS.AGUARDANDO_PECA:
+                return momento_consulta + self._prazo_das_pecas_pendentes() + self._duracao()
+            case StatusOS.AGUARDANDO_EXECUCAO:
+                return momento_consulta + self._duracao()
+            case StatusOS.EM_EXECUCAO:
+                inicio = _registrada(self.data_inicio_execucao, "o início da execução")
+                return inicio + self._duracao()
+            case StatusOS.FINALIZADA | StatusOS.ENTREGUE:
+                return _registrada(self.data_finalizacao, "a finalização")
+
+    def _duracao(self) -> timedelta:
+        return timedelta(minutes=sum(item.tempo_estimado_minutos for item in self.servicos))
+
+    def _prazo_das_pecas_pendentes(self) -> timedelta:
+        prazos = [item.prazo_reposicao_dias for item in self.pecas if item.quantidade_pendente > 0]
+        return timedelta(days=max(prazos, default=0))
+
     def _exigir_itens_editaveis(self) -> None:
         if self.status != StatusOS.EM_DIAGNOSTICO:
             raise ItensBloqueados(self.status)
@@ -283,6 +317,12 @@ class OrdemServico:
                 usuario_id=self.atendente_id,
             )
         )
+
+
+def _registrada(data: datetime | None, descricao: str) -> datetime:
+    if data is None:
+        raise OrdemServicoInvalida(f"{descricao} da OS não foi registrada")
+    return data
 
 
 def _exigir_usuario(usuario_id: UUID) -> None:

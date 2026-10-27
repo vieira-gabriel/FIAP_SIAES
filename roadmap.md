@@ -261,7 +261,7 @@ Tarefas da fase:
 - [x] Histórico de status com origem, usuário e motivo obrigatório no cancelamento (RF-24, RF-23; issue #41): `HistoricoStatusOS` imutável, registro de abertura automático e um registro por transição, gravado pelo `_mudar_status`
 - [ ] Agregado `EstoquePeca` com quantidade física, reserva, pendência, baixa e estorno, sem permitir saldo negativo (RF-12, RF-18, RF-20)
 - [ ] Regra de prioridade pela OS mais antiga na reserva e na alocação de peças repostas (RF-18, RF-19)
-- [ ] Cálculo da estimativa de entrega por status (RF-25)
+- [x] Cálculo da estimativa de entrega por status (RF-25; issue #44): `OrdemServico.estimar_entrega(momento_consulta)` com os valores congelados nos itens e uma linha de teste para cada status da tabela
 - [ ] Eventos de domínio acumulados no agregado (`collect_domain_events`)
 - [ ] Interfaces (portas) dos repositórios
 

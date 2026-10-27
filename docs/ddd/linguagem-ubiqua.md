@@ -24,7 +24,7 @@ Este documento estabelece a **Linguagem Ubíqua** do sistema de gestão da ofici
 | **Ajuste de Estoque** | Correção da quantidade física de uma peça por perda, quebra ou inventário. A quantidade física nunca fica abaixo da quantidade reservada. | Método `ajustar_quantidade_fisica` de `EstoquePeca` |
 | **Estorno** | Devolução das quantidades reservadas ao saldo disponível quando o orçamento é rejeitado ou a OS é cancelada. Peças já baixadas não são estornadas. | Método de `EstoquePeca` |
 | **Histórico de Status** | Registro imutável de cada transição de status da OS, com status anterior, novo status, data/hora, origem, usuário e motivo. | `domain.entities.HistoricoStatusOS` |
-| **Estimativa de Entrega** | Data prevista de conclusão exibida ao cliente, calculada pela soma dos tempos estimados dos serviços e pelo maior prazo de reposição entre as peças pendentes. Usa os valores congelados nos itens da OS. | Método `estimar_entrega` de `OrdemServico` |
+| **Estimativa de Entrega** | Data prevista de conclusão exibida ao cliente, calculada pela soma dos tempos estimados dos serviços e pelo maior prazo de reposição entre as peças pendentes. Usa os valores congelados nos itens da OS. Não existe enquanto os serviços não foram definidos (`RECEBIDA` e `EM_DIAGNOSTICO`) nem na OS cancelada. | Método `estimar_entrega` de `OrdemServico` |
 | **Usuário** | Funcionário interno da oficina com acesso autenticado ao sistema (Atendente, Mecânico ou Gerente). Guarda apenas o hash da senha e pode ser desativado pelo Gerente; usuário desativado não faz login. O cliente não é um usuário. | `domain.entities.Usuario` |
 
 ---

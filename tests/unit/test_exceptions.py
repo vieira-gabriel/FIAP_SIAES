@@ -3,6 +3,7 @@ from uuid import uuid4
 import pytest
 
 from domain.exceptions import (
+    AlocacaoInvalida,
     CNPJInvalido,
     CPFInvalido,
     CredenciaisInvalidas,
@@ -35,6 +36,7 @@ def test_bases_herdam_de_erro_de_dominio(base):
         (PlacaInvalida("ABC-1234"), ValorInvalido),
         (NumeroOSInvalido("123-abc"), ValorInvalido),
         (QuantidadeInvalida("deve ser maior que zero"), ValorInvalido),
+        (AlocacaoInvalida("a OS é obrigatória"), ValorInvalido),
         (UsuarioInvalido("o nome é obrigatório"), ValorInvalido),
         (
             TransicaoDeStatusInvalida(StatusOS.RECEBIDA, StatusOS.FINALIZADA),
@@ -121,6 +123,13 @@ def test_quantidade_invalida_informa_o_motivo():
 
     assert erro.motivo == "deve ser um número inteiro maior que zero"
     assert str(erro) == "Quantidade inválida: deve ser um número inteiro maior que zero"
+
+
+def test_alocacao_invalida_informa_o_motivo():
+    erro = AlocacaoInvalida("a OS da pendência é obrigatória")
+
+    assert erro.motivo == "a OS da pendência é obrigatória"
+    assert str(erro) == "Alocação de peça inválida: a OS da pendência é obrigatória"
 
 
 def test_motivo_obrigatorio_tem_mensagem():

@@ -259,7 +259,7 @@ Tarefas da fase:
 - [ ] Registro dos timestamps de abertura, início da execução e finalização (RF-13, RF-20, RF-21)
 - [ ] Bloqueio de alteração de itens após `FINALIZADA` (RF-21)
 - [ ] Histórico de status com origem, usuário e motivo obrigatório no cancelamento (RF-24, RF-23)
-- [ ] Agregado `EstoquePeca` com quantidade física, reserva, pendência, baixa e estorno, sem permitir saldo negativo (RF-12, RF-18, RF-20)
+- [x] Agregado `EstoquePeca` com quantidade física, reserva, pendência, baixa e estorno, sem permitir saldo negativo (RF-12, RF-18, RF-20; issue #42): `reservar` devolve (reservada, pendente), `SaldoPecaAtualizadoEvent` acumulado quando o saldo aumenta, e porta `EstoqueRepository`; a alocação por prioridade (`alocar_pendencias`) fica na #43
 - [ ] Regra de prioridade pela OS mais antiga na reserva e na alocação de peças repostas (RF-18, RF-19)
 - [ ] Cálculo da estimativa de entrega por status (RF-25)
 - [ ] Eventos de domínio acumulados no agregado (`collect_domain_events`)

@@ -349,7 +349,7 @@ classDiagram
         +int quantidade_reservada
         +List~DomainEvent~ _domain_events
         +saldo_disponivel() int
-        +reservar(quantidade: int) int
+        +reservar(quantidade: int) tuple
         +alocar_pendencias(pendencias: List~PendenciaPeca~) List~AlocacaoPeca~
         +baixar(quantidade: int) void
         +estornar(quantidade: int) void
@@ -431,6 +431,7 @@ classDiagram
 
     class SaldoPecaAtualizadoEvent {
         +UUID peca_id
+        +int saldo_disponivel
     }
 
     Usuario "1" --> "1" PerfilUsuario : possui
@@ -477,6 +478,7 @@ classDiagram
 * **Documento do cliente.** `CPF` e `CNPJ` são objetos de valor separados, por decisão do grupo na issue #14, e herdam da base abstrata `Documento`. A base guarda só os dígitos, aplica o cálculo do módulo 11 com o tamanho e os pesos de cada subclasse e expõe `tres_primeiros_digitos()`, usado no número da OS (RF-05, RF-13). `Cliente.documento` é do tipo `Documento`, e por isso `Cliente` e a consulta pública (RF-25) trabalham com um só tipo.
 * **Prioridade pela OS mais antiga.** `EstoquePeca.alocar_pendencias` recebe as pendências da peça, ordena pela data de abertura da OS e reserva o saldo da mais antiga para a mais nova (RF-18, RF-19). A conclusão do orçamento e o aumento de saldo usam o mesmo método, e `OrdemServico.alocar_peca` converte a quantidade pendente do item em reservada.
 * **Estorno e baixa.** `cancelar` e `rejeitar_orcamento` calculam as quantidades a estornar a partir do status da OS e as enviam em `OSCanceladaEvent.estornos`. A OS cancelada em `EM_EXECUCAO` envia a lista vazia, porque `iniciar_execucao` já deu baixa em todas as reservas (RF-20); por isso `ItemPeca` não guarda quantidade baixada.
+* **Reserva e limites do estoque.** `reservar` reserva o menor valor entre o pedido e o saldo disponível e devolve o par (reservada, pendente); `OrdemServico.alocar_peca` e `alocar_pendencias` o usam. `baixar` e `estornar` aceitam no máximo a quantidade reservada, e quantidade que não seja um inteiro maior que zero é recusada. Nenhuma operação deixa a reservada acima da física nem o saldo negativo, e quando é recusada não altera o estado. `SaldoPecaAtualizadoEvent` leva o `peca_id` e o saldo disponível depois da operação, e só `repor`, `estornar` e o ajuste para cima o acumulam; `baixar` e `reservar` não aumentam o saldo.
 * **Ajuste de estoque.** `ajustar_quantidade_fisica` corrige a quantidade física para perda, quebra ou inventário (RF-12). O valor novo não pode ficar abaixo da quantidade reservada, e o método emite `SaldoPecaAtualizadoEvent` só quando o saldo disponível aumenta.
 * **Eventos de domínio.** O diagrama mostra os 4 eventos do catálogo da seção 7 de `docs/ddd/event-storming.md`, com o identificador do agregado emissor e as quantidades que o consumidor precisa; os demais campos de cada evento são definidos na implementação (issue #45).
 

@@ -12,6 +12,7 @@ from domain.exceptions import (
     MotivoObrigatorio,
     NumeroOSInvalido,
     PlacaInvalida,
+    QuantidadeInvalida,
     RegraDeNegocioViolada,
     SaldoInsuficiente,
     TransicaoDeStatusInvalida,
@@ -33,6 +34,7 @@ def test_bases_herdam_de_erro_de_dominio(base):
         (CNPJInvalido(), ValorInvalido),
         (PlacaInvalida("ABC-1234"), ValorInvalido),
         (NumeroOSInvalido("123-abc"), ValorInvalido),
+        (QuantidadeInvalida("deve ser maior que zero"), ValorInvalido),
         (UsuarioInvalido("o nome é obrigatório"), ValorInvalido),
         (
             TransicaoDeStatusInvalida(StatusOS.RECEBIDA, StatusOS.FINALIZADA),
@@ -112,6 +114,13 @@ def test_itens_bloqueados_informa_o_status():
 
     assert excecao.status_atual is StatusOS.FINALIZADA
     assert "FINALIZADA" in str(excecao)
+
+
+def test_quantidade_invalida_informa_o_motivo():
+    erro = QuantidadeInvalida("deve ser um número inteiro maior que zero")
+
+    assert erro.motivo == "deve ser um número inteiro maior que zero"
+    assert str(erro) == "Quantidade inválida: deve ser um número inteiro maior que zero"
 
 
 def test_motivo_obrigatorio_tem_mensagem():

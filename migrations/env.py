@@ -4,7 +4,10 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy.engine import Connection
 
+# Um modelo só entra no `Base.metadata`, e portanto no autogenerate, depois de importado.
+import infrastructure.database.usuario_model  # noqa: F401
 from infrastructure.config import carregar_configuracao
+from infrastructure.database.base import Base
 from infrastructure.database.engine import criar_engine
 
 config = context.config
@@ -13,9 +16,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
-# Ainda não há modelos do ORM. O autogenerate passa a funcionar quando a primeira entidade criar a
-# `Base` e apontar `target_metadata` para `Base.metadata`.
-target_metadata = None
+target_metadata = Base.metadata
 
 
 def executar_migrations(conexao: Connection) -> None:

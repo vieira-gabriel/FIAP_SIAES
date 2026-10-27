@@ -210,6 +210,7 @@ classDiagram
         +Documento documento
         +str email
         +str telefone
+        +bool ativo
     }
 
     class Veiculo {
@@ -219,6 +220,7 @@ classDiagram
         +str marca
         +str modelo
         +int ano
+        +bool ativo
     }
 
     class Usuario {

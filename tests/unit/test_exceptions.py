@@ -10,6 +10,7 @@ from domain.exceptions import (
     ErroDeDominio,
     ItensBloqueados,
     MotivoObrigatorio,
+    NumeroOSInvalido,
     PlacaInvalida,
     RegraDeNegocioViolada,
     SaldoInsuficiente,
@@ -31,6 +32,7 @@ def test_bases_herdam_de_erro_de_dominio(base):
         (CPFInvalido(), ValorInvalido),
         (CNPJInvalido(), ValorInvalido),
         (PlacaInvalida("ABC-1234"), ValorInvalido),
+        (NumeroOSInvalido("123-abc"), ValorInvalido),
         (UsuarioInvalido("o nome é obrigatório"), ValorInvalido),
         (
             TransicaoDeStatusInvalida(StatusOS.RECEBIDA, StatusOS.FINALIZADA),

@@ -10,8 +10,8 @@ from domain.value_objects.valor import Valor
 class ItemServico:
     """Serviço incluído em uma OS, com nome, preço e tempo estimado copiados do catálogo (RF-17).
 
-    Na conclusão do orçamento os valores são atualizados com os vigentes; a partir daí, reajustes
-    no catálogo não os alteram (RNF-11).
+    Os valores são atualizados com os vigentes cada vez que a OS os congela, e só ficam definitivos
+    quando a OS sai do diagnóstico e os itens deixam de mudar (RNF-11).
     """
 
     servico_id: UUID

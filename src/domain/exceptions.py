@@ -46,6 +46,18 @@ class NumeroOSInvalido(ValorInvalido):
         self.numero = numero
 
 
+class ServicoInvalido(ValorInvalido):
+    def __init__(self, motivo: str):
+        super().__init__(f"Serviço inválido: {motivo}")
+        self.motivo = motivo
+
+
+class PecaInvalida(ValorInvalido):
+    def __init__(self, motivo: str):
+        super().__init__(f"Peça inválida: {motivo}")
+        self.motivo = motivo
+
+
 class UsuarioInvalido(ValorInvalido):
     def __init__(self, motivo: str):
         super().__init__(f"Usuário inválido: {motivo}")

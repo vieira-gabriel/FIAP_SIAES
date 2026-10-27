@@ -4,9 +4,13 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from presentation.container import encerrar_dependencias, montar_dependencias
+from presentation.container import (
+    encerrar_dependencias,
+    executar_carga_inicial,
+    montar_dependencias,
+)
 from presentation.middlewares.tratamento_de_erros import registrar_tratamento_de_erros
-from presentation.routers import saude
+from presentation.routers import autenticacao, saude
 
 # Mesma versão do pyproject.toml; o pacote não é instalado na imagem, então não há metadados.
 VERSAO_DA_API = "0.1.0"
@@ -21,6 +25,7 @@ DESCRICAO_DA_API = (
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     montar_dependencias(app)
     try:
+        await executar_carga_inicial(app)
         yield
     finally:
         await encerrar_dependencias(app)
@@ -34,6 +39,7 @@ app = FastAPI(
 )
 registrar_tratamento_de_erros(app)
 app.include_router(saude.router)
+app.include_router(autenticacao.router)
 
 
 def _openapi_com_esquema_bearer() -> dict[str, Any]:

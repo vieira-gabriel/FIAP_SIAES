@@ -49,6 +49,10 @@ class OrdemServico:
         ):
             if not isinstance(identificador, UUID):
                 raise OrdemServicoInvalida(f"{nome} é obrigatório")
+        if not isinstance(self.status, StatusOS):
+            raise OrdemServicoInvalida("o status da OS é inválido")
+        if not isinstance(self.data_abertura, datetime) or self.data_abertura.tzinfo is None:
+            raise OrdemServicoInvalida("a data de abertura da OS deve ter fuso horário")
 
     def __eq__(self, outro: object) -> bool:
         return isinstance(outro, OrdemServico) and outro.id == self.id
@@ -63,6 +67,7 @@ class OrdemServico:
         if any(item.servico_id == servico.id for item in self.servicos):
             raise ItemJaIncluido(servico.nome)
         self.servicos.append(ItemServico.a_partir_de(servico))
+        self.orcamento = None
 
     def incluir_peca(self, peca: Peca, quantidade: int) -> None:
         self._exigir_itens_editaveis()
@@ -71,6 +76,7 @@ class OrdemServico:
         if any(item.peca_id == peca.id for item in self.pecas):
             raise ItemJaIncluido(peca.nome)
         self.pecas.append(ItemPeca.a_partir_de(peca, quantidade))
+        self.orcamento = None
 
     def remover_servico(self, servico_id: UUID) -> None:
         self._exigir_itens_editaveis()
@@ -78,6 +84,7 @@ class OrdemServico:
         if item is None:
             raise EntidadeNaoEncontrada("Item de serviço", servico_id)
         self.servicos.remove(item)
+        self.orcamento = None
 
     def remover_peca(self, peca_id: UUID) -> None:
         self._exigir_itens_editaveis()
@@ -85,6 +92,7 @@ class OrdemServico:
         if item is None:
             raise EntidadeNaoEncontrada("Item de peça", peca_id)
         self.pecas.remove(item)
+        self.orcamento = None
 
     def congelar_valores(
         self, servicos_vigentes: Iterable[Servico], pecas_vigentes: Iterable[Peca]
@@ -92,7 +100,8 @@ class OrdemServico:
         """Atualiza os itens com os valores vigentes do catálogo e calcula o orçamento (RF-17).
 
         O domínio não consulta o catálogo: o caso de uso entrega o `Servico` e a `Peca` de cada
-        item. Se faltar algum, nenhum item é alterado.
+        item. Se faltar algum, nenhum item é alterado. O orçamento vale até os itens mudarem:
+        incluir ou remover um item o descarta, e só então o congelamento pode ser refeito.
         """
         self._exigir_itens_editaveis()
         servicos = {servico.id: servico for servico in servicos_vigentes}

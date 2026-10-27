@@ -6,11 +6,15 @@ Sem o `.env` preenchido ou sem o banco no ar, os testes de integração são pul
 A sessão de testes recria o banco `<POSTGRES_DB>_test`, aplica as migrations nele e o apaga no
 final; o banco de desenvolvimento não é tocado. Cada teste roda dentro de uma transação desfeita
 ao final, para um teste não enxergar o que outro gravou.
+
+Os testes que precisam de um banco só deles, como os de migrations e de login pela aplicação
+inteira, usam `banco_temporario` ou `banco_migrado`.
 """
 
 import asyncio
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 from alembic import command
@@ -120,6 +124,48 @@ async def cliente_http(
         transporte = ASGITransport(app=app)
         async with AsyncClient(transport=transporte, base_url="http://teste") as cliente:
             yield cliente
+
+
+@pytest.fixture
+def config_do_alembic() -> Config:
+    return Config(str(ALEMBIC_INI))
+
+
+@pytest.fixture
+def aplicar_migrations(config_do_alembic: Config):
+    async def aplicar() -> None:
+        await asyncio.to_thread(command.upgrade, config_do_alembic, "head")
+
+    return aplicar
+
+
+@pytest.fixture
+async def banco_temporario(
+    monkeypatch, banco_de_teste: str, parametros_de_conexao: dict
+) -> AsyncIterator[AsyncEngine]:
+    """Banco vazio e só deste teste, para ele não tocar o `banco_de_teste` compartilhado.
+
+    Aponta `POSTGRES_DB` para ele, então o Alembic e a aplicação o usam.
+    """
+    nome = f"teste_{uuid4().hex}"
+    administrador = criar_engine(banco=banco_de_teste, **parametros_de_conexao).execution_options(
+        isolation_level="AUTOCOMMIT"
+    )
+    async with administrador.connect() as conexao:
+        await conexao.execute(text(f'CREATE DATABASE "{nome}"'))
+    monkeypatch.setenv("POSTGRES_DB", nome)
+    engine = criar_engine(banco=nome, **parametros_de_conexao)
+    yield engine
+    await engine.dispose()
+    async with administrador.connect() as conexao:
+        await conexao.execute(text(f'DROP DATABASE "{nome}" WITH (FORCE)'))
+    await administrador.dispose()
+
+
+@pytest.fixture
+async def banco_migrado(banco_temporario: AsyncEngine, aplicar_migrations) -> AsyncEngine:
+    await aplicar_migrations()
+    return banco_temporario
 
 
 async def _executar_como_administrador(parametros: dict, *comandos_sql: str) -> None:

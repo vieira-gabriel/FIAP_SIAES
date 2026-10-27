@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from application.ports.token_service import TokenInvalido, TokenService, UsuarioAutenticado
 from domain.value_objects.perfil_usuario import PerfilUsuario
+from presentation.container import obter_token_service
 from presentation.middlewares.dependencies import exigir_perfis, obter_usuario_autenticado
 
 
@@ -26,7 +27,7 @@ class TokenServiceFalso(TokenService):
 @pytest.fixture
 def cliente():
     app = FastAPI()
-    app.state.token_service = TokenServiceFalso()
+    app.dependency_overrides[obter_token_service] = TokenServiceFalso
 
     @app.get("/protegida")
     def protegida(usuario: Annotated[UsuarioAutenticado, Depends(obter_usuario_autenticado)]):

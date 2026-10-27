@@ -19,7 +19,12 @@ from domain.repositories.usuario_repository import UsuarioRepository
 from domain.value_objects.perfil_usuario import PerfilUsuario
 from infrastructure.security.bcrypt_password_hasher import BcryptPasswordHasher
 from infrastructure.security.jwt_token_service import JwtTokenService
-from presentation.middlewares.dependencies import exigir_perfis, obter_usuario_autenticado
+from presentation.container import obter_token_service
+from presentation.middlewares.dependencies import (
+    exigir_perfis,
+    obter_autenticar_usuario,
+    obter_usuario_autenticado,
+)
 from presentation.routers.autenticacao import router as autenticacao_router
 
 CHAVE = "chave-de-teste-com-pelo-menos-32-bytes!!"
@@ -81,8 +86,9 @@ async def usuarios():
 def cliente(usuarios, relogio):
     tokens = JwtTokenService(CHAVE, expiracao_horas=24, relogio=relogio)
     app = FastAPI()
-    app.state.token_service = tokens
-    app.state.autenticar_usuario = AutenticarUsuario(usuarios, BcryptPasswordHasher(), tokens)
+    autenticar = AutenticarUsuario(usuarios, BcryptPasswordHasher(), tokens)
+    app.dependency_overrides[obter_token_service] = lambda: tokens
+    app.dependency_overrides[obter_autenticar_usuario] = lambda: autenticar
     app.include_router(autenticacao_router)
 
     @app.get("/qualquer-perfil")

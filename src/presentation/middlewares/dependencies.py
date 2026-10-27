@@ -8,9 +8,9 @@ ou, quando a rota precisa do usuário logado:
 
     def rota(usuario: Annotated[UsuarioAutenticado, Depends(obter_usuario_autenticado)]): ...
 
-A implementação de `TokenService` e o caso de uso `AutenticarUsuario` são registrados em
-`app.state.token_service` e `app.state.autenticar_usuario` no ponto de montagem da aplicação
-(`presentation/container.py`); assim este módulo não importa a infraestrutura (guia, seção 2.1).
+O `TokenService` vem de `presentation/container.py`, que é quem conhece as implementações; assim
+este módulo não importa a infraestrutura (guia, seção 2.1). O caso de uso `AutenticarUsuario` passa
+para o container quando existir o repositório de usuários em PostgreSQL.
 """
 
 from collections.abc import Callable
@@ -22,12 +22,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from application.ports.token_service import TokenInvalido, TokenService, UsuarioAutenticado
 from application.use_cases.autenticar_usuario import AutenticarUsuario
 from domain.value_objects.perfil_usuario import PerfilUsuario
+from presentation.container import obter_token_service
 
 _bearer = HTTPBearer(auto_error=False)
-
-
-def obter_token_service(request: Request) -> TokenService:
-    return request.app.state.token_service
 
 
 def obter_autenticar_usuario(request: Request) -> AutenticarUsuario:

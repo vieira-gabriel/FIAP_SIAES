@@ -81,6 +81,8 @@ Toda dependência externa segue o mesmo padrão:
 | `domain/repositories/estoque_repository.py` | `infrastructure/repositories/postgres_estoque_repository.py` |
 | `application/ports/token_service.py` | `infrastructure/security/jwt_token_service.py` |
 | `application/ports/password_hasher.py` | `infrastructure/security/bcrypt_password_hasher.py` |
+| `application/ports/unidade_de_trabalho.py` | `infrastructure/database/unidade_de_trabalho.py` |
+| `application/ports/verificador_do_banco.py` | `infrastructure/database/verificador_do_banco.py` |
 
 ---
 
@@ -107,7 +109,7 @@ Toda dependência externa segue o mesmo padrão:
 | Modelo do ORM (tabela) | `src/infrastructure/database/` | `<entidade>_model.py` | `cliente_model.py` → `class ClienteModel` |
 | Configuração por variáveis de ambiente | `src/infrastructure/` | `config.py` | `class Configuracao(BaseSettings)` |
 | Ponto de entrada da API | `src/presentation/` | `main.py` | `app = FastAPI(...)` |
-| Montagem das dependências | `src/presentation/` | `container.py` | `obter_autenticar_usuario()` |
+| Montagem das dependências | `src/presentation/` | `container.py` | `obter_token_service()` |
 | Validação de token nas rotas | `src/presentation/middlewares/` | `dependencies.py` | — |
 | Rate limiting das rotas públicas | `src/presentation/middlewares/` | `rate_limit.py` | `limiter = Limiter(...)` |
 | Teste unitário | `tests/unit/` | `test_<arquivo testado>.py` | `test_placa.py` |
@@ -208,6 +210,7 @@ Regras que **ficam obrigatoriamente no domínio**:
 from abc import ABC, abstractmethod
 
 from domain.entities.cliente import Cliente
+from domain.value_objects.documento import Documento
 
 
 class ClienteRepository(ABC):
@@ -215,7 +218,7 @@ class ClienteRepository(ABC):
     async def salvar(self, cliente: Cliente) -> None: ...
 
     @abstractmethod
-    async def buscar_por_documento(self, documento: str) -> Cliente | None: ...
+    async def buscar_por_documento(self, documento: Documento) -> Cliente | None: ...
 ```
 
 2. Adaptador na infraestrutura, herdando da porta:
@@ -229,7 +232,7 @@ class PostgresClienteRepository(ClienteRepository):
     ...
 ```
 
-A porta recebe e devolve **entidades do domínio**, nunca modelos do ORM. A conversão entre entidade e tabela acontece dentro do adaptador.
+A porta recebe e devolve **entidades do domínio**, nunca modelos do ORM. Os critérios de busca também são objetos de valor (`Documento`, `Placa`), e não `str`: assim o valor chega à porta já validado e normalizado. A conversão entre entidade e tabela acontece dentro do adaptador.
 
 Os métodos das portas de repositório são `async def`, porque o SQLAlchemy roda no modo assíncrono (seção 8.1). O adaptador carrega as coleções da entidade junto com a consulta (`selectinload`), pois o carregamento preguiçoso não funciona no modo assíncrono.
 
@@ -248,7 +251,7 @@ class CriarOS:
         self._clientes = clientes
         self._ordens = ordens
 
-    async def executar(self, documento_cliente: str, placa: str) -> OrdemServico:
+    async def executar(self, documento_cliente: Documento, placa: Placa) -> OrdemServico:
         cliente = await self._clientes.buscar_por_documento(documento_cliente)
         ...
 ```
@@ -341,12 +344,12 @@ A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Tod
 | Imports a partir de `src/` | `PYTHONPATH=src`: `pythonpath = ["src"]` no pytest (`pyproject.toml`), `ENV PYTHONPATH=/app/src` no Dockerfile e `PYTHONPATH=src` no `.env` para a IDE |
 | Lint e formatação | Ruff (`ruff check` e `ruff format`), configurado no `pyproject.toml` |
 | Testes e cobertura | pytest + pytest-cov (RNF-12 a RNF-14) |
-| Migrations | Alembic com o template `async` (issue #4). A pasta `migrations/` e o `alembic.ini` ficam na raiz do projeto; cada mudança de schema é gerada com `uv run alembic revision --autogenerate -m "<descrição>"`, revisada antes do commit e aplicada com `alembic upgrade head` na subida do container. O Dockerfile precisa copiar `migrations/` e `alembic.ini` |
+| Migrations | Alembic com o template `async` (issue #4). A pasta `migrations/` e o `alembic.ini` ficam na raiz do projeto; cada mudança de schema é gerada com `uv run alembic revision --autogenerate -m "<descrição>"`, revisada antes do commit e aplicada com `alembic upgrade head` no `CMD` do Dockerfile, antes do Uvicorn (issue #25). O `migrations/env.py` é o ponto de montagem do Alembic e, por isso, é a exceção à regra de que só o `presentation/container.py` importa `infrastructure/config.py`: ele lê a configuração com `carregar_configuracao()` e cria a conexão com `criar_engine`. Sem modelos do ORM ainda, `target_metadata` é `None`; a primeira entidade cria a `Base` e liga o `--autogenerate`. A primeira revisão, `0001_schema_base`, é vazia |
 | Rate limiting | SlowAPI com contador em memória (RNF-05) |
 | Rotas e DTOs | `presentation/routers/` e `presentation/schemas/`, um arquivo por recurso |
 | Estrutura de pastas | Alinhada à seção 6 do modelo C4 (issue #9): `domain/events/`, `application/events/`, `application/handlers/`, `infrastructure/database/` e `presentation/middlewares/` (seções 2 e 3) |
 | Configuração | `infrastructure/config.py` com pydantic-settings (issue #9). A configuração é lida e validada na subida da aplicação, nunca no import do módulo. Só o `presentation/container.py` importa o módulo, e os demais objetos recebem os valores pelo construtor |
-| Ponto de entrada e montagem | `presentation/main.py` cria o app e registra os routers; `presentation/container.py` monta as dependências (issue #9) |
+| Ponto de entrada e montagem | `presentation/main.py` cria o app, registra os routers, declara o título, a versão, a descrição e o esquema Bearer JWT do OpenAPI (botão "Authorize" em `/docs`) e liga o ciclo de vida; `presentation/container.py` cria na subida a engine, a fábrica de sessões, o `JwtTokenService`, o `BcryptPasswordHasher` e o verificador do banco, e fecha a engine no encerramento (issues #9 e #26). O `/health` vive em `routers/saude.py`, usa a porta `VerificadorDoBanco` e devolve `200` com o banco disponível e `503` sem ele. O `obter_autenticar_usuario` e o registro do router de login passam para o container quando existir o repositório de usuários em PostgreSQL |
 | CI (GitHub Actions) | Opcional; implementar somente se houver tempo ao final |
 | Análise de vulnerabilidades (RNF-07) | pip-audit para as dependências, Bandit para o código-fonte e Trivy para a imagem Docker (issue #5). pip-audit e Bandit entram como dependências de desenvolvimento; o Trivy roda como binário separado ou pela imagem `aquasec/trivy`. Sem Dependabot. A análise roda sobre o commit final da entrega e o relatório vai para `docs/security/` |
 | Teste de desempenho (RNF-10) | Locust, como dependência de desenvolvimento (issue #6). O relatório com o p95 é a evidência da medição; a falha automática quando o p95 passar de 500 ms precisa ser escrita no cenário |

@@ -1,0 +1,6 @@
+# Uso: docker compose -f docker-compose.yml -f docker-compose.testes.yml up -d db
+# Publica o PostgreSQL só em localhost para os testes de integração rodarem fora do Docker.
+services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"

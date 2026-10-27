@@ -1,23 +1,48 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 
-from presentation.container import montar_dependencias
+from presentation.container import encerrar_dependencias, montar_dependencias
+from presentation.routers import saude
+
+# Mesma versão do pyproject.toml; o pacote não é instalado na imagem, então não há metadados.
+VERSAO_DA_API = "0.1.0"
+DESCRICAO_DA_API = (
+    "API do Sistema Integrado de Atendimento e Execução de Serviços (SIAES), "
+    "para a gestão de ordens de serviço, clientes, veículos e peças da oficina mecânica, "
+    "com acompanhamento pelo cliente."
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     montar_dependencias(app)
-    yield
+    try:
+        yield
+    finally:
+        await encerrar_dependencias(app)
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title="SIAES - API da Oficina Mecânica",
+    version=VERSAO_DA_API,
+    description=DESCRICAO_DA_API,
+    lifespan=lifespan,
+)
+app.include_router(saude.router)
 
 
-@app.get("/health", tags=["Health Check"])
-async def health_check():
-    return {
-        "status": "online",
-        "message": "Serviço operando normalmente.",
+def _openapi_com_esquema_bearer() -> dict[str, Any]:
+    """Declara o esquema Bearer JWT para o botão "Authorize", mesmo sem rotas protegidas."""
+    esquema = FastAPI.openapi(app)
+    esquema.setdefault("components", {}).setdefault("securitySchemes", {})["HTTPBearer"] = {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
     }
+    return esquema
+
+
+app.openapi = _openapi_com_esquema_bearer

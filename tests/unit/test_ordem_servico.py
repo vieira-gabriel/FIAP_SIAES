@@ -321,6 +321,80 @@ def test_congelar_sem_o_valor_vigente_de_algum_item_nao_altera_nenhum():
     assert os.orcamento is None
 
 
+@pytest.mark.parametrize(
+    "alteracao",
+    [
+        {"data_abertura": datetime(2026, 10, 27, 12, 0)},
+        {"data_abertura": "ontem"},
+        {"data_abertura": None},
+        {"status": "QUALQUER"},
+        {"status": None},
+        {"status": 3},
+    ],
+    ids=[
+        "data sem fuso",
+        "data texto",
+        "data nula",
+        "status texto",
+        "status nulo",
+        "status numero",
+    ],
+)
+def test_recusa_data_de_abertura_sem_fuso_e_status_fora_do_status_os(alteracao):
+    with pytest.raises(OrdemServicoInvalida):
+        criar_os(**alteracao)
+
+
+def test_incluir_ou_remover_item_descarta_o_orcamento_ja_calculado():
+    primeiro, segundo, peca = criar_servico(), criar_servico(codigo="SRV-002"), criar_peca()
+    os = criar_os()
+    os.incluir_servico(primeiro)
+    os.congelar_valores([primeiro], [])
+    assert os.orcamento is not None
+
+    os.incluir_servico(segundo)
+    assert os.orcamento is None
+
+    os.congelar_valores([primeiro, segundo], [])
+    os.incluir_peca(peca, quantidade=1)
+    assert os.orcamento is None
+
+    os.congelar_valores([primeiro, segundo], [peca])
+    os.remover_peca(peca.id)
+    assert os.orcamento is None
+
+    os.congelar_valores([primeiro, segundo], [])
+    os.remover_servico(segundo.id)
+    assert os.orcamento is None
+
+
+def test_recongelar_depois_de_mudar_os_itens_calcula_o_orcamento_com_todos_eles():
+    primeiro, segundo = criar_servico(valor_base=Valor("100.00")), criar_servico(codigo="SRV-002")
+    reajustar_servico(segundo, "500.00")
+    os = criar_os()
+    os.incluir_servico(primeiro)
+    os.congelar_valores([primeiro], [])
+
+    os.incluir_servico(segundo)
+    os.congelar_valores([primeiro, segundo], [])
+
+    assert os.orcamento.total == Valor("600.00")
+
+
+def test_item_recusado_nao_descarta_o_orcamento():
+    servico = criar_servico()
+    os = criar_os()
+    os.incluir_servico(servico)
+    os.congelar_valores([servico], [])
+
+    with pytest.raises(ItemJaIncluido):
+        os.incluir_servico(servico)
+    with pytest.raises(EntidadeNaoEncontrada):
+        os.remover_peca(uuid4())
+
+    assert os.orcamento is not None
+
+
 def test_igualdade_pela_identidade():
     os = criar_os()
 

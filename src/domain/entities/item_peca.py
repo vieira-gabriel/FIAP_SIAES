@@ -10,9 +10,9 @@ from domain.value_objects.valor import Valor
 class ItemPeca:
     """Peça incluída em uma OS, com nome, preço e prazo de reposição copiados do catálogo (RF-17).
 
-    Na conclusão do orçamento os valores são atualizados com os vigentes; a partir daí, reajustes
-    no catálogo não os alteram (RNF-11). A reserva e a pendência nascem zeradas e são definidas
-    pela reserva de estoque (RF-18).
+    Os valores são atualizados com os vigentes cada vez que a OS os congela, e só ficam definitivos
+    quando a OS sai do diagnóstico e os itens deixam de mudar (RNF-11). A reserva e a pendência
+    nascem zeradas e são definidas pela reserva de estoque (RF-18).
     """
 
     peca_id: UUID

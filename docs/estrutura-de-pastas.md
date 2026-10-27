@@ -122,7 +122,7 @@ Pontos de atenção:
 As classes abaixo são citadas na Linguagem Ubíqua, mas a documentação não define o arquivo de cada uma; por isso, ainda não foram criados arquivos para elas:
 
 * **Entidades** (`src/domain/entities/`): `Cliente`, `Veiculo`, `Servico`, `Peca`.
-* **Objetos de Valor** (`src/domain/value_objects/`): `CPF`, `CNPJ`, `Placa`, `Valor`, `StatusOS`, `Orcamento`.
+* **Objetos de Valor** (`src/domain/value_objects/`): `CPF`, `CNPJ`, `Placa`, `Valor`, `StatusOS`.
 
 A pasta `migrations/` do Alembic (guia, seção 8.1) fica na raiz do projeto, junto com o `alembic.ini`, e foi criada na issue #25 com a revisão de base `0001_schema_base`, vazia; as tabelas entram com cada entidade. `src/infrastructure/config.py` (configuração) e `src/presentation/container.py` (montagem das dependências), decididos na issue #9, foram criados na issue #22; o container monta a engine, a fábrica de sessões, os serviços de token e de hash e o verificador do banco (issue #26). As funções `obter_<caso_de_uso>` entram com as issues seguintes, a começar pelo login, que depende do repositório de usuários em PostgreSQL.
 

@@ -239,7 +239,7 @@ Tarefas da fase:
 
 **Dependência da Fase 1:** as etapas finais da OS, o estorno de estoque e o agregado `EstoquePeca` precisam estar modelados antes da implementação (ver lacunas do Event Storming).
 
-**Ponto de partida:** `entities/ordem_servico.py`, `entities/usuario.py`, `repositories/ordem_servico_repository.py` e `repositories/usuario_repository.py` já existem em `src/domain/`, vazios.
+**Ponto de partida:** `repositories/ordem_servico_repository.py` já existe em `src/domain/`, vazio.
 
 ### Objetos de Valor
 
@@ -253,8 +253,8 @@ Tarefas da fase:
 
 - [ ] Exceções de regra de negócio em `src/domain/exceptions.py`
 - [ ] `Cliente`, `Veiculo`, `Usuario`, `Servico` (com tempo estimado) e `Peca` (com prazo de reposição), com exclusão lógica (RF-06, RF-09, RF-11, RF-12)
-- [ ] Agregado `OrdemServico` com `ItemServico` e `ItemPeca`, congelando os preços vigentes na conclusão do orçamento (RF-17, RNF-11)
-- [ ] Cálculo do orçamento como soma dos valores congelados (RF-17)
+- [x] Agregado `OrdemServico` com `ItemServico` e `ItemPeca`, congelando os preços vigentes na conclusão do orçamento (RF-13, RF-17, RNF-11; issue #39): itens só em `EM_DIAGNOSTICO`, apenas ativos e sem repetição, e `congelar_valores` atualiza os itens com os valores vigentes do catálogo
+- [x] Cálculo do orçamento como soma dos valores congelados (RF-17; issue #39): objeto de valor `Orcamento` com os subtotais de serviços e de peças e o total
 - [ ] Máquina de estados com os 9 status e bloqueio de transições inválidas: `atribuir_mecanico`, `finalizar_orcamento`, `aprovar_orcamento`, `rejeitar_orcamento`, `liberar_para_execucao`, `iniciar_execucao`, `concluir_manutencao`, `entregar_veiculo` e `cancelar` (linguagem ubíqua §5)
 - [ ] Registro dos timestamps de abertura, início da execução e finalização (RF-13, RF-20, RF-21)
 - [ ] Bloqueio de alteração de itens após `FINALIZADA` (RF-21)

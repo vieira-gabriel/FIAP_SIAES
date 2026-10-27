@@ -1,6 +1,6 @@
 # Event Storming
 
-Este documento registra onde encontrar o Event Storming do sistema de gestão da oficina mecânica.
+Este documento registra onde encontrar o Event Storming do sistema de gestão da oficina mecânica, a transcrição do board e o catálogo dos eventos de domínio (seção 7).
 
 | Artefato | Local |
 | :--- | :--- |
@@ -184,3 +184,39 @@ Os nomes do board diferem dos termos da Linguagem Ubíqua em alguns pontos. No c
 | Gerente na abertura e no diagnóstico | "Abrir OS" tem só o Atendente e "Inicia diagnóstico" tem só o Mecânico | RF-13 e RF-16 incluem o Gerente | Os requisitos prevalecem |
 | Agregado de estoque | O agregado `EstoquePeca` aparece só na área "Ciclo de vida da OS aprovada"; nas áreas "Criação de ordem de serviço" e "Peças", a reserva e a atualização de saldo não indicam o agregado | A Linguagem Ubíqua (§1) define o agregado `EstoquePeca` | A Linguagem Ubíqua prevalece |
 | "Atualizar status da OS" | Comando sem política de permissão | RF-16 a RF-22 definem quem faz cada transição; não há alteração arbitrária de status (RF-23) | A máquina de estados da Linguagem Ubíqua (§5) prevalece |
+
+## 7. Catálogo de Eventos de Domínio
+
+Um evento do board vira classe de evento de domínio quando a regra de um agregado precisa alterar outro agregado (`OrdemServico` → `EstoquePeca` ou `EstoquePeca` → `OrdemServico`). Quando a reação fica dentro do mesmo agregado, o método do agregado executa a reação diretamente, e o evento do board fica registrado só na tabela 7.2.
+
+Os agregados acumulam os eventos, e o caso de uso os entrega ao Event Dispatcher síncrono, que chama os handlers dentro da mesma transação (RNF-08). Um handler pode gerar eventos novos. Por exemplo, o `EstornoPecasHandler` chama `EstoquePeca.estornar`, que emite `SaldoPecaAtualizadoEvent`. Por isso o dispatcher despacha também os eventos gerados durante o despacho, até não restar nenhum.
+
+### 7.1. Eventos com Classe
+
+| Evento | Agregado emissor | Momento da emissão | Consumidor | Evento do board | Requisito |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `OrcamentoFinalizadoEvent` | `OrdemServico` | `finalizar_orcamento`, na transição de `EM_DIAGNOSTICO` para `AGUARDANDO_APROVACAO`; a quantidade de cada `ItemPeca` começa toda pendente | `ReservaPecasHandler`, que, para cada peça da OS, busca as OS com pendência da peça, inclui a OS nova, chama `EstoquePeca.alocar_pendencias` e aplica cada alocação com `OrdemServico.alocar_peca` | Orçamento gerado → Reservar peças | RF-17, RF-18 |
+| `OSCanceladaEvent` | `OrdemServico` | `rejeitar_orcamento` e `cancelar(motivo)`, nas transições para `CANCELADA`; o evento leva as quantidades a estornar, calculadas pela OS | `EstornoPecasHandler`, que chama `EstoquePeca.estornar` com as quantidades recebidas no evento | OS reprovada → Estorno de peças; OS cancelada → Estorno de peças | RF-18, RF-23, RF-26 |
+| `ExecucaoIniciadaEvent` | `OrdemServico` | `iniciar_execucao`, na transição de `AGUARDANDO_EXECUCAO` para `EM_EXECUCAO`; o evento leva as quantidades reservadas de cada peça | `BaixaEstoqueHandler`, que chama `EstoquePeca.baixar` com as quantidades recebidas no evento | Serviço iniciado → Dar baixa nas peças | RF-20 |
+| `SaldoPecaAtualizadoEvent` | `EstoquePeca` | `repor`, `estornar` e `ajustar_quantidade_fisica`, sempre que o saldo disponível aumenta (RF-12) | `AlocacaoPecasPendentesHandler`, que busca as OS com pendência da peça, chama `EstoquePeca.alocar_pendencias` e aplica cada alocação com `OrdemServico.alocar_peca`, que chama `liberar_para_execucao` quando a OS em `AGUARDANDO_PECA` fica sem pendência | Saldo da peça atualizado → Aloca peça pendente nas OS mais antigas | RF-12, RF-18, RF-19 |
+
+Regras de domínio que os handlers apenas acionam:
+
+* **Prioridade pela OS mais antiga (RF-18, RF-19).** `EstoquePeca.alocar_pendencias(pendencias)` recebe as pendências da peça, ordena pela data de abertura da OS, reserva o saldo disponível da mais antiga para a mais nova e devolve as alocações. Os dois handlers usam o mesmo método, por isso a OS nova só recebe saldo depois das OS abertas antes dela. Reservas já feitas não mudam de OS.
+* **Estorno e baixa (RF-18, RF-20, RF-23).** A OS só chega a `EM_EXECUCAO` com todas as peças reservadas, e `iniciar_execucao` dá baixa em todas. Por isso a OS cancelada antes de `EM_EXECUCAO` estorna todas as quantidades reservadas, e a OS cancelada em `EM_EXECUCAO` não estorna nada. `cancelar` e `rejeitar_orcamento` calculam essas quantidades a partir do status da OS e as enviam no `OSCanceladaEvent`; o `ItemPeca` não precisa de campo para a quantidade baixada.
+* **Ajuste de estoque (RF-12).** `ajustar_quantidade_fisica(nova_quantidade)` corrige a quantidade física (perda, quebra ou inventário). O valor não pode ficar abaixo da quantidade reservada, para que o saldo disponível nunca fique negativo.
+
+Os arquivos seguem a seção 3 de `docs/guia-de-desenvolvimento.md`: os eventos ficam em `src/domain/events/` (ex.: `orcamento_finalizado_event.py`) e os handlers em `src/application/handlers/` (ex.: `reserva_pecas_handler.py`).
+
+### 7.2. Eventos do Board sem Classe
+
+| Evento do board | Método do agregado | Motivo |
+| :--- | :--- | :--- |
+| OS aberta; Cliente vinculado à OS; Veículo vinculado à OS | Abertura da `OrdemServico` | Nenhum outro agregado reage à abertura |
+| Vincula mecânico à OS | `OrdemServico.atribuir_mecanico` | A mudança para `EM_DIAGNOSTICO` acontece no próprio agregado |
+| Serviços vinculados; Peças vinculadas | Inclusão de itens na `OrdemServico` | A reserva só acontece na conclusão do orçamento (`OrcamentoFinalizadoEvent`) |
+| OS aprovada | `OrdemServico.aprovar_orcamento` | A escolha entre `AGUARDANDO_PECA` e `AGUARDANDO_EXECUCAO` usa as pendências gravadas nos itens da própria OS |
+| Baixa de peças utilizadas | `EstoquePeca.baixar` | A baixa não altera o saldo disponível, pois reduz a quantidade física e a reservada na mesma quantidade |
+| Saldo da peça atualizado, quando o ajuste reduz a quantidade | `EstoquePeca.ajustar_quantidade_fisica` | A redução diminui o saldo disponível, e nenhuma OS pendente pode ser atendida |
+| OS concluída | `OrdemServico.concluir_manutencao` | Nenhum outro agregado reage à conclusão |
+| Mudanças de status (Status OS "...") | Métodos de transição da `OrdemServico` | O registro no histórico de status (RF-24) faz parte do agregado `OrdemServico` |

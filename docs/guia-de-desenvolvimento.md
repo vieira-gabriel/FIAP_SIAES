@@ -78,6 +78,7 @@ Toda dependência externa segue o mesmo padrão:
 | :--- | :--- |
 | `domain/repositories/ordem_servico_repository.py` | `infrastructure/repositories/postgres_ordem_servico_repository.py` |
 | `domain/repositories/usuario_repository.py` | `infrastructure/repositories/postgres_usuario_repository.py` |
+| `domain/repositories/estoque_repository.py` | `infrastructure/repositories/postgres_estoque_repository.py` |
 | `application/ports/token_service.py` | `infrastructure/security/jwt_token_service.py` |
 | `application/ports/password_hasher.py` | `infrastructure/security/bcrypt_password_hasher.py` |
 | `application/ports/unidade_de_trabalho.py` | `infrastructure/database/unidade_de_trabalho.py` |
@@ -91,6 +92,7 @@ Toda dependência externa segue o mesmo padrão:
 | :--- | :--- | :--- | :--- |
 | Entidade ou raiz de agregado | `src/domain/entities/` | nome da entidade em snake_case | `veiculo.py` → `class Veiculo` |
 | Objeto de valor | `src/domain/value_objects/` | nome do VO em snake_case | `placa.py` → `class Placa` |
+| Base comum de objetos de valor | `src/domain/value_objects/` | nome da base em snake_case | `documento.py` → `class Documento` |
 | Enumeração do domínio | `src/domain/value_objects/` | nome do enum | `status_os.py` → `class StatusOS` |
 | Exceção de regra de negócio | `src/domain/` | `exceptions.py` | `TransicaoDeStatusInvalida` |
 | Interface de persistência | `src/domain/repositories/` | `<entidade>_repository.py` | `cliente_repository.py` → `class ClienteRepository(ABC)` |
@@ -100,7 +102,7 @@ Toda dependência externa segue o mesmo padrão:
 | Implementação de serviço técnico | `src/infrastructure/<assunto>/` | tecnologia + serviço | `jwt_token_service.py` |
 | Rota HTTP | `src/presentation/routers/` | nome do recurso no plural | `ordens_servico.py` → `router = APIRouter()` |
 | DTO de entrada ou saída da API | `src/presentation/schemas/` | nome do recurso no singular | `ordem_servico.py` → `CriarOSRequest`, `OSResponse` |
-| Evento de domínio | `src/domain/events/` | nome do evento + `_event` | `orcamento_aprovado_event.py` → `class OrcamentoAprovadoEvent` |
+| Evento de domínio | `src/domain/events/` | nome do evento + `_event` | `orcamento_finalizado_event.py` → `class OrcamentoFinalizadoEvent` |
 | Event Dispatcher | `src/application/events/` | `event_dispatcher.py` | `class EventDispatcher` |
 | Handler de evento | `src/application/handlers/` | ação + `_handler` | `baixa_estoque_handler.py` → `class BaixaEstoqueHandler` |
 | Engine, sessão e unidade de trabalho do SQLAlchemy | `src/infrastructure/database/` | nome do assunto | `engine.py`, `unidade_de_trabalho.py` |
@@ -341,7 +343,7 @@ A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Tod
 | Imports a partir de `src/` | `PYTHONPATH=src`: `pythonpath = ["src"]` no pytest (`pyproject.toml`), `ENV PYTHONPATH=/app/src` no Dockerfile e `PYTHONPATH=src` no `.env` para a IDE |
 | Lint e formatação | Ruff (`ruff check` e `ruff format`), configurado no `pyproject.toml` |
 | Testes e cobertura | pytest + pytest-cov (RNF-12 a RNF-14) |
-| Migrations | Alembic com o template `async` (issue #4). A pasta `migrations/` e o `alembic.ini` ficam na raiz do projeto; cada mudança de schema é gerada com `uv run alembic revision --autogenerate -m "<descrição>"`, revisada antes do commit e aplicada com `alembic upgrade head` na subida do container. O Dockerfile precisa copiar `migrations/` e `alembic.ini` |
+| Migrations | Alembic com o template `async` (issue #4). A pasta `migrations/` e o `alembic.ini` ficam na raiz do projeto; cada mudança de schema é gerada com `uv run alembic revision --autogenerate -m "<descrição>"`, revisada antes do commit e aplicada com `alembic upgrade head` no `CMD` do Dockerfile, antes do Uvicorn (issue #25). O `migrations/env.py` é o ponto de montagem do Alembic e, por isso, é a exceção à regra de que só o `presentation/container.py` importa `infrastructure/config.py`: ele lê a configuração com `carregar_configuracao()` e cria a conexão com `criar_engine`. Sem modelos do ORM ainda, `target_metadata` é `None`; a primeira entidade cria a `Base` e liga o `--autogenerate`. A primeira revisão, `0001_schema_base`, é vazia |
 | Rate limiting | SlowAPI com contador em memória (RNF-05) |
 | Rotas e DTOs | `presentation/routers/` e `presentation/schemas/`, um arquivo por recurso |
 | Estrutura de pastas | Alinhada à seção 6 do modelo C4 (issue #9): `domain/events/`, `application/events/`, `application/handlers/`, `infrastructure/database/` e `presentation/middlewares/` (seções 2 e 3) |

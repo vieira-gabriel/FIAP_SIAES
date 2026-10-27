@@ -13,15 +13,18 @@ Este documento estabelece a **Linguagem Ubíqua** do sistema de gestão da ofici
 | **Cliente** | Pessoa física ou jurídica proprietária do veículo e tomadora dos serviços da oficina. | `domain.entities.Cliente` |
 | **Veículo** | Automóvel cadastrado no sistema vinculado a um cliente específico pela placa. | `domain.entities.Veiculo` |
 | **Serviço** | Atividade técnica de manutenção ou reparo realizada pelos mecânicos (ex.: troca de óleo, alinhamento), com valor base e tempo estimado de execução. | `domain.entities.Servico` |
-| **Peça / Insumo** | Componente físico utilizado na manutenção com controle quantitativo de estoque (ex.: filtro de óleo, pastilha de freio), com prazo de reposição. | `domain.entities.Peca` |
+| **Peça / Insumo** | Componente físico utilizado na manutenção (ex.: filtro de óleo, pastilha de freio). A entidade guarda o cadastro, com código de referência, nome, preço unitário de venda e prazo de reposição em dias. As quantidades ficam no Estoque, na relação 1:1. | `domain.entities.Peca` |
+| **Item de Serviço** | Serviço incluído em uma OS, com o preço e o tempo estimado de execução congelados na conclusão do orçamento. | `domain.entities.ItemServico` |
+| **Item de Peça** | Peça incluída em uma OS, com a quantidade solicitada, a quantidade reservada, a quantidade pendente, o preço unitário e o prazo de reposição congelados na conclusão do orçamento. | `domain.entities.ItemPeca` |
 | **Orçamento** | Cálculo que consolida o valor congelado dos serviços solicitados e peças alocadas para aprovação do cliente. | `domain.value_objects.Orcamento` |
-| **Estoque** | Agregado responsável pelo controle quantitativo físico, reserva temporária e baixa de peças. | `domain.entities.EstoquePeca` |
+| **Estoque** | Agregado responsável pelo controle quantitativo de uma peça, com a quantidade física e a quantidade reservada e as operações de reserva, baixa, estorno e reposição. Cada `Peca` tem um `EstoquePeca`. | `domain.entities.EstoquePeca` |
 | **Reserva** | Quantidade de uma peça separada para uma OS a partir da conclusão do orçamento. Reduz o saldo disponível sem reduzir a quantidade física. | Quantidade reservada em `ItemPeca` e `EstoquePeca` |
-| **Peça Pendente** | Quantidade de uma peça da OS que não pôde ser reservada por falta de saldo. É alocada automaticamente quando o estoque é reposto, com prioridade para a OS mais antiga. | Quantidade pendente em `ItemPeca` |
+| **Peça Pendente** | Quantidade de uma peça da OS que não pôde ser reservada por falta de saldo. É alocada automaticamente quando o saldo disponível aumenta, com prioridade para a OS mais antiga. | Quantidade pendente em `ItemPeca`; alocação pelo método `alocar_pendencias` de `EstoquePeca` |
 | **Baixa** | Saída definitiva das peças reservadas do estoque, executada no início da execução da OS. | Método de `EstoquePeca` |
+| **Ajuste de Estoque** | Correção da quantidade física de uma peça por perda, quebra ou inventário. A quantidade física nunca fica abaixo da quantidade reservada. | Método `ajustar_quantidade_fisica` de `EstoquePeca` |
 | **Estorno** | Devolução das quantidades reservadas ao saldo disponível quando o orçamento é rejeitado ou a OS é cancelada. Peças já baixadas não são estornadas. | Método de `EstoquePeca` |
 | **Histórico de Status** | Registro imutável de cada transição de status da OS, com status anterior, novo status, data/hora, origem, usuário e motivo. | `domain.entities.HistoricoStatusOS` |
-| **Estimativa de Entrega** | Data prevista de conclusão exibida ao cliente, calculada pela soma dos tempos estimados dos serviços e pelo prazo de reposição das peças pendentes. | Método de `OrdemServico` |
+| **Estimativa de Entrega** | Data prevista de conclusão exibida ao cliente, calculada pela soma dos tempos estimados dos serviços e pelo maior prazo de reposição entre as peças pendentes. Usa os valores congelados nos itens da OS. | Método `estimar_entrega` de `OrdemServico` |
 | **Usuário** | Funcionário interno da oficina com acesso autenticado ao sistema (Atendente, Mecânico ou Gerente). Guarda apenas o hash da senha e pode ser desativado pelo Gerente; usuário desativado não faz login. O cliente não é um usuário. | `domain.entities.Usuario` |
 
 ---
@@ -32,6 +35,7 @@ Este documento estabelece a **Linguagem Ubíqua** do sistema de gestão da ofici
 | :--- | :--- | :--- |
 | **CPF** | Identificador de cliente pessoa física com validação matemática rigorosa de dígitos verificadores. Imutável. | `domain.value_objects.CPF` |
 | **CNPJ** | Identificador de cliente pessoa jurídica com validação matemática rigorosa de dígitos verificadores. Imutável. | `domain.value_objects.CNPJ` |
+| **Documento** | Base abstrata de CPF e CNPJ. Remove a pontuação, valida o tamanho e os dígitos verificadores e fornece os 3 primeiros dígitos usados no Número da OS. Não é instanciada diretamente. É o tipo do documento do Cliente. | `domain.value_objects.Documento` |
 | **Placa** | Identificador de veículo compatível com formatos padrão antigo (`ABC1234`) e Padrão Mercosul (`ABC1D23`). | `domain.value_objects.Placa` |
 | **Valor** | Representação numérica com precisão decimal adequada para valores financeiros e totais em reais. | `domain.value_objects.Valor` |
 | **NumeroOS** | Número da OS no formato `DDD-XXXXXXXX` (3 dígitos do documento e 8 caracteres hexadecimais maiúsculos). Imutável. | `domain.value_objects.NumeroOS` |
@@ -123,4 +127,17 @@ Toda transição gera um registro no Histórico de Status (RF-24).
 | **Caso de Uso (Command Handler)** | Application Service | `src/application/use_cases/aprovar_orcamento.py` |
 | **Porta de Repositório** | Interface Abstrata (`ABC`) | `src/domain/repositories/ordem_servico_repository.py` |
 | **Adaptador de Infraestrutura** | Implementação ORM / SQL (`PostgreSQL`) | `src/infrastructure/repositories/postgres_ordem_servico_repository.py` |
-| **Evento de Domínio** | Dataclass de Evento Imutável | `src/domain/events/orcamento_aprovado_event.py` |
+| **Evento de Domínio** | Dataclass de Evento Imutável | `src/domain/events/orcamento_finalizado_event.py` |
+
+---
+
+## 7. Eventos de Domínio
+
+Fatos do domínio que fazem um agregado alterar outro. O catálogo completo, com o momento da emissão, o handler consumidor e a correspondência com o board, está na seção 7 de `docs/ddd/event-storming.md`.
+
+| Evento | Definição no Domínio | Correspondência no Código (`src/domain/events/`) |
+| :--- | :--- | :--- |
+| **Orçamento Finalizado** | A OS concluiu o orçamento e passou para `AGUARDANDO_APROVACAO`; as peças da OS devem ser reservadas (RF-17, RF-18). | `OrcamentoFinalizadoEvent` (`orcamento_finalizado_event.py`) |
+| **OS Cancelada** | A OS passou para `CANCELADA` pela rejeição do orçamento ou pelo cancelamento do Gerente; as reservas devem ser estornadas (RF-18, RF-23, RF-26). | `OSCanceladaEvent` (`os_cancelada_event.py`) |
+| **Execução Iniciada** | A OS passou para `EM_EXECUCAO`; as peças reservadas devem receber baixa (RF-20). | `ExecucaoIniciadaEvent` (`execucao_iniciada_event.py`) |
+| **Saldo da Peça Atualizado** | O saldo disponível de uma peça aumentou por reposição ou estorno; o saldo deve ser alocado às OS com pendência, da mais antiga para a mais nova (RF-12, RF-19). | `SaldoPecaAtualizadoEvent` (`saldo_peca_atualizado_event.py`) |

@@ -22,9 +22,11 @@ WORKDIR /app
 
 COPY --from=builder /app/.venv /app/.venv
 COPY src ./src
+COPY alembic.ini ./
+COPY migrations ./migrations
 
 USER siaes
 
 EXPOSE 8000
 
-CMD ["uvicorn", "presentation.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn presentation.main:app --host 0.0.0.0 --port 8000"]

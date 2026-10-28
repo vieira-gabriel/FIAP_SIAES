@@ -9,25 +9,32 @@ from application.ports.token_service import TokenService
 from application.ports.verificador_do_banco import VerificadorDoBanco
 from application.use_cases.alterar_senha_do_usuario import AlterarSenhaDoUsuario
 from application.use_cases.atualizar_cliente import AtualizarCliente
+from application.use_cases.atualizar_servico import AtualizarServico
 from application.use_cases.atualizar_usuario import AtualizarUsuario
 from application.use_cases.autenticar_usuario import AutenticarUsuario
 from application.use_cases.cadastrar_cliente import CadastrarCliente
+from application.use_cases.cadastrar_servico import CadastrarServico
 from application.use_cases.cadastrar_usuario import CadastrarUsuario
 from application.use_cases.criar_carga_inicial import CriarCargaInicial, SenhasDaCargaInicial
 from application.use_cases.desativar_usuario import DesativarUsuario
 from application.use_cases.detalhar_cliente import DetalharCliente
+from application.use_cases.detalhar_servico import DetalharServico
 from application.use_cases.detalhar_usuario import DetalharUsuario
 from application.use_cases.excluir_cliente import ExcluirCliente
+from application.use_cases.excluir_servico import ExcluirServico
 from application.use_cases.listar_clientes import ListarClientes
+from application.use_cases.listar_servicos import ListarServicos
 from application.use_cases.listar_usuarios import ListarUsuarios
 from application.use_cases.reativar_usuario import ReativarUsuario
 from domain.repositories.cliente_repository import ClienteRepository
+from domain.repositories.servico_repository import ServicoRepository
 from domain.repositories.usuario_repository import UsuarioRepository
 from infrastructure.config import Configuracao, carregar_configuracao
 from infrastructure.database.engine import criar_engine, criar_fabrica_de_sessoes
 from infrastructure.database.unidade_de_trabalho import UnidadeDeTrabalhoSqlAlchemy
 from infrastructure.database.verificador_do_banco import VerificadorDoBancoSqlAlchemy
 from infrastructure.repositories.postgres_cliente_repository import PostgresClienteRepository
+from infrastructure.repositories.postgres_servico_repository import PostgresServicoRepository
 from infrastructure.repositories.postgres_usuario_repository import PostgresUsuarioRepository
 from infrastructure.security.bcrypt_password_hasher import BcryptPasswordHasher
 from infrastructure.security.jwt_token_service import JwtTokenService
@@ -103,6 +110,12 @@ def _com_repositorio_de_clientes[T](
     return _por_requisicao(lambda sessao, _: caso_de_uso(PostgresClienteRepository(sessao)))
 
 
+def _com_repositorio_de_servicos[T](
+    caso_de_uso: Callable[[ServicoRepository], T],
+) -> Callable[[Request], AsyncIterator[T]]:
+    return _por_requisicao(lambda sessao, _: caso_de_uso(PostgresServicoRepository(sessao)))
+
+
 def _com_repositorio_de_usuarios[T](
     caso_de_uso: Callable[[UsuarioRepository], T],
 ) -> Callable[[Request], AsyncIterator[T]]:
@@ -124,6 +137,12 @@ obter_atualizar_cliente = _com_repositorio_de_clientes(AtualizarCliente)
 obter_listar_clientes = _com_repositorio_de_clientes(ListarClientes)
 obter_detalhar_cliente = _com_repositorio_de_clientes(DetalharCliente)
 obter_excluir_cliente = _com_repositorio_de_clientes(ExcluirCliente)
+
+obter_cadastrar_servico = _com_repositorio_de_servicos(CadastrarServico)
+obter_atualizar_servico = _com_repositorio_de_servicos(AtualizarServico)
+obter_listar_servicos = _com_repositorio_de_servicos(ListarServicos)
+obter_detalhar_servico = _com_repositorio_de_servicos(DetalharServico)
+obter_excluir_servico = _com_repositorio_de_servicos(ExcluirServico)
 
 obter_cadastrar_usuario = _com_repositorio_de_usuarios_e_hash(CadastrarUsuario)
 obter_alterar_senha_do_usuario = _com_repositorio_de_usuarios_e_hash(AlterarSenhaDoUsuario)

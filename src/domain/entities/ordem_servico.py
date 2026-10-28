@@ -163,7 +163,9 @@ class OrdemServico:
         self._mudar_status(destino, de={StatusOS.AGUARDANDO_APROVACAO})
 
     def rejeitar_orcamento(self) -> None:
+        """Cancela a OS e descarta as pendências; as reservadas voltam ao estoque pelo estorno."""
         self._mudar_status(StatusOS.CANCELADA, de={StatusOS.AGUARDANDO_APROVACAO})
+        self._descartar_pendencias()
 
     def liberar_para_execucao(self) -> None:
         """A OS só sai de `AGUARDANDO_PECA` quando todas as peças estão reservadas (RF-19)."""
@@ -173,21 +175,24 @@ class OrdemServico:
         self._mudar_status(StatusOS.AGUARDANDO_EXECUCAO, de={StatusOS.AGUARDANDO_PECA})
 
     def iniciar_execucao(self, usuario: Usuario) -> None:
-        """Só o mecânico atribuído ou o Gerente iniciam; grava o momento do início (RF-20)."""
+        """Só o mecânico atribuído ou o Gerente, e ativos, iniciam; grava o início (RF-20)."""
         if not isinstance(usuario, Usuario):
             raise OrdemServicoInvalida("o usuário é obrigatório")
         self._validar_transicao(StatusOS.EM_EXECUCAO, de={StatusOS.AGUARDANDO_EXECUCAO})
+        if not usuario.ativo:
+            raise AcessoNegado("Usuário desativado não pode iniciar a execução.")
         if usuario.perfil != PerfilUsuario.GERENTE and usuario.id != self.mecanico_id:
             raise AcessoNegado("Apenas o mecânico atribuído ou o Gerente pode iniciar a execução.")
         self._mudar_status(StatusOS.EM_EXECUCAO, de={StatusOS.AGUARDANDO_EXECUCAO})
         self.data_inicio_execucao = datetime.now(UTC)
 
     def cancelar(self, motivo: str) -> None:
-        """Vale de `RECEBIDA` até `EM_EXECUCAO` e exige o motivo (RF-23)."""
+        """Vale de `RECEBIDA` até `EM_EXECUCAO`, exige o motivo e descarta as pendências (RF-23)."""
         self._validar_transicao(StatusOS.CANCELADA, de=_CANCELAVEIS)
         if not isinstance(motivo, str) or not motivo.strip():
             raise MotivoObrigatorio()
         self._mudar_status(StatusOS.CANCELADA, de=_CANCELAVEIS)
+        self._descartar_pendencias()
 
     def concluir_manutencao(self) -> None:
         """Grava o momento da conclusão técnica (RF-21)."""
@@ -201,6 +206,10 @@ class OrdemServico:
     def _exigir_itens_editaveis(self) -> None:
         if self.status != StatusOS.EM_DIAGNOSTICO:
             raise ItensBloqueados(self.status)
+
+    def _descartar_pendencias(self) -> None:
+        for item in self.pecas:
+            item.descartar_pendencia()
 
     def _nomes_das_pecas_pendentes(self) -> list[str]:
         return [item.nome for item in self.pecas if item.quantidade_pendente > 0]

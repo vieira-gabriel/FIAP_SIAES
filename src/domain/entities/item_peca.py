@@ -56,6 +56,10 @@ class ItemPeca:
         self.quantidade_reservada = 0
         self.quantidade_pendente = self.quantidade
 
+    def descartar_pendencia(self) -> None:
+        """Na rejeição e no cancelamento as pendências da OS somem (RF-18)."""
+        self.quantidade_pendente = 0
+
     def congelar(self, peca: Peca) -> None:
         if peca.id != self.peca_id:
             raise OrdemServicoInvalida("a peça informada não é a do item")

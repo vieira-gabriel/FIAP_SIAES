@@ -477,8 +477,10 @@ def test_finalizar_orcamento_sem_valor_vigente_mantem_o_diagnostico():
     assert os.orcamento is None
 
 
-def criar_usuario(perfil: PerfilUsuario) -> Usuario:
-    return Usuario(nome="Ana", email="ana@oficina.com", senha_hash="hash", perfil=perfil)
+def criar_usuario(perfil: PerfilUsuario, ativo: bool = True) -> Usuario:
+    return Usuario(
+        nome="Ana", email="ana@oficina.com", senha_hash="hash", perfil=perfil, ativo=ativo
+    )
 
 
 def os_aguardando_aprovacao_com_peca_pendente() -> OrdemServico:
@@ -551,6 +553,51 @@ def test_rejeitar_orcamento_cancela_a_os():
     assert os.status is StatusOS.CANCELADA
 
 
+def test_rejeitar_orcamento_descarta_as_pendencias_e_mantem_as_reservadas():
+    os = os_aguardando_aprovacao_com_peca_pendente()
+
+    os.rejeitar_orcamento()
+
+    assert os.status is StatusOS.CANCELADA
+    assert (os.pecas[0].quantidade_reservada, os.pecas[0].quantidade_pendente) == (1, 0)
+
+
+def test_cancelar_descarta_as_pendencias_e_mantem_as_reservadas():
+    os = os_aguardando_aprovacao_com_peca_pendente()
+    os.aprovar_orcamento()
+    assert os.status is StatusOS.AGUARDANDO_PECA
+
+    os.cancelar(USUARIO_ID, "Cliente desistiu do serviço")
+
+    assert os.status is StatusOS.CANCELADA
+    assert (os.pecas[0].quantidade_reservada, os.pecas[0].quantidade_pendente) == (1, 0)
+
+
+def test_cancelar_os_sem_pendencias_nao_altera_os_itens():
+    peca = criar_peca()
+    os = criar_os()
+    os.incluir_peca(peca, quantidade=2)
+    os.finalizar_orcamento(USUARIO_ID, [], [peca])
+    os.pecas[0].quantidade_reservada, os.pecas[0].quantidade_pendente = 2, 0
+
+    os.cancelar(USUARIO_ID, "Cliente desistiu do serviço")
+
+    assert (os.pecas[0].quantidade_reservada, os.pecas[0].quantidade_pendente) == (2, 0)
+
+
+def test_transicao_ou_motivo_recusados_nao_descartam_as_pendencias():
+    os = os_aguardando_aprovacao_com_peca_pendente()
+    os.aprovar_orcamento()
+
+    with pytest.raises(TransicaoDeStatusInvalida):
+        os.rejeitar_orcamento()
+    with pytest.raises(MotivoObrigatorio):
+        os.cancelar(USUARIO_ID, "  ")
+
+    assert os.status is StatusOS.AGUARDANDO_PECA
+    assert os.pecas[0].quantidade_pendente == 1
+
+
 @pytest.mark.parametrize("status", fora_de(StatusOS.AGUARDANDO_APROVACAO))
 def test_rejeitar_orcamento_so_a_partir_de_aguardando_aprovacao(status):
     os = criar_os(status=status)
@@ -621,6 +668,18 @@ def test_outro_usuario_nao_inicia_a_execucao(perfil):
 
     with pytest.raises(AcessoNegado):
         os.iniciar_execucao(criar_usuario(perfil))
+
+    assert os.status is StatusOS.AGUARDANDO_EXECUCAO
+    assert os.data_inicio_execucao is None
+
+
+@pytest.mark.parametrize("perfil", [PerfilUsuario.GERENTE, PerfilUsuario.MECANICO])
+def test_usuario_desativado_nao_inicia_a_execucao_mesmo_sendo_gerente_ou_o_atribuido(perfil):
+    usuario = criar_usuario(perfil, ativo=False)
+    os = criar_os(status=StatusOS.AGUARDANDO_EXECUCAO, mecanico_id=usuario.id)
+
+    with pytest.raises(AcessoNegado, match="desativado"):
+        os.iniciar_execucao(usuario)
 
     assert os.status is StatusOS.AGUARDANDO_EXECUCAO
     assert os.data_inicio_execucao is None

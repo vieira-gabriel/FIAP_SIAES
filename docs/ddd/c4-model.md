@@ -108,7 +108,8 @@ flowchart TD
     subgraph API_LAYER ["1. Camada de Apresentação / Entrada (src/presentation/)"]
         RouterAutenticacao["🔐 routers/autenticacao.py\nRota pública de login e emissão do JWT."]
         RouterOS["🛠️ routers/ordens_servico.py\nRotas administrativas de OS (Criar, Listar, Transicionar)."]
-        RouterClientes["👤 routers/clientes.py\nRotas de CRUD de Clientes e Veículos."]
+        RouterClientes["👤 routers/clientes.py\nRotas de CRUD de Clientes."]
+        RouterVeiculos["🚗 routers/veiculos.py\nRotas de CRUD de Veículos."]
         RouterEstoque["📦 routers/estoque.py\nRotas de gestão e entrada de estoque de peças."]
         RouterAcompanhamento["📲 routers/acompanhamento_publico.py\nRota desautenticada de consulta por número da OS e CPF/CNPJ."]
         
@@ -138,12 +139,13 @@ flowchart TD
         Entities["👤 Entidades\nCliente, Veiculo, Usuario, Servico, Peca."]
         VOs["💎 Value Objects\nDocumento, CPF, CNPJ, Placa, Valor, NumeroOS, Orcamento,\nStatusOS, PerfilUsuario, OrigemTransicao."]
         DomainEvents["🟧 Eventos de Domínio\nOrcamentoFinalizadoEvent, OSCanceladaEvent,\nExecucaoIniciadaEvent, SaldoPecaAtualizadoEvent."]
-        Repositories["🔌 Portas de Repositório (ABCs)\nOrdemServicoRepository, EstoqueRepository, UsuarioRepository."]
+        Repositories["🔌 Portas de Repositório (ABCs)\nOrdemServicoRepository, EstoqueRepository, UsuarioRepository,\nClienteRepository, VeiculoRepository."]
     end
 
     subgraph INFRASTRUCTURE ["4. Camada de Infraestrutura (src/infrastructure/)"]
         PgOSRepo["🐘 PostgresOrdemServicoRepository\nImplementação concreta SQLAlchemy."]
         PgEstoqueRepo["🐘 PostgresEstoqueRepository\nImplementação concreta SQLAlchemy com Lock."]
+        PgCadastroRepo["🐘 PostgresClienteRepository, PostgresVeiculoRepository\nImplementações concretas SQLAlchemy."]
         JwtTokenService["🔐 JwtTokenService\nImplementação de TokenService com PyJWT."]
         BcryptHasher["🔐 BcryptPasswordHasher\nImplementação de PasswordHasher."]
         PgDatabase["🐘 SQLAlchemy Session / Postgres Driver"]
@@ -151,6 +153,7 @@ flowchart TD
 
     Dependencies --> RouterOS
     Dependencies --> RouterClientes
+    Dependencies --> RouterVeiculos
     Dependencies --> RouterEstoque
     RateLimit --> RouterAcompanhamento
     

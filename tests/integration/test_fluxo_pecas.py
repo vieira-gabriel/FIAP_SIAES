@@ -1,5 +1,7 @@
 """Peças e estoque pelas rotas HTTP, com PostgreSQL real (RF-12, RNF-13)."""
 
+from uuid import uuid4
+
 import pytest
 from sqlalchemy import text
 
@@ -203,3 +205,48 @@ async def test_codigo_ja_cadastrado_responde_422(cliente_http, gerente):
 
 async def test_sem_token_responde_401(cliente_http):
     assert (await cliente_http.get("/pecas")).status_code == 401
+
+
+async def test_peca_inexistente_responde_404(cliente_http, gerente):
+    resposta = await cliente_http.get(f"/pecas/{uuid4()}", headers=gerente)
+
+    assert resposta.status_code == 404
+    assert resposta.json()["codigo"] == "ENTIDADE_NAO_ENCONTRADA"
+
+
+@pytest.mark.parametrize(
+    "alteracao",
+    [{"preco_unitario": "-1.00"}, {"prazo_reposicao_dias": -1}, {"nome": "   "}],
+)
+async def test_dados_invalidos_respondem_400(cliente_http, gerente, alteracao):
+    resposta = await _cadastrar(cliente_http, gerente, FILTRO | alteracao)
+
+    assert resposta.status_code == 400
+    assert resposta.json()["codigo"] == "VALOR_INVALIDO"
+
+
+@pytest.mark.parametrize(
+    "alteracao",
+    [
+        {"preco_unitario": "10000000000.00"},
+        {"prazo_reposicao_dias": 2_147_483_648},
+        {"quantidade_fisica_inicial": 2_147_483_648},
+        {"prazo_reposicao_dias": "três"},
+    ],
+)
+async def test_valor_fora_do_formato_ou_da_faixa_do_banco_responde_422(
+    cliente_http, gerente, alteracao
+):
+    resposta = await _cadastrar(cliente_http, gerente, FILTRO | alteracao)
+
+    assert resposta.status_code == 422
+    assert resposta.json()["codigo"] == "ENTRADA_INVALIDA"
+
+
+async def test_corpo_sem_campo_obrigatorio_responde_422(cliente_http, gerente):
+    criada = (await _cadastrar(cliente_http, gerente)).json()
+
+    resposta = await cliente_http.post(f"/pecas/{criada['id']}/reposicao", json={}, headers=gerente)
+
+    assert resposta.status_code == 422
+    assert resposta.json()["codigo"] == "ENTRADA_INVALIDA"

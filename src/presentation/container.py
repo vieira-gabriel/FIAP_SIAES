@@ -74,8 +74,6 @@ def montar_dependencias(app: FastAPI) -> None:
     )
     app.state.password_hasher = BcryptPasswordHasher()
     app.state.verificador_do_banco = VerificadorDoBancoSqlAlchemy(engine)
-    # Sem handler por enquanto: o de alocação às OS com peça pendente vem com a Fase 5 (RF-19).
-    app.state.eventos = EventDispatcher()
     app.state.senhas_da_carga_inicial = _senhas_da_carga_inicial(configuracao)
 
 
@@ -164,10 +162,21 @@ def _com_repositorios_de_pecas_e_eventos[T](
     caso_de_uso: Callable[[PecaRepository, EstoqueRepository, EventDispatcher], T],
 ) -> Callable[[Request], AsyncIterator[T]]:
     return _por_requisicao(
-        lambda sessao, estado: caso_de_uso(
-            PostgresPecaRepository(sessao), PostgresEstoqueRepository(sessao), estado.eventos
+        lambda sessao, _: caso_de_uso(
+            PostgresPecaRepository(sessao),
+            PostgresEstoqueRepository(sessao),
+            _eventos_da_requisicao(sessao),
         )
     )
+
+
+def _eventos_da_requisicao(sessao: AsyncSession) -> EventDispatcher:
+    """Um despacho por requisição: os handlers usam os repositórios da mesma sessão, para a
+    reação ao evento gravar na mesma transação da operação (RF-12, RNF-08).
+
+    Ainda sem handler; o de alocação às OS com peça pendente é registrado aqui (RF-19, #94).
+    """
+    return EventDispatcher()
 
 
 def _com_repositorios_de_pecas_e_ordens[T](

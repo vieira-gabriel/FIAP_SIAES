@@ -3,27 +3,9 @@ from uuid import uuid4
 import pytest
 
 from domain.entities.peca import Peca
+from domain.exceptions import CodigoDePecaJaCadastrado, EntidadeNaoEncontrada
 from domain.repositories.peca_repository import PecaRepository
 from domain.value_objects.valor import Valor
-
-
-class PecaRepositoryEmMemoria(PecaRepository):
-    def __init__(self):
-        self.dados = {}
-
-    async def salvar(self, peca):
-        self.dados[peca.id] = peca
-
-    async def buscar_por_id(self, id):
-        return self.dados.get(id)
-
-    async def buscar_por_codigo_referencia(self, codigo_referencia):
-        return next(
-            (p for p in self.dados.values() if p.codigo_referencia == codigo_referencia), None
-        )
-
-    async def listar(self):
-        return sorted((p for p in self.dados.values() if p.ativo), key=lambda p: p.nome)
 
 
 def criar_peca(codigo_referencia="FLT-001", nome="Filtro de óleo"):
@@ -56,25 +38,57 @@ def test_implementacao_incompleta_nao_pode_ser_criada():
         SemListagem()
 
 
-async def test_salva_e_busca_a_peca_pelo_id_e_pelo_codigo_mesmo_excluida():
-    repositorio = PecaRepositoryEmMemoria()
+async def test_salva_e_busca_a_peca_pelo_id_e_pelo_codigo_mesmo_excluida(pecas):
     peca = criar_peca()
-    peca.excluir()
-    await repositorio.salvar(peca)
+    peca.excluir([])
+    await pecas.salvar(peca)
 
-    assert await repositorio.buscar_por_id(peca.id) == peca
-    assert await repositorio.buscar_por_codigo_referencia("FLT-001") == peca
-    assert await repositorio.buscar_por_id(uuid4()) is None
-    assert await repositorio.buscar_por_codigo_referencia("XXX-999") is None
+    assert await pecas.buscar_por_id(peca.id) == peca
+    assert await pecas.buscar_por_codigo_referencia("FLT-001") == peca
+    assert await pecas.buscar_por_id(uuid4()) is None
+    assert await pecas.buscar_por_codigo_referencia("XXX-999") is None
 
 
-async def test_lista_so_as_ativas_em_ordem_de_nome():
-    repositorio = PecaRepositoryEmMemoria()
+async def test_lista_so_as_ativas_em_ordem_de_nome(pecas):
     vela = criar_peca("VEL-001", "Vela de ignição")
     filtro = criar_peca("FLT-001", "Filtro de óleo")
     excluida = criar_peca("PAS-001", "Pastilha de freio")
-    excluida.excluir()
+    excluida.excluir([])
     for peca in (vela, excluida, filtro):
-        await repositorio.salvar(peca)
+        await pecas.salvar(peca)
 
-    assert await repositorio.listar() == [filtro, vela]
+    assert await pecas.listar() == [filtro, vela]
+
+
+async def test_buscar_ativa_por_id_devolve_a_peca_ativa(pecas):
+    peca = criar_peca()
+    await pecas.salvar(peca)
+
+    assert await pecas.buscar_ativa_por_id(peca.id) == peca
+
+
+async def test_buscar_ativa_por_id_trata_a_peca_excluida_como_inexistente(pecas):
+    peca = criar_peca()
+    peca.excluir([])
+    await pecas.salvar(peca)
+
+    with pytest.raises(EntidadeNaoEncontrada):
+        await pecas.buscar_ativa_por_id(peca.id)
+    with pytest.raises(EntidadeNaoEncontrada):
+        await pecas.buscar_ativa_por_id(uuid4())
+
+
+async def test_garantir_codigo_livre_aceita_a_propria_peca(pecas):
+    peca = criar_peca()
+    await pecas.salvar(peca)
+
+    await pecas.garantir_codigo_livre(peca)
+
+
+async def test_garantir_codigo_livre_recusa_o_codigo_de_outra_peca_mesmo_excluida(pecas):
+    excluida = criar_peca("FLT-001")
+    excluida.excluir([])
+    await pecas.salvar(excluida)
+
+    with pytest.raises(CodigoDePecaJaCadastrado):
+        await pecas.garantir_codigo_livre(criar_peca("FLT-001", "Outro filtro"))

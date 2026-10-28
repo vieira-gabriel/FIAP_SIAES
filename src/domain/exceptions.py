@@ -178,6 +178,26 @@ class DocumentoJaCadastrado(RegraDeNegocioViolada):
         super().__init__("Já existe um cliente cadastrado com este documento.")
 
 
+class CodigoDePecaJaCadastrado(RegraDeNegocioViolada):
+    """O código de referência identifica uma única peça, mesmo excluída (RF-12)."""
+
+    def __init__(self, codigo_referencia: str):
+        super().__init__(f"Já existe uma peça com o código de referência {codigo_referencia!r}.")
+        self.codigo_referencia = codigo_referencia
+
+
+class PecaComPendencia(RegraDeNegocioViolada):
+    """Peça que alguma OS ainda espera não pode ser excluída (RF-12)."""
+
+    def __init__(self, peca: str, numeros_das_os: list[str]):
+        super().__init__(
+            f"A peça {peca!r} está pendente nas OS {', '.join(numeros_das_os)} e não pode ser "
+            "excluída."
+        )
+        self.peca = peca
+        self.numeros_das_os = numeros_das_os
+
+
 class PecasPendentes(RegraDeNegocioViolada):
     """A OS só sai de `AGUARDANDO_PECA` quando todas as peças estão reservadas (RF-19)."""
 

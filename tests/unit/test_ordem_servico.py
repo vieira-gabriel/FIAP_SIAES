@@ -155,7 +155,7 @@ def test_recusa_servico_inativo():
 def test_recusa_peca_inativa():
     os = criar_os()
     peca = criar_peca()
-    peca.excluir()
+    peca.excluir([])
 
     with pytest.raises(ItemIndisponivel):
         os.incluir_peca(peca, quantidade=1)

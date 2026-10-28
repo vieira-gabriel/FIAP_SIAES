@@ -279,7 +279,7 @@ Tarefas da fase:
 
 - [x] Login com e-mail e senha, emitindo JWT com a claim `role` e expiração de 24 horas (RF-01)
 - [ ] Guard de RBAC retornando `401` sem token válido e `403` sem permissão (RF-02, RNF-03)
-- [ ] Gestão de usuários internos exclusiva do Gerente, com senhas em hash bcrypt (RF-03)
+- [x] Gestão de usuários internos exclusiva do Gerente, com senhas em hash bcrypt (RF-03; issue #81)
 - [x] Carga inicial do Gerente na subida do container, com `ADMIN_PASSWORD` obrigatória, e dos usuários de demonstração quando `SEED_DEMO=true` (RF-03)
 - [x] Cadastro, atualização e listagem de clientes, com validação de CPF/CNPJ (RF-04, RF-05; issue #82)
 - [x] Exclusão lógica de clientes pelo Gerente (RF-06; issue #82)

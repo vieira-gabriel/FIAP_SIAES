@@ -133,6 +133,21 @@ class ItemJaIncluido(RegraDeNegocioViolada):
         self.nome = nome
 
 
+class EmailJaCadastrado(RegraDeNegocioViolada):
+    """O e-mail é o login, então identifica um único usuário (RF-01, RF-03)."""
+
+    def __init__(self):
+        super().__init__("Já existe um usuário cadastrado com este e-mail.")
+
+
+class AlteracaoDoProprioAcesso(RegraDeNegocioViolada):
+    """O Gerente não desativa nem muda o próprio perfil: a oficina ficaria sem Gerente (RF-03)."""
+
+    def __init__(self, acao: str):
+        super().__init__(f"O Gerente não pode {acao}; peça a outro Gerente.")
+        self.acao = acao
+
+
 class DocumentoJaCadastrado(RegraDeNegocioViolada):
     """Um documento identifica um único cliente, mesmo excluído logicamente (RF-04, RF-06).
 

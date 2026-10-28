@@ -1,6 +1,6 @@
 """Cadastro de veículos pelas rotas HTTP, com PostgreSQL real (RF-07 a RF-09, RNF-13)."""
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import text
@@ -182,6 +182,24 @@ async def test_atendente_e_gerente_excluem(cliente_http, maria_id, conexao, requ
     assert detalhe.status_code == 404
     ativo = await conexao.scalar(text("SELECT ativo FROM veiculos WHERE placa = 'ABC1D23'"))
     assert ativo is False
+
+
+async def test_excluir_o_cliente_exclui_os_veiculos_dele(cliente_http, gerente, maria_id, conexao):
+    joao_id = await _cadastrar_cliente(cliente_http, gerente, JOAO)
+    await _cadastrar(cliente_http, gerente, maria_id, UNO)
+    await _cadastrar(cliente_http, gerente, maria_id, GOL)
+    do_joao = (await _cadastrar(cliente_http, gerente, joao_id, UNO | {"placa": "DEF5678"})).json()
+
+    exclusao = await cliente_http.delete(f"/clientes/{maria_id}", headers=gerente)
+
+    assert exclusao.status_code == 204
+    restantes = (await cliente_http.get("/veiculos", headers=gerente)).json()
+    assert [v["id"] for v in restantes] == [do_joao["id"]]
+    ativos_da_maria = await conexao.scalar(
+        text("SELECT count(*) FROM veiculos WHERE cliente_id = :id AND ativo"),
+        {"id": UUID(maria_id)},
+    )
+    assert ativos_da_maria == 0
 
 
 async def test_sem_token_responde_401(cliente_http):

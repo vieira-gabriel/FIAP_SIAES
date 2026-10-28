@@ -121,7 +121,7 @@ obter_cadastrar_cliente = _com_repositorio_de_clientes(CadastrarCliente)
 obter_atualizar_cliente = _com_repositorio_de_clientes(AtualizarCliente)
 obter_listar_clientes = _com_repositorio_de_clientes(ListarClientes)
 obter_detalhar_cliente = _com_repositorio_de_clientes(DetalharCliente)
-obter_excluir_cliente = _com_repositorio_de_clientes(ExcluirCliente)
+obter_excluir_cliente = _com_repositorios_de_clientes_e_veiculos(ExcluirCliente)
 
 obter_cadastrar_veiculo = _com_repositorios_de_clientes_e_veiculos(CadastrarVeiculo)
 obter_atualizar_veiculo = _com_repositorio_de_veiculos(AtualizarVeiculo)

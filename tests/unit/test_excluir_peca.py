@@ -42,7 +42,7 @@ async def test_exclusao_logica_mantem_as_reservas(pecas, estoques, ordens):
     estoque.reservar(3)
     await ordens.salvar(_os_com_a_peca(peca, quantidade_pendente=0))
 
-    await ExcluirPeca(pecas, ordens).executar(peca.id)
+    await ExcluirPeca(pecas, estoques, ordens).executar(peca.id)
 
     assert not (await pecas.buscar_por_id(peca.id)).ativo
     assert (await estoques.buscar_por_peca(peca.id)).quantidade_reservada == 3
@@ -53,7 +53,7 @@ async def test_peca_pendente_em_alguma_os_nao_e_excluida(pecas, estoques, ordens
     await ordens.salvar(_os_com_a_peca(peca, quantidade_pendente=1))
 
     with pytest.raises(PecaComPendencia) as erro:
-        await ExcluirPeca(pecas, ordens).executar(peca.id)
+        await ExcluirPeca(pecas, estoques, ordens).executar(peca.id)
 
     assert erro.value.numeros_das_os == ["529-7F3A9C2B"]
     assert (await pecas.buscar_por_id(peca.id)).ativo
@@ -61,7 +61,31 @@ async def test_peca_pendente_em_alguma_os_nao_e_excluida(pecas, estoques, ordens
 
 async def test_excluir_de_novo_nao_encontra_a_peca(pecas, estoques, ordens):
     peca, _ = await _cadastrar(pecas, estoques)
-    await ExcluirPeca(pecas, ordens).executar(peca.id)
+    await ExcluirPeca(pecas, estoques, ordens).executar(peca.id)
 
     with pytest.raises(EntidadeNaoEncontrada):
-        await ExcluirPeca(pecas, ordens).executar(peca.id)
+        await ExcluirPeca(pecas, estoques, ordens).executar(peca.id)
+
+
+async def test_bloqueia_o_estoque_antes_de_consultar_as_pendencias(pecas, estoques, ordens):
+    """A leitura do estoque bloqueia o registro no PostgreSQL (RNF-09); a ordem importa."""
+    peca, _ = await _cadastrar(pecas, estoques)
+    chamadas = []
+    buscar_estoque, listar_pendentes = estoques.buscar_por_peca, ordens.listar_pendentes_da_peca
+
+    async def registrar_estoque(peca_id):
+        chamadas.append("estoque")
+        return await buscar_estoque(peca_id)
+
+    async def registrar_pendentes(peca_id):
+        chamadas.append("pendentes")
+        return await listar_pendentes(peca_id)
+
+    estoques.buscar_por_peca, ordens.listar_pendentes_da_peca = (
+        registrar_estoque,
+        registrar_pendentes,
+    )
+
+    await ExcluirPeca(pecas, estoques, ordens).executar(peca.id)
+
+    assert chamadas == ["estoque", "pendentes"]

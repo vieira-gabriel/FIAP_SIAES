@@ -171,11 +171,13 @@ def _com_repositorios_de_pecas_e_eventos[T](
 
 
 def _com_repositorios_de_pecas_e_ordens[T](
-    caso_de_uso: Callable[[PecaRepository, OrdemServicoRepository], T],
+    caso_de_uso: Callable[[PecaRepository, EstoqueRepository, OrdemServicoRepository], T],
 ) -> Callable[[Request], AsyncIterator[T]]:
     return _por_requisicao(
         lambda sessao, _: caso_de_uso(
-            PostgresPecaRepository(sessao), PostgresOrdemServicoRepository(sessao)
+            PostgresPecaRepository(sessao),
+            PostgresEstoqueRepository(sessao),
+            PostgresOrdemServicoRepository(sessao),
         )
     )
 

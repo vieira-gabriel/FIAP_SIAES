@@ -259,8 +259,8 @@ Tarefas da fase:
 - [x] Registro dos timestamps de abertura, início da execução e finalização (RF-13, RF-20, RF-21; issue #40)
 - [x] Bloqueio de alteração de itens após `FINALIZADA` (RF-21; issue #40): os itens só mudam em `EM_DIAGNOSTICO`
 - [x] Histórico de status com origem, usuário e motivo obrigatório no cancelamento (RF-24, RF-23; issue #41): `HistoricoStatusOS` imutável, histórico da OS somente leitura, registro de abertura criado por `OrdemServico.abrir` e um registro por transição, gravado pelo `_mudar_status`
-- [ ] Agregado `EstoquePeca` com quantidade física, reserva, pendência, baixa e estorno, sem permitir saldo negativo (RF-12, RF-18, RF-20)
-- [ ] Regra de prioridade pela OS mais antiga na reserva e na alocação de peças repostas (RF-18, RF-19)
+- [x] Agregado `EstoquePeca` com quantidade física, reserva, pendência, baixa e estorno, sem permitir saldo negativo (RF-12, RF-18, RF-20; issue #42): `reservar` devolve (reservada, pendente), `SaldoPecaAtualizadoEvent` acumulado quando o saldo aumenta, e porta `EstoqueRepository`; a alocação por prioridade (`alocar_pendencias`) fica na #43
+- [ ] Regra de prioridade pela OS mais antiga na reserva e na alocação de peças repostas (RF-18, RF-19; issue #43): `PendenciaPeca`, `AlocacaoPeca` e `EstoquePeca.alocar_pendencias` prontos (parte 1); falta `OrdemServico.alocar_peca` (parte 2)
 - [x] Cálculo da estimativa de entrega por status (RF-25; issue #44): `OrdemServico.estimar_entrega(momento_consulta)` com os valores congelados nos itens e uma linha de teste para cada status da tabela
 - [ ] Eventos de domínio acumulados no agregado (`collect_domain_events`)
 - [ ] Interfaces (portas) dos repositórios

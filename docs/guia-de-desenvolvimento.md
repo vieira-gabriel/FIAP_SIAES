@@ -183,16 +183,25 @@ Entidades têm identidade e **protegem as próprias regras**. Quem altera o esta
 
 ```python
 # src/domain/entities/ordem_servico.py (trecho ilustrativo)
+from collections.abc import Collection
+from datetime import UTC, datetime
+
 from domain.exceptions import TransicaoDeStatusInvalida
 from domain.value_objects.status_os import StatusOS
 
 
 class OrdemServico:
     def concluir_manutencao(self) -> None:
-        if self.status != StatusOS.EM_EXECUCAO:
-            raise TransicaoDeStatusInvalida(self.status, StatusOS.FINALIZADA)
-        self._mudar_status(StatusOS.FINALIZADA)
+        self._mudar_status(StatusOS.FINALIZADA, de={StatusOS.EM_EXECUCAO})
+        self.data_finalizacao = datetime.now(UTC)
+
+    def _mudar_status(self, destino: StatusOS, *, de: Collection[StatusOS]) -> None:
+        if self.status not in de:
+            raise TransicaoDeStatusInvalida(self.status, destino)
+        self.status = destino
 ```
+
+Cada transição declara de quais status parte, e só `_mudar_status` altera o `status`: o histórico (RF-24) e os eventos de domínio se encaixam nesse ponto único.
 
 Regras que **ficam obrigatoriamente no domínio**:
 - Máquina de estados da OS e bloqueio de transições inválidas (Linguagem Ubíqua §5, RF-16 a RF-26).
@@ -282,7 +291,7 @@ Nenhuma dessas operações pode deixar o saldo disponível negativo (RF-12).
    | :--- | :--- | :--- |
    | `ValorInvalido` (CPF, placa, número da OS...) | `400` | `VALOR_INVALIDO` |
    | `CredenciaisInvalidas` e token ausente ou inválido | `401` | `NAO_AUTENTICADO` |
-   | Perfil sem permissão | `403` | `SEM_PERMISSAO` |
+   | `AcessoNegado` (operação que o usuário não pode fazer, como iniciar a execução de uma OS alheia) e perfil sem permissão | `403` | `SEM_PERMISSAO` |
    | `EntidadeNaoEncontrada` | `404` | `ENTIDADE_NAO_ENCONTRADA` |
    | `RegraDeNegocioViolada` (transição inválida, saldo insuficiente...) | `422` | `REGRA_DE_NEGOCIO_VIOLADA` |
    | Corpo da requisição fora do DTO (campo ausente, tipo errado) | `422` | `ENTRADA_INVALIDA`, com os campos em `detalhes` |

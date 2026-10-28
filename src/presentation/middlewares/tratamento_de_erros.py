@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from domain.exceptions import (
+    AcessoNegado,
     CredenciaisInvalidas,
     EntidadeNaoEncontrada,
     ErroDeDominio,
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 _ERROS_DE_DOMINIO: list[tuple[type[ErroDeDominio], int, str]] = [
     (ValorInvalido, status.HTTP_400_BAD_REQUEST, "VALOR_INVALIDO"),
     (CredenciaisInvalidas, status.HTTP_401_UNAUTHORIZED, "NAO_AUTENTICADO"),
+    (AcessoNegado, status.HTTP_403_FORBIDDEN, "SEM_PERMISSAO"),
     (EntidadeNaoEncontrada, status.HTTP_404_NOT_FOUND, "ENTIDADE_NAO_ENCONTRADA"),
     (RegraDeNegocioViolada, status.HTTP_422_UNPROCESSABLE_CONTENT, "REGRA_DE_NEGOCIO_VIOLADA"),
 ]

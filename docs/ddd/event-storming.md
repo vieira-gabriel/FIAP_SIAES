@@ -166,7 +166,7 @@ Os nomes do board diferem dos termos da Linguagem Ubíqua em alguns pontos. No c
 | Dar baixa nas peças / Baixa de peças utilizadas | Baixa | Linguagem Ubíqua §1, RF-20 |
 | Concluir manutenção / OS concluída | `concluir_manutencao` | Linguagem Ubíqua §5, RF-21 |
 | Estorno de peças (após "OS cancelada") | Estorno (das quantidades reservadas) | Linguagem Ubíqua §1, RF-18 |
-| Cancelar OS / OS cancelada | `cancelar(motivo)` | Linguagem Ubíqua §5, RF-23 |
+| Cancelar OS / OS cancelada | `cancelar(usuario_id, motivo)` | Linguagem Ubíqua §5, RF-23 |
 | Remover serviço, peça, cliente ou veículo | Exclusão lógica | RF-06, RF-09, RF-11, RF-12 |
 | Peça | Peça / Insumo | Linguagem Ubíqua §1 |
 | Atualizar saldo da peça | Atualização de saldo de `EstoquePeca` | Linguagem Ubíqua §1, RF-12 |
@@ -196,7 +196,7 @@ Os agregados acumulam os eventos, e o caso de uso os entrega ao Event Dispatcher
 | Evento | Agregado emissor | Momento da emissão | Consumidor | Evento do board | Requisito |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `OrcamentoFinalizadoEvent` | `OrdemServico` | `finalizar_orcamento`, na transição de `EM_DIAGNOSTICO` para `AGUARDANDO_APROVACAO`; a quantidade de cada `ItemPeca` começa toda pendente | `ReservaPecasHandler`, que, para cada peça da OS, busca as OS com pendência da peça, inclui a OS nova, chama `EstoquePeca.alocar_pendencias` e aplica cada alocação com `OrdemServico.alocar_peca` | Orçamento gerado → Reservar peças | RF-17, RF-18 |
-| `OSCanceladaEvent` | `OrdemServico` | `rejeitar_orcamento` e `cancelar(motivo)`, nas transições para `CANCELADA`; o evento leva as quantidades a estornar, calculadas pela OS | `EstornoPecasHandler`, que chama `EstoquePeca.estornar` com as quantidades recebidas no evento | OS reprovada → Estorno de peças; OS cancelada → Estorno de peças | RF-18, RF-23, RF-26 |
+| `OSCanceladaEvent` | `OrdemServico` | `rejeitar_orcamento` e `cancelar(usuario_id, motivo)`, nas transições para `CANCELADA`; o evento leva as quantidades a estornar, calculadas pela OS | `EstornoPecasHandler`, que chama `EstoquePeca.estornar` com as quantidades recebidas no evento | OS reprovada → Estorno de peças; OS cancelada → Estorno de peças | RF-18, RF-23, RF-26 |
 | `ExecucaoIniciadaEvent` | `OrdemServico` | `iniciar_execucao`, na transição de `AGUARDANDO_EXECUCAO` para `EM_EXECUCAO`; o evento leva as quantidades reservadas de cada peça | `BaixaEstoqueHandler`, que chama `EstoquePeca.baixar` com as quantidades recebidas no evento | Serviço iniciado → Dar baixa nas peças | RF-20 |
 | `SaldoPecaAtualizadoEvent` | `EstoquePeca` | `repor`, `estornar` e `ajustar_quantidade_fisica`, sempre que o saldo disponível aumenta (RF-12) | `AlocacaoPecasPendentesHandler`, que busca as OS com pendência da peça, chama `EstoquePeca.alocar_pendencias` e aplica cada alocação com `OrdemServico.alocar_peca`, que chama `liberar_para_execucao` quando a OS em `AGUARDANDO_PECA` fica sem pendência | Saldo da peça atualizado → Aloca peça pendente nas OS mais antigas | RF-12, RF-18, RF-19 |
 

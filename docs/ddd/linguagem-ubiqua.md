@@ -24,7 +24,7 @@ Este documento estabelece a **Linguagem Ubíqua** do sistema de gestão da ofici
 | **Ajuste de Estoque** | Correção da quantidade física de uma peça por perda, quebra ou inventário. A quantidade física nunca fica abaixo da quantidade reservada. | Método `ajustar_quantidade_fisica` de `EstoquePeca` |
 | **Estorno** | Devolução das quantidades reservadas ao saldo disponível quando o orçamento é rejeitado ou a OS é cancelada. Peças já baixadas não são estornadas. | Método de `EstoquePeca` |
 | **Histórico de Status** | Registro imutável de cada transição de status da OS, com status anterior, novo status, data/hora, origem, usuário e motivo. | `domain.entities.HistoricoStatusOS` |
-| **Estimativa de Entrega** | Data prevista de conclusão exibida ao cliente, calculada pela soma dos tempos estimados dos serviços e pelo maior prazo de reposição entre as peças pendentes. Usa os valores congelados nos itens da OS. | Método `estimar_entrega` de `OrdemServico` |
+| **Estimativa de Entrega** | Data prevista de conclusão exibida ao cliente, calculada pela soma dos tempos estimados dos serviços e pelo maior prazo de reposição entre as peças pendentes. Usa os valores congelados nos itens da OS. Não existe enquanto os serviços não foram definidos (`RECEBIDA` e `EM_DIAGNOSTICO`) nem na OS cancelada. | Método `estimar_entrega` de `OrdemServico` |
 | **Usuário** | Funcionário interno da oficina com acesso autenticado ao sistema (Atendente, Mecânico ou Gerente). Guarda apenas o hash da senha e pode ser desativado pelo Gerente; usuário desativado não faz login. O cliente não é um usuário. | `domain.entities.Usuario` |
 
 ---
@@ -114,9 +114,9 @@ Apenas as transições abaixo são permitidas pelo agregado `OrdemServico`; qual
 | `AGUARDANDO_EXECUCAO` | `EM_EXECUCAO` | `iniciar_execucao` | Mecânico atribuído, Gerente | RF-20 |
 | `EM_EXECUCAO` | `FINALIZADA` | `concluir_manutencao` | Mecânico, Gerente | RF-21 |
 | `FINALIZADA` | `ENTREGUE` | `entregar_veiculo` | Atendente, Gerente | RF-22 |
-| `RECEBIDA` a `EM_EXECUCAO` | `CANCELADA` | `cancelar(motivo)` | Gerente | RF-23, RF-18 |
+| `RECEBIDA` a `EM_EXECUCAO` | `CANCELADA` | `cancelar(usuario_id, motivo)` | Gerente | RF-23, RF-18 |
 
-Toda transição gera um registro no Histórico de Status (RF-24).
+Toda transição gera um registro no Histórico de Status (RF-24), com a origem conforme a coluna "Quem executa": Atendente, Mecânico e Gerente gravam `USUARIO` e o identificador do usuário, o Cliente grava `CLIENTE` e o Sistema grava `SISTEMA`, ambos sem usuário. A abertura gera o primeiro registro, sem status anterior.
 
 ---
 

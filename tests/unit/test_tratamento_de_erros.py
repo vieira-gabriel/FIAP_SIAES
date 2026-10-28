@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from application.ports.token_service import TokenInvalido, TokenService, UsuarioAutenticado
 from domain.exceptions import (
+    AcessoNegado,
     CPFInvalido,
     CredenciaisInvalidas,
     EntidadeNaoEncontrada,
@@ -63,6 +64,10 @@ def _app_de_teste() -> FastAPI:
     async def credenciais_invalidas():
         raise CredenciaisInvalidas()
 
+    @app.get("/acesso-negado")
+    async def acesso_negado():
+        raise AcessoNegado("Apenas o mecânico atribuído ou o Gerente pode iniciar a execução.")
+
     @app.get("/somente-gerente", dependencies=[Depends(exigir_perfis(PerfilUsuario.GERENTE))])
     async def somente_gerente():
         return {}
@@ -104,6 +109,12 @@ async def cliente():
         ),
         ("/regra-violada", 422, "REGRA_DE_NEGOCIO_VIOLADA", "Informe o motivo do cancelamento."),
         ("/credenciais-invalidas", 401, "NAO_AUTENTICADO", "E-mail ou senha inválidos."),
+        (
+            "/acesso-negado",
+            403,
+            "SEM_PERMISSAO",
+            "Apenas o mecânico atribuído ou o Gerente pode iniciar a execução.",
+        ),
     ],
 )
 async def test_excecao_do_dominio_vira_o_codigo_http_da_tabela(

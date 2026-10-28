@@ -255,13 +255,13 @@ Tarefas da fase:
 - [ ] `Cliente`, `Veiculo`, `Usuario`, `Servico` (com tempo estimado) e `Peca` (com prazo de reposição), com exclusão lógica (RF-06, RF-09, RF-11, RF-12)
 - [x] Agregado `OrdemServico` com `ItemServico` e `ItemPeca`, congelando os preços vigentes na conclusão do orçamento (RF-13, RF-17, RNF-11; issue #39): itens só em `EM_DIAGNOSTICO`, apenas ativos e sem repetição, e `congelar_valores` atualiza os itens com os valores vigentes do catálogo
 - [x] Cálculo do orçamento como soma dos valores congelados (RF-17; issue #39): objeto de valor `Orcamento` com os subtotais de serviços e de peças e o total
-- [ ] Máquina de estados com os 9 status e bloqueio de transições inválidas: `atribuir_mecanico`, `finalizar_orcamento`, `aprovar_orcamento`, `rejeitar_orcamento`, `liberar_para_execucao`, `iniciar_execucao`, `concluir_manutencao`, `entregar_veiculo` e `cancelar` (linguagem ubíqua §5)
-- [ ] Registro dos timestamps de abertura, início da execução e finalização (RF-13, RF-20, RF-21)
-- [ ] Bloqueio de alteração de itens após `FINALIZADA` (RF-21)
-- [ ] Histórico de status com origem, usuário e motivo obrigatório no cancelamento (RF-24, RF-23)
+- [x] Máquina de estados com os 9 status e bloqueio de transições inválidas: `atribuir_mecanico`, `finalizar_orcamento`, `aprovar_orcamento`, `rejeitar_orcamento`, `liberar_para_execucao`, `iniciar_execucao`, `concluir_manutencao`, `entregar_veiculo` e `cancelar` (linguagem ubíqua §5; issue #40): cada método declara de quais status parte, e o histórico (#41) e os eventos (#45) se encaixam no `_mudar_status`
+- [x] Registro dos timestamps de abertura, início da execução e finalização (RF-13, RF-20, RF-21; issue #40)
+- [x] Bloqueio de alteração de itens após `FINALIZADA` (RF-21; issue #40): os itens só mudam em `EM_DIAGNOSTICO`
+- [x] Histórico de status com origem, usuário e motivo obrigatório no cancelamento (RF-24, RF-23; issue #41): `HistoricoStatusOS` imutável, histórico da OS somente leitura, registro de abertura criado por `OrdemServico.abrir` e um registro por transição, gravado pelo `_mudar_status`
 - [x] Agregado `EstoquePeca` com quantidade física, reserva, pendência, baixa e estorno, sem permitir saldo negativo (RF-12, RF-18, RF-20; issue #42): `reservar` devolve (reservada, pendente), `SaldoPecaAtualizadoEvent` acumulado quando o saldo aumenta, e porta `EstoqueRepository`; a alocação por prioridade (`alocar_pendencias`) fica na #43
 - [ ] Regra de prioridade pela OS mais antiga na reserva e na alocação de peças repostas (RF-18, RF-19; issue #43): `PendenciaPeca`, `AlocacaoPeca` e `EstoquePeca.alocar_pendencias` prontos (parte 1); falta `OrdemServico.alocar_peca` (parte 2)
-- [ ] Cálculo da estimativa de entrega por status (RF-25)
+- [x] Cálculo da estimativa de entrega por status (RF-25; issue #44): `OrdemServico.estimar_entrega(momento_consulta)` com os valores congelados nos itens e uma linha de teste para cada status da tabela
 - [ ] Eventos de domínio acumulados no agregado (`collect_domain_events`)
 - [ ] Interfaces (portas) dos repositórios
 

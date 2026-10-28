@@ -3,6 +3,7 @@ from uuid import uuid4
 import pytest
 
 from domain.exceptions import (
+    AcessoNegado,
     AlocacaoInvalida,
     CNPJInvalido,
     CPFInvalido,
@@ -15,6 +16,7 @@ from domain.exceptions import (
     MotivoObrigatorio,
     NumeroOSInvalido,
     OrdemServicoInvalida,
+    PecasPendentes,
     PlacaInvalida,
     QuantidadeInvalida,
     RegraDeNegocioViolada,
@@ -50,6 +52,7 @@ def test_bases_herdam_de_erro_de_dominio(base):
         (ItensBloqueados(StatusOS.FINALIZADA), RegraDeNegocioViolada),
         (ItemIndisponivel("Filtro de óleo"), RegraDeNegocioViolada),
         (ItemJaIncluido("Filtro de óleo"), RegraDeNegocioViolada),
+        (PecasPendentes(["Filtro de óleo"]), RegraDeNegocioViolada),
         (MotivoObrigatorio(), RegraDeNegocioViolada),
     ],
 )
@@ -71,6 +74,22 @@ def test_credenciais_invalidas_fica_fora_das_bases_de_400_404_422():
 
     assert isinstance(excecao, ErroDeDominio)
     assert not isinstance(excecao, EntidadeNaoEncontrada | RegraDeNegocioViolada | ValorInvalido)
+
+
+def test_acesso_negado_fica_fora_das_bases_de_400_404_422():
+    excecao = AcessoNegado("Apenas o Gerente pode cancelar.")
+
+    assert isinstance(excecao, ErroDeDominio)
+    assert not isinstance(excecao, EntidadeNaoEncontrada | RegraDeNegocioViolada | ValorInvalido)
+    assert excecao.motivo == "Apenas o Gerente pode cancelar."
+    assert str(excecao) == "Apenas o Gerente pode cancelar."
+
+
+def test_pecas_pendentes_informa_as_pecas():
+    excecao = PecasPendentes(["Filtro de óleo", "Vela"])
+
+    assert excecao.pecas == ["Filtro de óleo", "Vela"]
+    assert str(excecao) == "A OS ainda tem peças pendentes: Filtro de óleo, Vela."
 
 
 def test_transicao_invalida_informa_status_atual_e_pretendido():

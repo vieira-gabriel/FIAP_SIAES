@@ -78,6 +78,7 @@ Toda dependência externa segue o mesmo padrão:
 | :--- | :--- |
 | `domain/repositories/ordem_servico_repository.py` | `infrastructure/repositories/postgres_ordem_servico_repository.py` |
 | `domain/repositories/usuario_repository.py` | `infrastructure/repositories/postgres_usuario_repository.py` |
+| `domain/repositories/peca_repository.py` | `infrastructure/repositories/postgres_peca_repository.py` |
 | `domain/repositories/estoque_repository.py` | `infrastructure/repositories/postgres_estoque_repository.py` |
 | `application/ports/token_service.py` | `infrastructure/security/jwt_token_service.py` |
 | `application/ports/password_hasher.py` | `infrastructure/security/bcrypt_password_hasher.py` |

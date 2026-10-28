@@ -10,6 +10,10 @@ class SaldoPecaAtualizadoEvent(DomainEvent):
 
     Emitido por `EstoquePeca` em toda reposição, estorno ou ajuste que aumenta o saldo (RF-12,
     RF-19).
+
+    O `saldo_disponivel` é o do instante em que o evento foi gerado. Duas operações na mesma
+    peça, na mesma transação, geram dois eventos, e o primeiro chega com um saldo já antigo:
+    quem reage ao evento deve usar o saldo atual do agregado, não o do evento.
     """
 
     peca_id: UUID

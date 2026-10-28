@@ -53,12 +53,13 @@ class OrdemServico:
     servicos: list[ItemServico] = field(default_factory=list)
     pecas: list[ItemPeca] = field(default_factory=list)
     orcamento: Orcamento | None = None
-    historico: list[HistoricoStatusOS] = field(default_factory=list)
+    historico: tuple[HistoricoStatusOS, ...] = ()
 
     def __post_init__(self):
         if not isinstance(self.numero, NumeroOS):
             raise OrdemServicoInvalida("o número da OS é obrigatório")
         for nome, identificador in (
+            ("a OS", self.id),
             ("o cliente", self.cliente_id),
             ("o veículo", self.veiculo_id),
             ("o atendente", self.atendente_id),
@@ -69,8 +70,47 @@ class OrdemServico:
             raise OrdemServicoInvalida("o status da OS é inválido")
         if not isinstance(self.data_abertura, datetime) or self.data_abertura.tzinfo is None:
             raise OrdemServicoInvalida("a data de abertura da OS deve ter fuso horário")
-        if self.status is StatusOS.RECEBIDA and not self.historico:
-            self._registrar_abertura()
+        self._validar_historico()
+
+    def __setattr__(self, nome: str, valor: object) -> None:
+        # RF-24: os registros do histórico não podem ser alterados nem removidos, então o
+        # histórico só muda pelas transições, e nunca por uma atribuição feita de fora.
+        if nome == "historico" and "historico" in self.__dict__:
+            raise AttributeError("o histórico da OS só muda pelas transições de status")
+        super().__setattr__(nome, valor)
+
+    @classmethod
+    def abrir(
+        cls,
+        *,
+        numero: NumeroOS,
+        cliente_id: UUID,
+        veiculo_id: UUID,
+        atendente_id: UUID,
+        id: UUID | None = None,
+    ) -> "OrdemServico":
+        """Abre uma OS nova em `RECEBIDA` e registra a abertura no histórico (RF-13, RF-24).
+
+        É o único ponto que cria o registro de abertura: o construtor só reconstitui uma OS, e
+        por isso nunca inventa um registro que a persistência já guarda.
+        """
+        os = cls(
+            numero=numero,
+            cliente_id=cliente_id,
+            veiculo_id=veiculo_id,
+            atendente_id=atendente_id,
+            id=id if id is not None else uuid4(),
+        )
+        os._acrescentar_ao_historico(
+            HistoricoStatusOS(
+                status_anterior=None,
+                status_novo=StatusOS.RECEBIDA,
+                data_hora=os.data_abertura,
+                origem=OrigemTransicao.USUARIO,
+                usuario_id=atendente_id,
+            )
+        )
+        return os
 
     def __eq__(self, outro: object) -> bool:
         return isinstance(outro, OrdemServico) and outro.id == self.id
@@ -320,22 +360,28 @@ class OrdemServico:
         """
         self._validar_transicao(destino, de=de)
         momento = datetime.now(UTC)
-        self.historico.append(
+        self._acrescentar_ao_historico(
             HistoricoStatusOS(self.status, destino, momento, origem, usuario_id, motivo)
         )
         self.status = destino
         return momento
 
-    def _registrar_abertura(self) -> None:
-        self.historico.append(
-            HistoricoStatusOS(
-                status_anterior=None,
-                status_novo=StatusOS.RECEBIDA,
-                data_hora=self.data_abertura,
-                origem=OrigemTransicao.USUARIO,
-                usuario_id=self.atendente_id,
-            )
-        )
+    def _acrescentar_ao_historico(self, registro: HistoricoStatusOS) -> None:
+        object.__setattr__(self, "historico", (*self.historico, registro))
+
+    def _validar_historico(self) -> None:
+        """Um histórico reconstituído precisa estar completo e em ordem, e terminar no status."""
+        historico = self.historico
+        if not isinstance(historico, list | tuple) or not all(
+            isinstance(registro, HistoricoStatusOS) for registro in historico
+        ):
+            raise OrdemServicoInvalida("o histórico da OS deve ser uma sequência de registros")
+        for anterior, seguinte in zip(historico, historico[1:], strict=False):
+            if seguinte.status_anterior != anterior.status_novo:
+                raise OrdemServicoInvalida("os registros do histórico não estão encadeados")
+        if historico and historico[-1].status_novo != self.status:
+            raise OrdemServicoInvalida("o último registro do histórico não é o status da OS")
+        object.__setattr__(self, "historico", tuple(historico))
 
 
 def _registrada(data: datetime | None, descricao: str) -> datetime:

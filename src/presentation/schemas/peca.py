@@ -6,24 +6,29 @@ from pydantic import BaseModel, Field
 from domain.entities.estoque_peca import EstoquePeca
 from domain.entities.peca import Peca
 
+# Limites das colunas INTEGER e NUMERIC(12, 2): acima deles o banco recusaria a gravação com
+# erro 500, e assim a entrada é recusada com 422 antes de chegar ao caso de uso.
+_MAIOR_INTEIRO = 2_147_483_647
+_MAIOR_PRECO = Decimal("9999999999.99")
+
 
 class PecaRequest(BaseModel):
     codigo_referencia: str = Field(min_length=1, max_length=50, examples=["FLT-001"])
     nome: str = Field(min_length=1, max_length=200, examples=["Filtro de óleo"])
-    preco_unitario: Decimal = Field(examples=["35.90"])
-    prazo_reposicao_dias: int = Field(examples=[3])
+    preco_unitario: Decimal = Field(le=_MAIOR_PRECO, examples=["35.90"])
+    prazo_reposicao_dias: int = Field(le=_MAIOR_INTEIRO, examples=[3])
 
 
 class CadastrarPecaRequest(PecaRequest):
-    quantidade_fisica_inicial: int = Field(default=0, examples=[10])
+    quantidade_fisica_inicial: int = Field(default=0, le=_MAIOR_INTEIRO, examples=[10])
 
 
 class ReposicaoRequest(BaseModel):
-    quantidade: int = Field(examples=[5])
+    quantidade: int = Field(le=_MAIOR_INTEIRO, examples=[5])
 
 
 class AjusteQuantidadeFisicaRequest(BaseModel):
-    quantidade_fisica: int = Field(examples=[8])
+    quantidade_fisica: int = Field(le=_MAIOR_INTEIRO, examples=[8])
 
 
 class PecaResponse(BaseModel):

@@ -6,6 +6,7 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from domain.entities.estoque_peca import EstoquePeca
 from domain.entities.peca import Peca
+from domain.exceptions import CodigoDePecaJaCadastrado
 from domain.value_objects.valor import Valor
 from infrastructure.database.engine import criar_fabrica_de_sessoes
 from infrastructure.database.unidade_de_trabalho import UnidadeDeTrabalhoSqlAlchemy
@@ -87,3 +88,18 @@ async def test_estoque_lido_para_alteracao_fica_bloqueado_ate_o_fim_da_transacao
             async with UnidadeDeTrabalhoSqlAlchemy(fabrica_de_sessoes) as segunda:
                 await segunda.sessao.execute(text("SET LOCAL lock_timeout = '200ms'"))
                 await PostgresEstoqueRepository(segunda.sessao).buscar_por_peca(peca.id)
+
+
+async def test_codigo_gravado_por_outra_transacao_vira_excecao_do_dominio(fabrica_de_sessoes):
+    """Cadastro concorrente: a consulta de `garantir_codigo_livre` não viu a outra peça."""
+    await _cadastrar(fabrica_de_sessoes, "FLT-001")
+    concorrente = Peca(
+        codigo_referencia="FLT-001",
+        nome="Outro filtro",
+        preco_unitario=Valor("10.00"),
+        prazo_reposicao_dias=1,
+    )
+
+    with pytest.raises(CodigoDePecaJaCadastrado):
+        async with UnidadeDeTrabalhoSqlAlchemy(fabrica_de_sessoes) as unidade:
+            await PostgresPecaRepository(unidade.sessao).salvar(concorrente)

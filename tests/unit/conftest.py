@@ -1,6 +1,8 @@
 import pytest
 
+from application.events.event_dispatcher import EventDispatcher, EventHandler
 from application.ports.password_hasher import PasswordHasher
+from domain.events.saldo_peca_atualizado_event import SaldoPecaAtualizadoEvent
 from domain.repositories.cliente_repository import ClienteRepository
 from domain.repositories.estoque_repository import EstoqueRepository
 from domain.repositories.ordem_servico_repository import OrdemServicoRepository
@@ -158,3 +160,24 @@ class OrdemServicoRepositoryEmMemoria(OrdemServicoRepository):
 @pytest.fixture
 def ordens() -> OrdemServicoRepositoryEmMemoria:
     return OrdemServicoRepositoryEmMemoria()
+
+
+class HandlerEspiao(EventHandler):
+    def __init__(self):
+        self.recebidos = []
+
+    async def tratar(self, evento):
+        self.recebidos.append(evento)
+        return []
+
+
+@pytest.fixture
+def saldos_atualizados() -> HandlerEspiao:
+    return HandlerEspiao()
+
+
+@pytest.fixture
+def eventos(saldos_atualizados) -> EventDispatcher:
+    dispatcher = EventDispatcher()
+    dispatcher.registrar(SaldoPecaAtualizadoEvent, saldos_atualizados)
+    return dispatcher

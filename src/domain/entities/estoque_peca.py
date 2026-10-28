@@ -1,9 +1,17 @@
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from uuid import UUID
 
 from domain.events.domain_event import DomainEvent
 from domain.events.saldo_peca_atualizado_event import SaldoPecaAtualizadoEvent
-from domain.exceptions import PecaInvalida, QuantidadeInvalida, SaldoInsuficiente
+from domain.exceptions import (
+    AlocacaoInvalida,
+    PecaInvalida,
+    QuantidadeInvalida,
+    SaldoInsuficiente,
+)
+from domain.value_objects.alocacao_peca import AlocacaoPeca
+from domain.value_objects.pendencia_peca import PendenciaPeca
 
 
 @dataclass(eq=False)
@@ -43,6 +51,23 @@ class EstoquePeca:
         reservada = min(quantidade, self.saldo_disponivel())
         self.quantidade_reservada += reservada
         return reservada, quantidade - reservada
+
+    def alocar_pendencias(self, pendencias: Iterable[PendenciaPeca]) -> list[AlocacaoPeca]:
+        """Reserva o saldo para a OS mais antiga primeiro e devolve o que cada uma recebeu (RF-19).
+
+        Atende a conclusão do orçamento, com a OS nova entre as pendências, e o aumento de saldo.
+        Em caso de empate na data de abertura vale a ordem recebida. Só devolve as OS que
+        receberam alguma quantidade, e as reservas já feitas nunca são remanejadas. Se uma
+        pendência for inválida, nada é reservado.
+        """
+        pendencias = list(pendencias)
+        _exigir_pendencias_validas(pendencias)
+        alocacoes = []
+        for pendencia in sorted(pendencias, key=lambda p: p.data_abertura_os):
+            reservada, _ = self.reservar(pendencia.quantidade_pendente)
+            if reservada:
+                alocacoes.append(AlocacaoPeca(pendencia.os_id, reservada))
+        return alocacoes
 
     def baixar(self, quantidade: int) -> None:
         """Baixa definitiva de peças reservadas, no início da execução da OS (RF-20)."""
@@ -85,6 +110,13 @@ class EstoquePeca:
         self._domain_events.append(
             SaldoPecaAtualizadoEvent(peca_id=self.peca_id, saldo_disponivel=self.saldo_disponivel())
         )
+
+
+def _exigir_pendencias_validas(pendencias: list) -> None:
+    if not all(isinstance(pendencia, PendenciaPeca) for pendencia in pendencias):
+        raise AlocacaoInvalida("as pendências devem ser objetos PendenciaPeca")
+    if len({pendencia.os_id for pendencia in pendencias}) != len(pendencias):
+        raise AlocacaoInvalida("a mesma OS não pode ter duas pendências da peça")
 
 
 def _exigir_positiva(quantidade: object) -> None:

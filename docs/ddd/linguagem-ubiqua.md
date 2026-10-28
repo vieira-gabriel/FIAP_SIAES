@@ -42,6 +42,8 @@ Este documento estabelece a **Linguagem Ubíqua** do sistema de gestão da ofici
 | **StatusOS** | Enumeração dos estados válidos do ciclo de vida da Ordem de Serviço. | `domain.value_objects.StatusOS` |
 | **OrigemTransicao** | Enumeração de quem provocou uma transição de status: `USUARIO`, `CLIENTE` ou `SISTEMA`. | `domain.value_objects.OrigemTransicao` |
 | **PerfilUsuario** | Enumeração dos perfis de acesso dos usuários internos: `ATENDENTE`, `MECANICO` ou `GERENTE`. É o valor da claim `role` do token JWT. | `domain.value_objects.PerfilUsuario` |
+| **PendenciaPeca** | Quantidade de uma peça que uma OS ainda espera receber, com a data de abertura da OS, que define a prioridade (a mais antiga primeiro). A data exige fuso horário. Imutável. | `domain.value_objects.PendenciaPeca` |
+| **AlocacaoPeca** | Quantidade de uma peça reservada para uma OS que a esperava, resultado de `alocar_pendencias`. Imutável. | `domain.value_objects.AlocacaoPeca` |
 
 ---
 

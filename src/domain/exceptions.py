@@ -88,6 +88,12 @@ class QuantidadeInvalida(ValorInvalido):
         self.motivo = motivo
 
 
+class AlocacaoInvalida(ValorInvalido):
+    def __init__(self, motivo: str):
+        super().__init__(f"Alocação de peça inválida: {motivo}")
+        self.motivo = motivo
+
+
 class TransicaoDeStatusInvalida(RegraDeNegocioViolada):
     def __init__(self, status_atual: StatusOS, status_pretendido: StatusOS):
         super().__init__(

@@ -357,15 +357,15 @@ Tarefas da fase:
 
 ### README.md
 
-- [ ] Objetivo do projeto
-- [ ] Descrição resumida da solução
-- [ ] Arquitetura utilizada (pode referenciar o [modelo C4](docs/ddd/c4-model.md))
-- [ ] Tecnologias utilizadas
+- [x] Objetivo do projeto
+- [x] Descrição resumida da solução
+- [x] Arquitetura utilizada (pode referenciar o [modelo C4](docs/ddd/c4-model.md))
+- [x] Tecnologias utilizadas
 - [ ] Pré-requisitos
 - [ ] Instruções para execução, incluindo a cópia do `.env.example` para `.env` e o preenchimento das variáveis obrigatórias
 - [ ] Instruções para execução dos testes
 - [ ] Instruções de acesso ao Swagger (`/docs`)
-- [ ] Decisão e justificativa do banco de dados (pode reaproveitar o RNF-09)
+- [x] Decisão e justificativa do banco de dados (pode reaproveitar o RNF-09)
 - [ ] Usuários de demonstração (`SEED_DEMO=true`) e procedimento de autenticação
 - [ ] Estrutura dos principais diretórios (pode reaproveitar o guia de desenvolvimento)
 - [ ] Link para a documentação DDD

@@ -1,15 +1,22 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 
 from fastapi import FastAPI, Request
 
 from application.ports.token_service import TokenService
 from application.ports.verificador_do_banco import VerificadorDoBanco
+from application.use_cases.atualizar_cliente import AtualizarCliente
 from application.use_cases.autenticar_usuario import AutenticarUsuario
+from application.use_cases.cadastrar_cliente import CadastrarCliente
 from application.use_cases.criar_carga_inicial import CriarCargaInicial, SenhasDaCargaInicial
+from application.use_cases.detalhar_cliente import DetalharCliente
+from application.use_cases.excluir_cliente import ExcluirCliente
+from application.use_cases.listar_clientes import ListarClientes
+from domain.repositories.cliente_repository import ClienteRepository
 from infrastructure.config import Configuracao, carregar_configuracao
 from infrastructure.database.engine import criar_engine, criar_fabrica_de_sessoes
 from infrastructure.database.unidade_de_trabalho import UnidadeDeTrabalhoSqlAlchemy
 from infrastructure.database.verificador_do_banco import VerificadorDoBancoSqlAlchemy
+from infrastructure.repositories.postgres_cliente_repository import PostgresClienteRepository
 from infrastructure.repositories.postgres_usuario_repository import PostgresUsuarioRepository
 from infrastructure.security.bcrypt_password_hasher import BcryptPasswordHasher
 from infrastructure.security.jwt_token_service import JwtTokenService
@@ -65,6 +72,25 @@ async def obter_autenticar_usuario(request: Request) -> AsyncIterator[Autenticar
             estado.password_hasher,
             estado.token_service,
         )
+
+
+def _com_repositorio_de_clientes[T](
+    caso_de_uso: Callable[[ClienteRepository], T],
+) -> Callable[[Request], AsyncIterator[T]]:
+    """Cada requisição recebe a própria unidade de trabalho e o próprio repositório."""
+
+    async def obter(request: Request) -> AsyncIterator[T]:
+        async with UnidadeDeTrabalhoSqlAlchemy(request.app.state.fabrica_de_sessoes) as unidade:
+            yield caso_de_uso(PostgresClienteRepository(unidade.sessao))
+
+    return obter
+
+
+obter_cadastrar_cliente = _com_repositorio_de_clientes(CadastrarCliente)
+obter_atualizar_cliente = _com_repositorio_de_clientes(AtualizarCliente)
+obter_listar_clientes = _com_repositorio_de_clientes(ListarClientes)
+obter_detalhar_cliente = _com_repositorio_de_clientes(DetalharCliente)
+obter_excluir_cliente = _com_repositorio_de_clientes(ExcluirCliente)
 
 
 def _senhas_da_carga_inicial(configuracao: Configuracao) -> SenhasDaCargaInicial:

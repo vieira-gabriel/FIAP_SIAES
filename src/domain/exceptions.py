@@ -32,6 +32,13 @@ class CNPJInvalido(ValorInvalido):
         super().__init__("CNPJ inválido.")
 
 
+class DocumentoInvalido(ValorInvalido):
+    """Quantidade de dígitos que não é de CPF nem de CNPJ."""
+
+    def __init__(self):
+        super().__init__("Documento inválido: informe um CPF (11 dígitos) ou um CNPJ (14 dígitos).")
+
+
 class PlacaInvalida(ValorInvalido):
     def __init__(self, placa: str):
         super().__init__(
@@ -124,6 +131,16 @@ class ItemJaIncluido(RegraDeNegocioViolada):
     def __init__(self, nome: str):
         super().__init__(f"O item {nome!r} já está na OS.")
         self.nome = nome
+
+
+class DocumentoJaCadastrado(RegraDeNegocioViolada):
+    """Um documento identifica um único cliente, mesmo excluído logicamente (RF-04, RF-06).
+
+    Sem o número na mensagem, como em `CPFInvalido` (RNF-04).
+    """
+
+    def __init__(self):
+        super().__init__("Já existe um cliente cadastrado com este documento.")
 
 
 class MotivoObrigatorio(RegraDeNegocioViolada):

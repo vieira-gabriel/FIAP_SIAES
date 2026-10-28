@@ -78,6 +78,7 @@ Toda dependência externa segue o mesmo padrão:
 | :--- | :--- |
 | `domain/repositories/ordem_servico_repository.py` | `infrastructure/repositories/postgres_ordem_servico_repository.py` |
 | `domain/repositories/usuario_repository.py` | `infrastructure/repositories/postgres_usuario_repository.py` |
+| `domain/repositories/cliente_repository.py` | `infrastructure/repositories/postgres_cliente_repository.py` |
 | `domain/repositories/estoque_repository.py` | `infrastructure/repositories/postgres_estoque_repository.py` |
 | `application/ports/token_service.py` | `infrastructure/security/jwt_token_service.py` |
 | `application/ports/password_hasher.py` | `infrastructure/security/bcrypt_password_hasher.py` |
@@ -291,6 +292,7 @@ Nenhuma dessas operações pode deixar o saldo disponível negativo (RF-12).
    ```json
    {"codigo": "VALOR_INVALIDO", "mensagem": "CPF inválido.", "detalhes": []}
    ```
+6. Nas rotas que gravam, declare a dependência do caso de uso com `Depends(obter_<caso_de_uso>, scope="function")`. A unidade de trabalho confirma a transação ao sair da dependência, e o FastAPI, sem esse `scope`, só sai dela depois de enviar a resposta: uma falha no commit chegaria ao cliente como sucesso. Exemplo em `presentation/routers/clientes.py`.
 
 ### 5.6. Proteger uma Rota com JWT
 

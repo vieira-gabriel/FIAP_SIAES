@@ -15,6 +15,7 @@ Antes de implementar, consulte os documentos abaixo. Em caso de conflito entre o
 | `docs/ddd/linguagem-ubiqua.md` | Nomes oficiais do domínio, máquina de estados da OS e o mapeamento entre conceitos e código. |
 | `docs/estrutura-de-pastas.md` | Por que a estrutura de pastas é como é, incluindo a autenticação JWT. |
 | `docs/guia-de-desenvolvimento.md` | Este guia: como implementar cada coisa. |
+| `docs/CHANGELOG.md` | Motivo de cada alteração estrutural ou arquitetural da documentação. |
 
 ---
 

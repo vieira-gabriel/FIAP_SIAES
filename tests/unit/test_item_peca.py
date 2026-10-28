@@ -94,6 +94,26 @@ def test_reajuste_do_catalogo_nao_altera_o_item():
     assert item.prazo_reposicao_dias == 3
 
 
+def test_marcar_como_pendente_deixa_toda_a_quantidade_pendente_e_nada_reservado():
+    item = ItemPeca.a_partir_de(criar_peca(), quantidade=4)
+    item.quantidade_reservada = 3
+    item.quantidade_pendente = 1
+
+    item.marcar_como_pendente()
+
+    assert (item.quantidade_reservada, item.quantidade_pendente) == (0, 4)
+
+
+def test_descartar_pendencia_zera_a_pendente_e_mantem_a_reservada():
+    item = ItemPeca.a_partir_de(criar_peca(), quantidade=4)
+    item.quantidade_reservada = 3
+    item.quantidade_pendente = 1
+
+    item.descartar_pendencia()
+
+    assert (item.quantidade_reservada, item.quantidade_pendente) == (3, 0)
+
+
 def test_congelar_atualiza_com_os_valores_vigentes_do_catalogo():
     peca = criar_peca()
     item = ItemPeca.a_partir_de(peca, quantidade=2)

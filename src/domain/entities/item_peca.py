@@ -51,6 +51,15 @@ class ItemPeca:
     def valor_total(self) -> Valor:
         return self.preco_unitario_congelado.multiplicar(self.quantidade)
 
+    def marcar_como_pendente(self) -> None:
+        """Na conclusão do orçamento toda a quantidade espera a reserva de estoque (RF-18)."""
+        self.quantidade_reservada = 0
+        self.quantidade_pendente = self.quantidade
+
+    def descartar_pendencia(self) -> None:
+        """Na rejeição e no cancelamento as pendências da OS somem (RF-18)."""
+        self.quantidade_pendente = 0
+
     def congelar(self, peca: Peca) -> None:
         if peca.id != self.peca_id:
             raise OrdemServicoInvalida("a peça informada não é a do item")

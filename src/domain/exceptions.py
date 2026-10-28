@@ -143,6 +143,14 @@ class DocumentoJaCadastrado(RegraDeNegocioViolada):
         super().__init__("Já existe um cliente cadastrado com este documento.")
 
 
+class PecasPendentes(RegraDeNegocioViolada):
+    """A OS só sai de `AGUARDANDO_PECA` quando todas as peças estão reservadas (RF-19)."""
+
+    def __init__(self, pecas: list[str]):
+        super().__init__(f"A OS ainda tem peças pendentes: {', '.join(pecas)}.")
+        self.pecas = pecas
+
+
 class MotivoObrigatorio(RegraDeNegocioViolada):
     """O cancelamento da OS exige motivo, registrado no histórico (RF-23, RF-24)."""
 
@@ -159,3 +167,14 @@ class CredenciaisInvalidas(ErroDeDominio):
 
     def __init__(self):
         super().__init__("E-mail ou senha inválidos.")
+
+
+class AcessoNegado(ErroDeDominio):
+    """O usuário não pode executar a operação, como iniciar a execução de uma OS alheia (RF-20).
+
+    Não herda das bases de 400/404/422 porque a camada presentation a traduz para 403.
+    """
+
+    def __init__(self, motivo: str):
+        super().__init__(motivo)
+        self.motivo = motivo

@@ -2,7 +2,7 @@
 
 Este documento especifica todos os **Requisitos Funcionais (RF)** do MVP do sistema de gestão da oficina mecânica, estabelecendo as regras de negócio operacionais para as duas frentes do sistema: a **Frente da Loja** (acesso autenticado e controlado por perfis - RBAC) e a **Frente do Cliente** (acompanhamento público desautenticado e seguro).
 
-> Documento atualizado em 27/10/2026 - Versão 1.3
+> Documento atualizado em 27/10/2026 - Versão 1.4
 ---
 
 ## Matriz de Perfis e Permissões de Acesso (RBAC)
@@ -223,6 +223,7 @@ Com o orçamento aprovado e todas as peças reservadas, a OS fica em `AGUARDANDO
 `Mecânico` (apenas o mecânico atribuído à OS), `Gerente`
 ###### Critério de Aceite / Validação
 * Permitir o início apenas a partir de `AGUARDANDO_EXECUCAO`.
+* Recusar o início por usuário desativado, mesmo que seja o mecânico atribuído ou o Gerente.
 * Dar baixa em todas as quantidades reservadas da OS (redução da quantidade física e da quantidade reservada) na mesma transação da mudança de status.
 * Gravar o timestamp inicial obrigatório para o cálculo posterior do tempo médio de execução.
 

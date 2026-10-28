@@ -30,8 +30,8 @@ class HistoricoStatusOS:
             raise OrdemServicoInvalida("o novo status do histórico é obrigatório")
         if self.status_anterior == self.status_novo:
             raise OrdemServicoInvalida("o novo status deve ser diferente do anterior")
-        if not isinstance(self.data_hora, datetime):
-            raise OrdemServicoInvalida("a data e hora do histórico são obrigatórias")
+        if not isinstance(self.data_hora, datetime) or self.data_hora.tzinfo is None:
+            raise OrdemServicoInvalida("a data e hora do histórico devem ter fuso horário")
         if not isinstance(self.origem, OrigemTransicao):
             raise OrdemServicoInvalida("a origem da transição é obrigatória")
         if self.origem is OrigemTransicao.USUARIO and not isinstance(self.usuario_id, UUID):

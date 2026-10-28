@@ -214,14 +214,14 @@ class OrdemServico:
         if self.status not in de:
             raise TransicaoDeStatusInvalida(self.status, destino)
         momento = datetime.now(UTC)
-        self.historico.append(
+        self._acrescentar_ao_historico(
             HistoricoStatusOS(self.status, destino, momento, origem, usuario_id, motivo)
         )
         self.status = destino
         return momento
 ```
 
-Cada transição declara de quais status parte, e só `_mudar_status` altera o `status` e grava o registro no histórico (RF-24); os eventos de domínio se encaixam nesse mesmo ponto. A origem do registro (`USUARIO`, `CLIENTE` ou `SISTEMA`) vem de quem executa a transição, conforme a Linguagem Ubíqua §5.
+Cada transição declara de quais status parte, e só `_mudar_status` altera o `status` e grava o registro no histórico (RF-24); os eventos de domínio se encaixam nesse mesmo ponto. A origem do registro (`USUARIO`, `CLIENTE` ou `SISTEMA`) vem de quem executa a transição, conforme a Linguagem Ubíqua §5. O `historico` da OS é uma tupla somente leitura (RF-24: os registros não podem ser alterados nem removidos), e o registro de abertura nasce em `OrdemServico.abrir`: o construtor só reconstitui uma OS, então o adaptador de persistência precisa carregar o histórico completo e em ordem.
 
 Regras que **ficam obrigatoriamente no domínio**:
 - Máquina de estados da OS e bloqueio de transições inválidas (Linguagem Ubíqua §5, RF-16 a RF-26).

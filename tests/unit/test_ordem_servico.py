@@ -836,16 +836,38 @@ def sequencia(os: OrdemServico) -> list[tuple]:
     return [(r.status_anterior, r.status_novo, r.origem, r.usuario_id) for r in os.historico]
 
 
-def test_a_abertura_gera_o_primeiro_registro_do_historico_sem_status_anterior():
+def abrir_os(**alteracoes) -> OrdemServico:
+    dados = {
+        "numero": NumeroOS("529-7F3A9C2B"),
+        "cliente_id": uuid4(),
+        "veiculo_id": uuid4(),
+        "atendente_id": uuid4(),
+    }
+    dados.update(alteracoes)
+    return OrdemServico.abrir(**dados)
+
+
+def reconstituir(os: OrdemServico, **alteracoes) -> OrdemServico:
+    """A mesma OS lida do banco: os dados e o `id`, com o histórico só se a leitura o trouxer."""
+    dados = {
+        "id": os.id,
+        "numero": os.numero,
+        "cliente_id": os.cliente_id,
+        "veiculo_id": os.veiculo_id,
+        "atendente_id": os.atendente_id,
+        "data_abertura": os.data_abertura,
+        "status": os.status,
+    }
+    dados.update(alteracoes)
+    return OrdemServico(**dados)
+
+
+def test_abrir_gera_o_primeiro_registro_do_historico_sem_status_anterior():
     atendente_id = uuid4()
 
-    os = OrdemServico(
-        numero=NumeroOS("529-7F3A9C2B"),
-        cliente_id=uuid4(),
-        veiculo_id=uuid4(),
-        atendente_id=atendente_id,
-    )
+    os = abrir_os(atendente_id=atendente_id)
 
+    assert os.status is StatusOS.RECEBIDA
     assert len(os.historico) == 1
     registro = os.historico[0]
     assert registro.status_anterior is None
@@ -855,17 +877,119 @@ def test_a_abertura_gera_o_primeiro_registro_do_historico_sem_status_anterior():
     assert registro.data_hora == os.data_abertura
 
 
-def test_os_reconstituida_nao_ganha_registro_de_abertura():
-    existente = HistoricoStatusOS(
-        status_anterior=None,
-        status_novo=StatusOS.RECEBIDA,
-        data_hora=datetime.now(UTC),
-        origem=OrigemTransicao.USUARIO,
-        usuario_id=uuid4(),
+def test_abrir_usa_o_id_informado_ou_gera_um():
+    os_id = uuid4()
+
+    assert abrir_os(id=os_id).id == os_id
+    assert abrir_os().id is not None
+    assert abrir_os().id != abrir_os().id
+
+
+@pytest.mark.parametrize(
+    "alteracao",
+    [{"numero": "529-7F3A9C2B"}, {"cliente_id": "x"}, {"id": "nao-e-uuid"}],
+)
+def test_abrir_recusa_dados_invalidos(alteracao):
+    with pytest.raises(OrdemServicoInvalida):
+        abrir_os(**alteracao)
+
+
+def test_o_construtor_nunca_inventa_o_registro_de_abertura():
+    assert criar_os(status=StatusOS.RECEBIDA).historico == ()
+    assert criar_os(status=StatusOS.EM_EXECUCAO).historico == ()
+
+
+def test_ler_a_mesma_os_duas_vezes_nao_duplica_nem_cria_registros():
+    aberta = abrir_os()
+
+    com_historico = reconstituir(aberta, historico=aberta.historico)
+    sem_historico = [reconstituir(aberta), reconstituir(aberta)]
+
+    assert com_historico.historico == aberta.historico
+    assert com_historico.historico[0] is aberta.historico[0]
+    assert [os.historico for os in sem_historico] == [(), ()]
+
+
+def test_historico_reconstituido_aceita_lista_e_vira_tupla():
+    aberta = abrir_os()
+
+    os = reconstituir(aberta, historico=list(aberta.historico))
+
+    assert isinstance(os.historico, tuple)
+    assert os.historico == aberta.historico
+
+
+def _registro(anterior, novo, dias=0, origem=OrigemTransicao.USUARIO):
+    return HistoricoStatusOS(
+        status_anterior=anterior,
+        status_novo=novo,
+        data_hora=datetime(2026, 10, 1, tzinfo=UTC) + timedelta(days=dias),
+        origem=origem,
+        usuario_id=uuid4() if origem is OrigemTransicao.USUARIO else None,
     )
 
-    assert criar_os(status=StatusOS.EM_EXECUCAO).historico == []
-    assert criar_os(status=StatusOS.RECEBIDA, historico=[existente]).historico == [existente]
+
+def test_historico_reconstituido_encadeado_e_terminando_no_status_e_aceito():
+    historico = [
+        _registro(None, StatusOS.RECEBIDA, 0),
+        _registro(StatusOS.RECEBIDA, StatusOS.EM_DIAGNOSTICO, 1),
+    ]
+
+    os = criar_os(status=StatusOS.EM_DIAGNOSTICO, historico=historico)
+
+    assert [r.status_novo for r in os.historico] == [StatusOS.RECEBIDA, StatusOS.EM_DIAGNOSTICO]
+
+
+def _historicos_incoerentes() -> dict:
+    abertura = _registro(None, StatusOS.RECEBIDA, 0)
+    diagnostico = _registro(StatusOS.RECEBIDA, StatusOS.EM_DIAGNOSTICO, 1)
+    salto = _registro(StatusOS.EM_DIAGNOSTICO, StatusOS.EM_EXECUCAO, 2)
+    return {
+        "so a abertura, mas a OS esta cancelada": (StatusOS.CANCELADA, [abertura]),
+        "registros fora de ordem": (StatusOS.EM_DIAGNOSTICO, [diagnostico, abertura]),
+        "registro que nao encadeia": (StatusOS.EM_EXECUCAO, [abertura, salto]),
+        "item que nao e registro": (StatusOS.RECEBIDA, ["lixo"]),
+        "historico nulo": (StatusOS.RECEBIDA, None),
+        "historico de outro tipo": (StatusOS.RECEBIDA, "abertura"),
+    }
+
+
+@pytest.mark.parametrize("caso", list(_historicos_incoerentes()))
+def test_recusa_historico_incoerente_na_reconstituicao(caso):
+    status, registros = _historicos_incoerentes()[caso]
+
+    with pytest.raises(OrdemServicoInvalida):
+        criar_os(status=status, historico=registros)
+
+
+def test_o_historico_da_os_e_somente_leitura():
+    os = abrir_os()
+    registro = os.historico[0]
+
+    with pytest.raises(AttributeError):
+        os.historico.append(registro)
+    with pytest.raises(AttributeError):
+        os.historico.clear()
+    with pytest.raises(TypeError):
+        os.historico[0] = registro
+    with pytest.raises(TypeError):
+        del os.historico[0]
+    with pytest.raises(AttributeError):
+        os.historico = ()
+
+    assert os.historico == (registro,)
+
+
+def test_o_historico_so_cresce_pelas_transicoes():
+    mecanico_id = uuid4()
+    os = abrir_os()
+    antes = os.historico
+
+    os.atribuir_mecanico(mecanico_id)
+
+    assert os.historico[:1] == antes
+    assert len(os.historico) == 2
+    assert antes == os.historico[:1]
 
 
 def test_recusa_data_de_abertura_que_nao_e_data():
@@ -877,7 +1001,7 @@ def test_fluxo_completo_registra_a_sequencia_de_transicoes():
     atendente_id = uuid4()
     mecanico = criar_usuario(PerfilUsuario.MECANICO)
     servico = criar_servico()
-    os = criar_os(status=StatusOS.RECEBIDA, atendente_id=atendente_id)
+    os = abrir_os(atendente_id=atendente_id)
 
     os.atribuir_mecanico(mecanico.id)
     os.incluir_servico(servico)
@@ -954,7 +1078,7 @@ def test_o_registro_usa_o_mesmo_instante_dos_timestamps_da_os():
 
 
 def test_transicao_recusada_nao_gera_registro():
-    os = criar_os(status=StatusOS.RECEBIDA)
+    os = abrir_os()
 
     with pytest.raises(TransicaoDeStatusInvalida):
         os.concluir_manutencao(USUARIO_ID)
@@ -979,7 +1103,7 @@ def test_transicoes_feitas_por_usuario_exigem_o_usuario(usuario_id):
         os.entregar_veiculo(usuario_id)
 
     assert os.status is StatusOS.EM_DIAGNOSTICO
-    assert os.historico == []
+    assert os.historico == ()
 
 
 def test_finalizar_orcamento_com_usuario_invalido_nao_congela_os_itens():
@@ -996,7 +1120,7 @@ def test_finalizar_orcamento_com_usuario_invalido_nao_congela_os_itens():
 
 
 def test_registro_do_historico_nao_pode_ser_alterado_pela_os():
-    os = criar_os(status=StatusOS.RECEBIDA)
+    os = abrir_os()
 
     with pytest.raises(FrozenInstanceError):
         os.historico[0].status_novo = StatusOS.CANCELADA

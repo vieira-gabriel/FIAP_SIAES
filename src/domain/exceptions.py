@@ -123,6 +123,18 @@ class SaldoInsuficiente(RegraDeNegocioViolada):
         self.saldo_disponivel = saldo_disponivel
 
 
+class QuantidadeFisicaAbaixoDaReservada(RegraDeNegocioViolada):
+    """O ajuste não pode deixar a quantidade física abaixo da reservada às OS (RF-12)."""
+
+    def __init__(self, nova_quantidade_fisica: int, quantidade_reservada: int):
+        super().__init__(
+            f"A quantidade física ({nova_quantidade_fisica}) não pode ficar abaixo da quantidade "
+            f"reservada ({quantidade_reservada})."
+        )
+        self.nova_quantidade_fisica = nova_quantidade_fisica
+        self.quantidade_reservada = quantidade_reservada
+
+
 class ItensBloqueados(RegraDeNegocioViolada):
     """Alteração de serviços ou peças em um status que não a permite, como `FINALIZADA` (RF-21)."""
 

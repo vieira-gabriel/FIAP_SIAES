@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from application.use_cases.criar_carga_inicial import SenhasDaCargaInicial
 from infrastructure.config import ConfiguracaoInvalida, carregar_configuracao
 from presentation.main import app
 
@@ -32,6 +33,16 @@ def ambiente(monkeypatch, tmp_path):
     for nome, valor in VARIAVEIS_VALIDAS.items():
         monkeypatch.setenv(nome, valor)
     return monkeypatch
+
+
+@pytest.fixture
+def sem_carga_inicial(monkeypatch):
+    """A carga inicial grava no PostgreSQL; aqui só interessa a montagem das dependências."""
+
+    async def nao_executar(app):
+        pass
+
+    monkeypatch.setattr("presentation.main.executar_carga_inicial", nao_executar)
 
 
 def _erro_ao_carregar() -> ConfiguracaoInvalida:
@@ -121,7 +132,7 @@ def test_aplicacao_nao_inicia_sem_variavel_obrigatoria(ambiente):
             pass
 
 
-def test_aplicacao_inicia_com_configuracao_valida(ambiente):
+def test_aplicacao_inicia_com_configuracao_valida(ambiente, sem_carga_inicial):
     with TestClient(app) as cliente:
         estado = cliente.app.state
         assert estado.token_service is not None
@@ -129,3 +140,23 @@ def test_aplicacao_inicia_com_configuracao_valida(ambiente):
         assert estado.fabrica_de_sessoes is not None
         assert estado.password_hasher is not None
         assert estado.verificador_do_banco is not None
+
+
+def test_carga_inicial_sem_seed_demo_cria_apenas_o_gerente(ambiente, sem_carga_inicial):
+    with TestClient(app) as cliente:
+        assert cliente.app.state.senhas_da_carga_inicial == SenhasDaCargaInicial(
+            gerente="senha-do-admin"
+        )
+
+
+def test_carga_inicial_com_seed_demo_inclui_os_usuarios_de_demonstracao(
+    ambiente, sem_carga_inicial
+):
+    ambiente.setenv("SEED_DEMO", "true")
+    ambiente.setenv("DEMO_ATENDENTE_PASSWORD", "senha-atendente")
+    ambiente.setenv("DEMO_MECANICO_PASSWORD", "senha-mecanico")
+
+    with TestClient(app) as cliente:
+        assert cliente.app.state.senhas_da_carga_inicial == SenhasDaCargaInicial(
+            gerente="senha-do-admin", atendente="senha-atendente", mecanico="senha-mecanico"
+        )

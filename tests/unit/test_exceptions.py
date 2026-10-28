@@ -8,9 +8,12 @@ from domain.exceptions import (
     CredenciaisInvalidas,
     EntidadeNaoEncontrada,
     ErroDeDominio,
+    ItemIndisponivel,
+    ItemJaIncluido,
     ItensBloqueados,
     MotivoObrigatorio,
     NumeroOSInvalido,
+    OrdemServicoInvalida,
     PlacaInvalida,
     QuantidadeInvalida,
     RegraDeNegocioViolada,
@@ -34,6 +37,7 @@ def test_bases_herdam_de_erro_de_dominio(base):
         (CNPJInvalido(), ValorInvalido),
         (PlacaInvalida("ABC-1234"), ValorInvalido),
         (NumeroOSInvalido("123-abc"), ValorInvalido),
+        (OrdemServicoInvalida("a quantidade deve ser maior que zero"), ValorInvalido),
         (QuantidadeInvalida("deve ser maior que zero"), ValorInvalido),
         (UsuarioInvalido("o nome é obrigatório"), ValorInvalido),
         (
@@ -42,6 +46,8 @@ def test_bases_herdam_de_erro_de_dominio(base):
         ),
         (SaldoInsuficiente("Filtro de óleo", 3, 1), RegraDeNegocioViolada),
         (ItensBloqueados(StatusOS.FINALIZADA), RegraDeNegocioViolada),
+        (ItemIndisponivel("Filtro de óleo"), RegraDeNegocioViolada),
+        (ItemJaIncluido("Filtro de óleo"), RegraDeNegocioViolada),
         (MotivoObrigatorio(), RegraDeNegocioViolada),
     ],
 )
@@ -114,6 +120,21 @@ def test_itens_bloqueados_informa_o_status():
 
     assert excecao.status_atual is StatusOS.FINALIZADA
     assert "FINALIZADA" in str(excecao)
+
+
+@pytest.mark.parametrize("excecao", [ItemIndisponivel, ItemJaIncluido])
+def test_excecoes_de_item_informam_o_nome(excecao):
+    erro = excecao("Filtro de óleo")
+
+    assert erro.nome == "Filtro de óleo"
+    assert "'Filtro de óleo'" in str(erro)
+
+
+def test_ordem_servico_invalida_informa_o_motivo():
+    erro = OrdemServicoInvalida("a quantidade deve ser maior que zero")
+
+    assert erro.motivo == "a quantidade deve ser maior que zero"
+    assert str(erro) == "Ordem de serviço inválida: a quantidade deve ser maior que zero"
 
 
 def test_quantidade_invalida_informa_o_motivo():

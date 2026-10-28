@@ -76,6 +76,12 @@ class VeiculoInvalido(ValorInvalido):
         self.motivo = motivo
 
 
+class OrdemServicoInvalida(ValorInvalido):
+    def __init__(self, motivo: str):
+        super().__init__(f"Ordem de serviço inválida: {motivo}")
+        self.motivo = motivo
+
+
 class QuantidadeInvalida(ValorInvalido):
     def __init__(self, motivo: str):
         super().__init__(f"Quantidade inválida: {motivo}")
@@ -110,6 +116,20 @@ class ItensBloqueados(RegraDeNegocioViolada):
     def __init__(self, status_atual: StatusOS):
         super().__init__(f"Os itens da OS não podem ser alterados no status {status_atual.value}.")
         self.status_atual = status_atual
+
+
+class ItemIndisponivel(RegraDeNegocioViolada):
+    """Serviço ou peça excluído do catálogo não entra em novas OS (RF-11, RF-12, RF-17)."""
+
+    def __init__(self, nome: str):
+        super().__init__(f"O item {nome!r} está inativo no catálogo e não pode entrar na OS.")
+        self.nome = nome
+
+
+class ItemJaIncluido(RegraDeNegocioViolada):
+    def __init__(self, nome: str):
+        super().__init__(f"O item {nome!r} já está na OS.")
+        self.nome = nome
 
 
 class MotivoObrigatorio(RegraDeNegocioViolada):

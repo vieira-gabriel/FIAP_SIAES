@@ -13,7 +13,7 @@ Este documento estabelece a **Linguagem Ubíqua** do sistema de gestão da ofici
 | **Cliente** | Pessoa física ou jurídica proprietária do veículo e tomadora dos serviços da oficina. | `domain.entities.Cliente` |
 | **Veículo** | Automóvel cadastrado no sistema vinculado a um cliente específico pela placa. | `domain.entities.Veiculo` |
 | **Serviço** | Atividade técnica de manutenção ou reparo realizada pelos mecânicos (ex.: troca de óleo, alinhamento), com valor base e tempo estimado de execução. | `domain.entities.Servico` |
-| **Peça / Insumo** | Componente físico utilizado na manutenção (ex.: filtro de óleo, pastilha de freio). A entidade guarda o cadastro, com código de referência, nome, preço unitário de venda e prazo de reposição em dias. As quantidades ficam no Estoque, na relação 1:1. | `domain.entities.Peca` |
+| **Peça / Insumo** | Componente físico utilizado na manutenção (ex.: filtro de óleo, pastilha de freio). A entidade guarda o cadastro, com código de referência, nome, preço unitário de venda e prazo de reposição em dias. As quantidades ficam no Estoque, na relação 1:1. A exclusão é lógica e é recusada enquanto alguma OS tiver quantidade pendente da peça. | `domain.entities.Peca` |
 | **Item de Serviço** | Serviço incluído em uma OS, com o preço e o tempo estimado de execução congelados na conclusão do orçamento. | `domain.entities.ItemServico` |
 | **Item de Peça** | Peça incluída em uma OS, com a quantidade solicitada, a quantidade reservada, a quantidade pendente, o preço unitário e o prazo de reposição congelados na conclusão do orçamento. | `domain.entities.ItemPeca` |
 | **Orçamento** | Cálculo que consolida o valor congelado dos serviços solicitados e peças alocadas para aprovação do cliente. | `domain.value_objects.Orcamento` |

@@ -286,7 +286,7 @@ Tarefas da fase:
 - [ ] Cadastro, atualização e listagem de veículos vinculados ao cliente, com validação de placa (RF-07, RF-08)
 - [ ] Exclusão lógica de veículos por Atendente e Gerente (RF-09)
 - [x] Listagem do catálogo de serviços (RF-10) e CRUD restrito ao Gerente, com tempo estimado e exclusão lógica (RF-11; issue #84)
-- [ ] Gestão de peças, com prazo de reposição, exclusão lógica e atualização de saldo com permissões por perfil (RF-12)
+- [x] Gestão de peças, com prazo de reposição, exclusão lógica (recusada com OS pendente) e atualização de saldo com permissões por perfil (RF-12; issue #85). O adaptador de OS usado na exclusão é provisório até a persistência da OS (issue #88)
 - [ ] Testes de integração das rotas, cobrindo acesso sem token (`401`) e com perfil sem permissão (`403`) (RNF-13)
 
 ---

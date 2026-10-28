@@ -84,6 +84,8 @@ Toda dependência externa segue o mesmo padrão:
 | `application/ports/unidade_de_trabalho.py` | `infrastructure/database/unidade_de_trabalho.py` |
 | `application/ports/verificador_do_banco.py` | `infrastructure/database/verificador_do_banco.py` |
 
+Estado em 27/10/2026: já existem os adaptadores de usuário, de token, de hash de senha, da unidade de trabalho e do verificador do banco. Os adaptadores das portas `OrdemServicoRepository` (ainda vazia), `EstoqueRepository`, `ClienteRepository` e `VeiculoRepository` entram na Fase 4, junto com os modelos do ORM e as tabelas.
+
 ---
 
 ## 3. Onde Colocar Cada Coisa
@@ -143,6 +145,11 @@ from domain.value_objects.placa import Placa
 ### 4.3. Pacotes
 
 Toda pasta dentro de `src/` deve ter um `__init__.py`. Ao criar uma pasta nova (depois de aprovada), crie também o `__init__.py`.
+
+### 4.4. Construção de Entidades
+
+* Construa as entidades com **argumentos nomeados**. A ordem dos campos da `dataclass` não faz parte do contrato (em `OrdemServico`, `mecanico_id` vem antes de `id`), e o adaptador de persistência não deve depender dela.
+* O construtor só **reconstitui** uma entidade já existente e nunca cria registros novos. O que é criação com efeito colateral vem de uma fábrica, como `OrdemServico.abrir`, que grava o registro de abertura no histórico. Um adaptador que reconstitui uma OS do banco usa o construtor, com o histórico completo e em ordem.
 
 ---
 
@@ -434,6 +441,9 @@ Os itens abaixo **ainda não foram decididos** pelo grupo. Não assuma uma escol
 | Decisão | Opções levantadas e custos |
 | :--- | :--- |
 | Cenário do teste de desempenho (RNF-10) | O RNF-10 não define as "condições normais de operação local". Falta definir o número de usuários simultâneos, a duração do teste e as rotas medidas. |
+| OS sem serviços nem peças | Hoje `finalizar_orcamento` aceita uma OS sem itens e gera um orçamento de R$ 0,00 (o RF-17 não diz nada). Opções: manter, ou recusar a conclusão do orçamento sem ao menos um item (nova exceção de regra de negócio, `422`). |
+| Item excluído do catálogo antes do congelamento | Um serviço ou uma peça excluída depois de incluída na OS ainda é cotada no orçamento, porque o RF-11 e o RF-12 mantêm as OS existentes íntegras. Falta decidir se o orçamento deve recusar o item excluído. |
+| Exceção da quantidade de peça | A regra "inteiro maior que zero" levanta `OrdemServicoInvalida` em `ItemPeca` e `QuantidadeInvalida` em `EstoquePeca`, `PendenciaPeca` e `AlocacaoPeca`. A proposta é unificá-la no objeto de valor `QuantidadePeca`, na issue #45, e escolher uma só exceção. |
 
 ## 9. Instruções para Assistentes de IA
 

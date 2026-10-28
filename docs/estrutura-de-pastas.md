@@ -89,7 +89,7 @@ A porta do repositório no domínio é o que permite à camada `application` dep
 | Item | Justificativa |
 | :--- | :--- |
 | Arquivos `__init__.py` em cada pasta de `src/` | A Linguagem Ubíqua referencia classes como módulos Python (ex.: `domain.entities.OrdemServico`), o que pressupõe pacotes. Também garantem que as pastas sejam versionadas pelo Git. |
-| Arquivos `.gitkeep` em `tests/integration/` e `docs/security/` | O Git não versiona pastas vazias; os arquivos podem ser removidos quando as pastas receberem conteúdo. |
+| Arquivo `.gitkeep` em `docs/security/` | O Git não versiona pastas vazias; o arquivo pode ser removido quando a pasta receber o relatório da análise de vulnerabilidades (RNF-07). O de `tests/integration/` já foi removido, pois a pasta tem testes. |
 
 ---
 
@@ -121,4 +121,9 @@ Pontos de atenção:
 
 A pasta `migrations/` do Alembic (guia, seção 8.1) fica na raiz do projeto, junto com o `alembic.ini`, e foi criada na issue #25 com a revisão de base `0001_schema_base`, vazia; as tabelas entram com cada entidade. `src/infrastructure/config.py` (configuração) e `src/presentation/container.py` (montagem das dependências), decididos na issue #9, foram criados na issue #22; o container monta a engine, a fábrica de sessões, os serviços de token e de hash e o verificador do banco (issue #26). O login já está ligado: o container oferece `obter_autenticar_usuario` e executa a carga inicial de usuários na subida; as demais funções `obter_<caso_de_uso>` entram com os casos de uso seguintes.
 
-Também permanecem pendentes, por dependerem de implementação: a lógica da autenticação JWT (RNF-03, ver seção 5), configuração do PostgreSQL (RNF-08), conteúdo do `Dockerfile` e do `docker-compose.yml` (RNF-15) e medição de cobertura de testes (RNF-14).
+A autenticação JWT (seção 5), a configuração do PostgreSQL (RNF-08) e o `Dockerfile` com o `docker-compose.yml` (RNF-15) já estão implementados. Permanecem pendentes, por dependerem de implementação:
+
+* a porta `ordem_servico_repository.py` e o caso de uso `criar_os.py`, que existem vazios (issues #46 e Fase 5);
+* os adaptadores PostgreSQL da OS, do estoque, do cliente e do veículo, com os modelos do ORM e as tabelas (Fase 4);
+* os eventos de domínio da OS e os handlers de `application/handlers/` (issue #45);
+* o relatório da análise de vulnerabilidades em `docs/security/` (RNF-07) e a evidência da medição de cobertura (RNF-14), que a Fase 7 registra.

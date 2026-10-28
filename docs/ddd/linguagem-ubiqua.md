@@ -131,11 +131,13 @@ Toda transição gera um registro no Histórico de Status (RF-24), com a origem 
 | **Adaptador de Infraestrutura** | Implementação ORM / SQL (`PostgreSQL`) | `src/infrastructure/repositories/postgres_ordem_servico_repository.py` |
 | **Evento de Domínio** | Dataclass de Evento Imutável | `src/domain/events/orcamento_finalizado_event.py` |
 
+Os exemplos de caso de uso, porta da OS, adaptador e evento da OS acima mostram o padrão a seguir; os arquivos ainda não têm conteúdo (`ordem_servico_repository.py` existe vazio) ou não existem (`aprovar_orcamento.py`, `postgres_ordem_servico_repository.py` e `orcamento_finalizado_event.py`), e entram com as issues #45 e #46 e as Fases 4 e 5. Já existem como exemplos reais: `entities/ordem_servico.py`, `value_objects/cpf.py`, `repositories/estoque_repository.py` e `events/saldo_peca_atualizado_event.py`.
+
 ---
 
 ## 7. Eventos de Domínio
 
-Fatos do domínio que fazem um agregado alterar outro. O catálogo completo, com o momento da emissão, o handler consumidor e a correspondência com o board, está na seção 7 de `docs/ddd/event-storming.md`.
+Fatos do domínio que fazem um agregado alterar outro. O catálogo completo, com o momento da emissão, o handler consumidor e a correspondência com o board, está na seção 7 de `docs/ddd/event-storming.md`. Todos herdam de `DomainEvent` (`domain_event.py`), que traz o identificador e a data e hora de ocorrência. Hoje só o `SaldoPecaAtualizadoEvent` está implementado; os outros três entram com a issue #45.
 
 | Evento | Definição no Domínio | Correspondência no Código (`src/domain/events/`) |
 | :--- | :--- | :--- |

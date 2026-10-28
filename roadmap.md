@@ -8,7 +8,7 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 
 ## Estado Atual
 
-> Atualizado em 16/10/2026, considerando a `main` até o merge do PR #48 e a branch `docs/event-storming-pecas`.
+> Atualizado em 27/10/2026, considerando a `main` até o merge do PR #77.
 
 | Item | Situação |
 | :--- | :--- |
@@ -17,10 +17,11 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 | Modelo C4 | Documentado nos 4 níveis; camada de entrada renomeada para `src/presentation/`; estrutura de pastas da seção 6 aprovada pelo grupo (issue #9) |
 | Guia de desenvolvimento e estrutura de pastas | Atualizados para a numeração atual dos requisitos, com as decisões técnicas da seção 8 |
 | Event Storming | PDF reexportado com os fluxos de peça pendente e de cancelamento; link do board registrado em [docs/ddd/event-storming.md](docs/ddd/event-storming.md) |
-| Código (`src/`) e testes | Rota `GET /health` em `src/presentation/api/main.py`. Os demais arquivos das camadas e da autenticação JWT continuam vazios; nenhum teste |
-| Configuração do repositório | `.gitignore`, `.env.example` e `pyproject.toml` criados; falta gerar o `uv.lock` |
-| Docker | Primeira versão de `Dockerfile` e `docker-compose.yml` (só o serviço `api`); diverge do RNF-15 (ver Fase 2) |
-| README | Apenas título |
+| Código (`src/`) e testes | Domínio implementado: objetos de valor, `Cliente`, `Veiculo`, `Usuario`, `Servico`, `Peca`, `OrdemServico` (itens, orçamento, máquina de estados, histórico e estimativa de entrega) e `EstoquePeca` (reserva, baixa, estorno e alocação por prioridade). Aplicação com o Event Dispatcher e os casos de uso de login e de carga inicial. Infraestrutura com configuração, engine, unidade de trabalho, migrations e persistência de usuários. Apresentação com `/health`, login, validação de token com checagem de perfil (RBAC) e tratamento padronizado de erros. 758 testes passando, com 100% de cobertura em `domain/` e `application/` |
+| Configuração do repositório | `.gitignore`, `.env.example`, `pyproject.toml` e `uv.lock` criados |
+| Docker | `Dockerfile` em Python 3.12, multi-stage com `uv` e usuário não-root, e `docker-compose.yml` com `app` e `db` (PostgreSQL 16); as migrations rodam antes do Uvicorn |
+| Pendências do domínio | `OrdemServico.alocar_peca` (issue #43, parte 2), eventos da OS (issue #45) e a porta do repositório da OS (issue #46); os arquivos `ordem_servico_repository.py` e `criar_os.py` seguem vazios |
+| README | Apenas o título e os links do Event Storming e do modelo C4 |
 
 ---
 
@@ -43,9 +44,9 @@ flowchart LR
 | :--- | :--- | :--- | :--- | :--- |
 | **0** | Fundação | - | Decisões fechadas, documentos alinhados entre si e ao enunciado, repositório configurado | Em andamento |
 | **1** | Modelagem DDD | 0 | Event Storming completo e legível, diagramas e linguagem ubíqua consistentes entre si | Em andamento |
-| **2** | Infraestrutura base | 0 | `docker compose up --build` sobe API + PostgreSQL com Swagger em `/docs` | Em andamento (health check e Docker inicial) |
-| **3** | Domínio | 1 | Entidades, objetos de valor, eventos e regras de negócio com testes unitários | Não iniciada |
-| **4** | Autenticação e cadastros | 2, 3 | Login JWT, RBAC, gestão de usuários e cadastros administrativos | Não iniciada (arquivos criados, vazios) |
+| **2** | Infraestrutura base | 0 | `docker compose up --build` sobe API + PostgreSQL com Swagger em `/docs` | Concluída (CI opcional não feito) |
+| **3** | Domínio | 1 | Entidades, objetos de valor, eventos e regras de negócio com testes unitários | Quase concluída (faltam as issues #43 parte 2, #45 e #46) |
+| **4** | Autenticação e cadastros | 2, 3 | Login JWT, RBAC, gestão de usuários e cadastros administrativos | Em andamento (login, RBAC e carga inicial prontos) |
 | **5** | Fluxo da OS | 4 | Abertura, orçamento, reserva e pendência de peças, aprovação, execução e consulta pública | Não iniciada |
 | **6** | Gestão e métricas | 5 | Listagem, detalhamento e relatório de tempos médios | Não iniciada |
 | **7** | Qualidade e segurança | 6 | Cobertura ≥ 80% comprovada, relatório de vulnerabilidades e medição de desempenho | Não iniciada |
@@ -62,7 +63,7 @@ flowchart LR
 A branch `docs/fechamento-fase-0` entrou na `main` pelo PR #20, junto com o health check do commit `c63c963`. Ficaram pendentes:
 
 - [x] Fazer o merge da branch na `main` por Pull Request (PR #20)
-- [ ] Decidir onde fica a aplicação FastAPI (`presentation/api/` ou `presentation/routers/`) e como as dependências são instaladas no Docker: a `main` mantém `src/presentation/api/main.py` e `requirements.txt` ao lado do `pyproject.toml`
+- [x] Decidir onde fica a aplicação FastAPI e como as dependências são instaladas no Docker: a aplicação está em `src/presentation/main.py`, com as rotas em `presentation/routers/`, e o Docker instala as dependências com `uv sync` a partir do `pyproject.toml` e do `uv.lock`
 
 ### Decisões Técnicas
 
@@ -137,9 +138,9 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 - [ ] Proteger a branch `main` no GitHub (Settings → Branches): exigir PR com 1 aprovação e bloquear push forçado. O enunciado exige a proteção e o repositório precisa estar público
 - [x] Definir o padrão de branches e de mensagens de commit (guia de desenvolvimento, seção 7)
 - [x] Criar `.gitignore` para Python (incluindo `.env`, `.venv/`, `__pycache__/`, relatórios de cobertura e o PDF do enunciado)
-- [ ] Remover da `main` os dois arquivos `.pyc` commitados no health check (`src/presentation/__pycache__/` e `src/presentation/api/__pycache__/`); o `.gitignore` já ignora `__pycache__/`, mas não remove arquivos já versionados
+- [x] Remover da `main` os arquivos `.pyc` commitados no health check; o `.gitignore` ignora `__pycache__/`
 - [x] Criar `.env.example` com as variáveis necessárias, sem valores reais
-- [ ] Unificar o arquivo de dependências: a `main` tem `requirements.txt` (só `fastapi` e `uvicorn`) e `pyproject.toml`; manter apenas o `pyproject.toml`, conforme a seção 8.1 do guia
+- [x] Unificar o arquivo de dependências: só o `pyproject.toml` (com o `uv.lock`) permanece, conforme a seção 8.1 do guia; o `requirements.txt` foi removido
 - [x] Gerar o `uv.lock` com `uv lock` após a decisão do driver do PostgreSQL e da ferramenta de migrations (issue #8)
 
 ### Estrutura de Pastas
@@ -209,25 +210,25 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 
 **Objetivo:** ter o ambiente completo subindo com um único comando antes de iniciar as funcionalidades.
 
-**Já feito (commit `c63c963`, Guilherme):** rota `GET /health` em `src/presentation/api/main.py`, `Dockerfile` e `docker-compose.yml` com o serviço `api` e healthcheck. Ajustes necessários nessa primeira versão:
+**Já feito (commit `c63c963`, Guilherme):** rota `GET /health`, `Dockerfile` e `docker-compose.yml` com o serviço `api` e healthcheck. Ajustes feitos nessa primeira versão:
 
-- [ ] `Dockerfile`: trocar Python 3.11 por 3.12, usar build multi-stage com `uv` e executar com usuário não-root (RNF-15)
-- [ ] `Dockerfile`: o comando `uvicorn src.presentation.api.main:app` exige o prefixo `src.`, o que quebra os imports absolutos a partir de `src/` definidos no guia; ajustar junto com o `PYTHONPATH`
-- [ ] `docker-compose.yml`: remover o volume `.:/app`, que sobrescreve o código copiado para a imagem (manter apenas em um arquivo de override para desenvolvimento, se necessário) e o campo `version`, obsoleto no Compose v2
-- [ ] `src/presentation/api/`: criar o `__init__.py` e decidir se a aplicação fica nessa pasta ou em `presentation/routers/`; o guia exige `__init__.py` em toda pasta e não prevê `api/`
+- [x] `Dockerfile`: Python 3.12, build multi-stage com `uv` e execução com usuário não-root (RNF-15)
+- [x] `Dockerfile`: o comando passou a `uvicorn presentation.main:app`, sem o prefixo `src.`, com `PYTHONPATH=/app/src`
+- [x] `docker-compose.yml`: sem o volume `.:/app` e sem o campo `version`
+- [x] `src/presentation/api/` deixou de existir: a aplicação está em `presentation/main.py` e as rotas em `presentation/routers/`
 
 Tarefas da fase:
 
-- [ ] `docker-compose.yml` com os serviços `app` e `db` (PostgreSQL 16), volume persistente para o banco e healthcheck, subindo com `docker compose up --build` (RNF-15); hoje existe só o serviço `api`
-- [ ] Configuração do `PYTHONPATH` (ou empacotamento) para os imports a partir de `src/` funcionarem localmente, no Docker e no pytest
-- [ ] Configuração por variáveis de ambiente, sem segredos no código e com falha na inicialização quando faltar variável obrigatória (RNF-06)
+- [x] `docker-compose.yml` com os serviços `app` e `db` (PostgreSQL 16), volume persistente para o banco e healthcheck, subindo com `docker compose up --build` (RNF-15)
+- [x] Configuração do `PYTHONPATH` para os imports a partir de `src/` funcionarem localmente, no Docker e no pytest
+- [x] Configuração por variáveis de ambiente, sem segredos no código e com falha na inicialização quando faltar variável obrigatória (RNF-06; `infrastructure/config.py`)
 - [x] Engine e sessão do SQLAlchemy com controle de transação e rollback completo em caso de falha (RNF-08; issue #24)
 - [x] Migrations iniciais com Alembic (`alembic init -t async migrations`, seção 8.1 do guia; issue #25): revisão de base vazia aplicada antes do Uvicorn; as tabelas entram com cada entidade
 - [x] Rota de health check na aplicação FastAPI (`GET /health`), agora consultando o banco: `200` com o banco disponível e `503` sem ele (issue #26)
 - [x] Swagger em `/docs` com título, versão, descrição e o esquema Bearer JWT (botão "Authorize") (RNF-16; issue #26)
 - [x] Ligar o login à aplicação: `obter_autenticar_usuario` no container e registro do router de autenticação, com o repositório de usuários em PostgreSQL (modelo do ORM, migration `0002` e adaptador)
 - [x] Tratamento padronizado de erros, traduzindo as exceções do domínio para códigos HTTP, incluindo `401` e `403` (RNF-03; issue #30): corpo único `ErroResponse` e tabela na seção 5.5 do guia
-- [ ] Event Dispatcher síncrono em memória (Modelo C4)
+- [x] Event Dispatcher síncrono em memória (Modelo C4; `application/events/event_dispatcher.py`)
 - [x] Estrutura para testes de integração com banco PostgreSQL de teste (RNF-13; issue #28): banco `<POSTGRES_DB>_test` no container `db`, fixtures em `tests/integration/conftest.py` e comandos na seção 5.7 do guia
 - [ ] (Opcional, se houver tempo) Pipeline de CI no GitHub Actions executando lint, testes e cobertura em cada Pull Request
 
@@ -239,20 +240,20 @@ Tarefas da fase:
 
 **Dependência da Fase 1:** as etapas finais da OS, o estorno de estoque e o agregado `EstoquePeca` precisam estar modelados antes da implementação (ver lacunas do Event Storming).
 
-**Ponto de partida:** `repositories/ordem_servico_repository.py` já existe em `src/domain/`, vazio.
+**Ponto de partida:** `repositories/ordem_servico_repository.py` ainda está vazio em `src/domain/` e entra com a issue #46.
 
 ### Objetos de Valor
 
-- [ ] CPF e CNPJ com validação dos dígitos verificadores (RF-05)
-- [ ] `Placa` nos padrões antigo (`ABC1234`) e Mercosul (`ABC1D23`) (RF-08)
-- [ ] `Valor` com precisão decimal
-- [ ] `NumeroOS` no formato `DDD-XXXXXXXX` (RF-13)
-- [ ] `StatusOS`, `PerfilUsuario` e `OrigemTransicao`
+- [x] CPF e CNPJ com validação dos dígitos verificadores (RF-05)
+- [x] `Placa` nos padrões antigo (`ABC1234`) e Mercosul (`ABC1D23`) (RF-08)
+- [x] `Valor` com precisão decimal
+- [x] `NumeroOS` no formato `DDD-XXXXXXXX` (RF-13)
+- [x] `StatusOS`, `PerfilUsuario` e `OrigemTransicao`
 
 ### Entidades e Agregados
 
-- [ ] Exceções de regra de negócio em `src/domain/exceptions.py`
-- [ ] `Cliente`, `Veiculo`, `Usuario`, `Servico` (com tempo estimado) e `Peca` (com prazo de reposição), com exclusão lógica (RF-06, RF-09, RF-11, RF-12)
+- [x] Exceções de regra de negócio em `src/domain/exceptions.py`
+- [x] `Cliente`, `Veiculo`, `Usuario`, `Servico` (com tempo estimado) e `Peca` (com prazo de reposição), com exclusão lógica (RF-06, RF-09, RF-11, RF-12)
 - [x] Agregado `OrdemServico` com `ItemServico` e `ItemPeca`, congelando os preços vigentes na conclusão do orçamento (RF-13, RF-17, RNF-11; issue #39): itens só em `EM_DIAGNOSTICO`, apenas ativos e sem repetição, e `congelar_valores` atualiza os itens com os valores vigentes do catálogo
 - [x] Cálculo do orçamento como soma dos valores congelados (RF-17; issue #39): objeto de valor `Orcamento` com os subtotais de serviços e de peças e o total
 - [x] Máquina de estados com os 9 status e bloqueio de transições inválidas: `atribuir_mecanico`, `finalizar_orcamento`, `aprovar_orcamento`, `rejeitar_orcamento`, `liberar_para_execucao`, `iniciar_execucao`, `concluir_manutencao`, `entregar_veiculo` e `cancelar` (linguagem ubíqua §5; issue #40): cada método declara de quais status parte, e o histórico (#41) e os eventos (#45) se encaixam no `_mudar_status`
@@ -262,12 +263,12 @@ Tarefas da fase:
 - [x] Agregado `EstoquePeca` com quantidade física, reserva, pendência, baixa e estorno, sem permitir saldo negativo (RF-12, RF-18, RF-20; issue #42): `reservar` devolve (reservada, pendente), `SaldoPecaAtualizadoEvent` acumulado quando o saldo aumenta, e porta `EstoqueRepository`; a alocação por prioridade (`alocar_pendencias`) fica na #43
 - [ ] Regra de prioridade pela OS mais antiga na reserva e na alocação de peças repostas (RF-18, RF-19; issue #43): `PendenciaPeca`, `AlocacaoPeca` e `EstoquePeca.alocar_pendencias` prontos (parte 1); falta `OrdemServico.alocar_peca` (parte 2)
 - [x] Cálculo da estimativa de entrega por status (RF-25; issue #44): `OrdemServico.estimar_entrega(momento_consulta)` com os valores congelados nos itens e uma linha de teste para cada status da tabela
-- [ ] Eventos de domínio acumulados no agregado (`collect_domain_events`)
-- [ ] Interfaces (portas) dos repositórios
+- [ ] Eventos de domínio acumulados no agregado (`collect_domain_events`; issue #45): `DomainEvent` e o `SaldoPecaAtualizadoEvent` do `EstoquePeca` prontos; faltam `OrcamentoFinalizadoEvent`, `OSCanceladaEvent`, `ExecucaoIniciadaEvent`, o acúmulo na `OrdemServico` e o objeto de valor `QuantidadePeca`, que unifica a validação da quantidade de peça (guia, seção 8.2)
+- [ ] Interfaces (portas) dos repositórios (issue #46): `ClienteRepository`, `VeiculoRepository`, `UsuarioRepository` e `EstoqueRepository` prontas; falta `OrdemServicoRepository`
 
 ### Testes
 
-- [ ] Testes unitários dos objetos de valor, da máquina de estados, do cálculo do orçamento, da estimativa de entrega e das regras de estoque, usando repositórios em memória (RNF-12)
+- [x] Testes unitários dos objetos de valor, da máquina de estados, do cálculo do orçamento, da estimativa de entrega e das regras de estoque, usando repositórios em memória (RNF-12); os testes da alocação às OS (`alocar_peca`) entram com a issue #43
 
 ---
 
@@ -275,10 +276,10 @@ Tarefas da fase:
 
 **Objetivo:** disponibilizar o acesso autenticado com controle por perfil e os cadastros que alimentam a Ordem de Serviço.
 
-**Ponto de partida:** os arquivos da autenticação já existem, vazios, distribuídos pelas camadas conforme a seção 5 de [estrutura-de-pastas.md](docs/estrutura-de-pastas.md) (portas `TokenService` e `PasswordHasher`, caso de uso `autenticar_usuario.py`, adaptadores de JWT e bcrypt e `presentation/middlewares/dependencies.py`, pasta renomeada na issue #9).
+**Ponto de partida:** a autenticação já está implementada, distribuída pelas camadas conforme a seção 5 de [estrutura-de-pastas.md](docs/estrutura-de-pastas.md) (portas `TokenService` e `PasswordHasher`, caso de uso `autenticar_usuario.py`, adaptadores de JWT e bcrypt e `presentation/middlewares/dependencies.py`).
 
 - [x] Login com e-mail e senha, emitindo JWT com a claim `role` e expiração de 24 horas (RF-01)
-- [ ] Guard de RBAC retornando `401` sem token válido e `403` sem permissão (RF-02, RNF-03)
+- [x] Guard de RBAC retornando `401` sem token válido e `403` sem permissão (RF-02, RNF-03): `obter_usuario_autenticado` e `exigir_perfis` em `presentation/middlewares/dependencies.py`
 - [ ] Gestão de usuários internos exclusiva do Gerente, com senhas em hash bcrypt (RF-03)
 - [x] Carga inicial do Gerente na subida do container, com `ADMIN_PASSWORD` obrigatória, e dos usuários de demonstração quando `SEED_DEMO=true` (RF-03)
 - [ ] Cadastro, atualização e listagem de clientes, com validação de CPF/CNPJ (RF-04, RF-05)

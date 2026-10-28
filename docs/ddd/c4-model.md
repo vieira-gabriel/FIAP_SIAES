@@ -269,6 +269,11 @@ classDiagram
         +List~HistoricoStatusOS~ historico
         +List~DomainEvent~ _domain_events
         +atribuir_mecanico(mecanico_id: UUID) void
+        +incluir_servico(servico: Servico) void
+        +incluir_peca(peca: Peca, quantidade: int) void
+        +remover_servico(servico_id: UUID) void
+        +remover_peca(peca_id: UUID) void
+        +congelar_valores(servicos_vigentes: List~Servico~, pecas_vigentes: List~Peca~) void
         +finalizar_orcamento() void
         +aprovar_orcamento() void
         +rejeitar_orcamento() void
@@ -287,6 +292,7 @@ classDiagram
         +str nome
         +Valor preco_congelado
         +int tempo_estimado_minutos
+        +congelar(servico: Servico) void
     }
 
     class ItemPeca {
@@ -298,6 +304,7 @@ classDiagram
         +Valor preco_unitario_congelado
         +int prazo_reposicao_dias
         +valor_total() Valor
+        +congelar(peca: Peca) void
     }
 
     class Orcamento {
@@ -475,6 +482,7 @@ classDiagram
 
 * **`Peca` e `EstoquePeca` são entidades separadas, na relação 1:1.** `Peca` guarda o cadastro (código de referência, nome, preço unitário, prazo de reposição e exclusão lógica), alterado só pelo Gerente (RF-12). `EstoquePeca` é a raiz do agregado de estoque e guarda as quantidades física e reservada. A separação faz a reserva, a baixa e o estorno bloquearem apenas o registro de estoque, sem disputar o registro do cadastro.
 * **Tempo estimado e prazo de reposição são congelados no item.** Em `finalizar_orcamento`, junto com os preços (RF-17), a OS copia `Servico.tempo_estimado_minutos` para `ItemServico` e `Peca.prazo_reposicao_dias` para `ItemPeca`. Assim, `estimar_entrega` (RF-25) usa só os dados da OS, e a estimativa corresponde ao orçamento apresentado ao cliente. Uma alteração posterior no catálogo não muda a estimativa das OS já orçadas.
+* **A OS não consulta o catálogo.** `congelar_valores` recebe do caso de uso o `Servico` e a `Peca` vigentes de cada item, atualiza os valores congelados e calcula o `Orcamento`; `finalizar_orcamento` o chama antes da transição, e a issue #40 define a assinatura final. Os itens só mudam em `EM_DIAGNOSTICO` (RF-17), e a OS recusa itens inativos, o mesmo serviço ou peça repetidos e peça com quantidade que não seja um inteiro maior que zero. `Orcamento` guarda os subtotais de serviços e de peças e calcula o total na criação. Incluir ou remover um item descarta o orçamento já calculado, para ele nunca contradizer os itens, e os valores só ficam definitivos quando a OS sai do diagnóstico e os itens deixam de mudar.
 * **Documento do cliente.** `CPF` e `CNPJ` são objetos de valor separados, por decisão do grupo na issue #14, e herdam da base abstrata `Documento`. A base guarda só os dígitos, aplica o cálculo do módulo 11 com o tamanho e os pesos de cada subclasse e expõe `tres_primeiros_digitos()`, usado no número da OS (RF-05, RF-13). `Cliente.documento` é do tipo `Documento`, e por isso `Cliente` e a consulta pública (RF-25) trabalham com um só tipo.
 * **Prioridade pela OS mais antiga.** `EstoquePeca.alocar_pendencias` recebe as pendências da peça, ordena pela data de abertura da OS e reserva o saldo da mais antiga para a mais nova (RF-18, RF-19). A conclusão do orçamento e o aumento de saldo usam o mesmo método, e `OrdemServico.alocar_peca` converte a quantidade pendente do item em reservada. O método ordena de forma estável (no empate de data vale a ordem recebida), reserva cada pendência com `reservar` e devolve só as OS que receberam alguma quantidade; não emite evento, porque a reserva não aumenta o saldo. Valida a lista inteira antes de reservar: uma pendência de tipo errado ou duas da mesma OS (`AlocacaoInvalida`) não deixam reserva nenhuma. A `PendenciaPeca` exige a data de abertura com fuso horário.
 * **Estorno e baixa.** `cancelar` e `rejeitar_orcamento` calculam as quantidades a estornar a partir do status da OS e as enviam em `OSCanceladaEvent.estornos`. A OS cancelada em `EM_EXECUCAO` envia a lista vazia, porque `iniciar_execucao` já deu baixa em todas as reservas (RF-20); por isso `ItemPeca` não guarda quantidade baixada.

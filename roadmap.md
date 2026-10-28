@@ -225,7 +225,7 @@ Tarefas da fase:
 - [x] Migrations iniciais com Alembic (`alembic init -t async migrations`, seção 8.1 do guia; issue #25): revisão de base vazia aplicada antes do Uvicorn; as tabelas entram com cada entidade
 - [x] Rota de health check na aplicação FastAPI (`GET /health`), agora consultando o banco: `200` com o banco disponível e `503` sem ele (issue #26)
 - [x] Swagger em `/docs` com título, versão, descrição e o esquema Bearer JWT (botão "Authorize") (RNF-16; issue #26)
-- [ ] Ligar o login à aplicação: `obter_autenticar_usuario` no container e registro do router de autenticação. Depende do repositório de usuários em PostgreSQL (modelo do ORM, tabela e adaptador), cujo card ainda não existe
+- [x] Ligar o login à aplicação: `obter_autenticar_usuario` no container e registro do router de autenticação, com o repositório de usuários em PostgreSQL (modelo do ORM, migration `0002` e adaptador)
 - [x] Tratamento padronizado de erros, traduzindo as exceções do domínio para códigos HTTP, incluindo `401` e `403` (RNF-03; issue #30): corpo único `ErroResponse` e tabela na seção 5.5 do guia
 - [ ] Event Dispatcher síncrono em memória (Modelo C4)
 - [x] Estrutura para testes de integração com banco PostgreSQL de teste (RNF-13; issue #28): banco `<POSTGRES_DB>_test` no container `db`, fixtures em `tests/integration/conftest.py` e comandos na seção 5.7 do guia
@@ -239,7 +239,7 @@ Tarefas da fase:
 
 **Dependência da Fase 1:** as etapas finais da OS, o estorno de estoque e o agregado `EstoquePeca` precisam estar modelados antes da implementação (ver lacunas do Event Storming).
 
-**Ponto de partida:** `entities/ordem_servico.py`, `entities/usuario.py`, `repositories/ordem_servico_repository.py` e `repositories/usuario_repository.py` já existem em `src/domain/`, vazios.
+**Ponto de partida:** `repositories/ordem_servico_repository.py` já existe em `src/domain/`, vazio.
 
 ### Objetos de Valor
 
@@ -253,8 +253,8 @@ Tarefas da fase:
 
 - [ ] Exceções de regra de negócio em `src/domain/exceptions.py`
 - [ ] `Cliente`, `Veiculo`, `Usuario`, `Servico` (com tempo estimado) e `Peca` (com prazo de reposição), com exclusão lógica (RF-06, RF-09, RF-11, RF-12)
-- [ ] Agregado `OrdemServico` com `ItemServico` e `ItemPeca`, congelando os preços vigentes na conclusão do orçamento (RF-17, RNF-11)
-- [ ] Cálculo do orçamento como soma dos valores congelados (RF-17)
+- [x] Agregado `OrdemServico` com `ItemServico` e `ItemPeca`, congelando os preços vigentes na conclusão do orçamento (RF-13, RF-17, RNF-11; issue #39): itens só em `EM_DIAGNOSTICO`, apenas ativos e sem repetição, e `congelar_valores` atualiza os itens com os valores vigentes do catálogo
+- [x] Cálculo do orçamento como soma dos valores congelados (RF-17; issue #39): objeto de valor `Orcamento` com os subtotais de serviços e de peças e o total
 - [ ] Máquina de estados com os 9 status e bloqueio de transições inválidas: `atribuir_mecanico`, `finalizar_orcamento`, `aprovar_orcamento`, `rejeitar_orcamento`, `liberar_para_execucao`, `iniciar_execucao`, `concluir_manutencao`, `entregar_veiculo` e `cancelar` (linguagem ubíqua §5)
 - [ ] Registro dos timestamps de abertura, início da execução e finalização (RF-13, RF-20, RF-21)
 - [ ] Bloqueio de alteração de itens após `FINALIZADA` (RF-21)
@@ -277,10 +277,10 @@ Tarefas da fase:
 
 **Ponto de partida:** os arquivos da autenticação já existem, vazios, distribuídos pelas camadas conforme a seção 5 de [estrutura-de-pastas.md](docs/estrutura-de-pastas.md) (portas `TokenService` e `PasswordHasher`, caso de uso `autenticar_usuario.py`, adaptadores de JWT e bcrypt e `presentation/middlewares/dependencies.py`, pasta renomeada na issue #9).
 
-- [ ] Login com e-mail e senha, emitindo JWT com a claim `role` e expiração de 24 horas (RF-01)
+- [x] Login com e-mail e senha, emitindo JWT com a claim `role` e expiração de 24 horas (RF-01)
 - [ ] Guard de RBAC retornando `401` sem token válido e `403` sem permissão (RF-02, RNF-03)
 - [ ] Gestão de usuários internos exclusiva do Gerente, com senhas em hash bcrypt (RF-03)
-- [ ] Carga inicial do Gerente na subida do container, com `ADMIN_PASSWORD` obrigatória, e dos usuários de demonstração quando `SEED_DEMO=true` (RF-03)
+- [x] Carga inicial do Gerente na subida do container, com `ADMIN_PASSWORD` obrigatória, e dos usuários de demonstração quando `SEED_DEMO=true` (RF-03)
 - [ ] Cadastro, atualização e listagem de clientes, com validação de CPF/CNPJ (RF-04, RF-05)
 - [ ] Exclusão lógica de clientes pelo Gerente (RF-06)
 - [ ] Cadastro, atualização e listagem de veículos vinculados ao cliente, com validação de placa (RF-07, RF-08)

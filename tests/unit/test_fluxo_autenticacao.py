@@ -1,7 +1,7 @@
 """Fluxo de autenticação pela API, com JWT e bcrypt reais e usuários em memória.
 
-Cobre login → token → rota protegida → 401/403 sem depender do PostgreSQL. Quando o
-repositório PostgreSQL existir, o mesmo fluxo vira teste de integração (RNF-13).
+Cobre login → token → rota protegida → 401/403 sem depender do PostgreSQL; o login com o
+repositório PostgreSQL e a carga inicial estão em `tests/integration/test_fluxo_login.py`.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -19,12 +19,8 @@ from domain.repositories.usuario_repository import UsuarioRepository
 from domain.value_objects.perfil_usuario import PerfilUsuario
 from infrastructure.security.bcrypt_password_hasher import BcryptPasswordHasher
 from infrastructure.security.jwt_token_service import JwtTokenService
-from presentation.container import obter_token_service
-from presentation.middlewares.dependencies import (
-    exigir_perfis,
-    obter_autenticar_usuario,
-    obter_usuario_autenticado,
-)
+from presentation.container import obter_autenticar_usuario, obter_token_service
+from presentation.middlewares.dependencies import exigir_perfis, obter_usuario_autenticado
 from presentation.routers.autenticacao import router as autenticacao_router
 
 CHAVE = "chave-de-teste-com-pelo-menos-32-bytes!!"

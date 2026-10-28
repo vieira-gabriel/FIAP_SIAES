@@ -112,9 +112,9 @@ Apenas as transições abaixo são permitidas pelo agregado `OrdemServico`; qual
 | `AGUARDANDO_EXECUCAO` | `EM_EXECUCAO` | `iniciar_execucao` | Mecânico atribuído, Gerente | RF-20 |
 | `EM_EXECUCAO` | `FINALIZADA` | `concluir_manutencao` | Mecânico, Gerente | RF-21 |
 | `FINALIZADA` | `ENTREGUE` | `entregar_veiculo` | Atendente, Gerente | RF-22 |
-| `RECEBIDA` a `EM_EXECUCAO` | `CANCELADA` | `cancelar(motivo)` | Gerente | RF-23, RF-18 |
+| `RECEBIDA` a `EM_EXECUCAO` | `CANCELADA` | `cancelar(usuario_id, motivo)` | Gerente | RF-23, RF-18 |
 
-Toda transição gera um registro no Histórico de Status (RF-24).
+Toda transição gera um registro no Histórico de Status (RF-24), com a origem conforme a coluna "Quem executa": Atendente, Mecânico e Gerente gravam `USUARIO` e o identificador do usuário, o Cliente grava `CLIENTE` e o Sistema grava `SISTEMA`, ambos sem usuário. A abertura gera o primeiro registro, sem status anterior.
 
 ---
 

@@ -266,23 +266,24 @@ classDiagram
         +Optional~datetime~ data_inicio_execucao
         +Optional~datetime~ data_finalizacao
         +Optional~Orcamento~ orcamento
-        +List~HistoricoStatusOS~ historico
+        +Tuple~HistoricoStatusOS~ historico
         +List~DomainEvent~ _domain_events
+        +abrir(numero: NumeroOS, cliente_id: UUID, veiculo_id: UUID, atendente_id: UUID) OrdemServico
         +atribuir_mecanico(mecanico_id: UUID) void
         +incluir_servico(servico: Servico) void
         +incluir_peca(peca: Peca, quantidade: int) void
         +remover_servico(servico_id: UUID) void
         +remover_peca(peca_id: UUID) void
         +congelar_valores(servicos_vigentes: List~Servico~, pecas_vigentes: List~Peca~) void
-        +finalizar_orcamento(servicos_vigentes: List~Servico~, pecas_vigentes: List~Peca~) void
+        +finalizar_orcamento(usuario_id: UUID, servicos_vigentes: List~Servico~, pecas_vigentes: List~Peca~) void
         +aprovar_orcamento() void
         +rejeitar_orcamento() void
         +alocar_peca(peca_id: UUID, quantidade: int) void
         +liberar_para_execucao() void
         +iniciar_execucao(usuario: Usuario) void
-        +concluir_manutencao() void
-        +entregar_veiculo() void
-        +cancelar(motivo: str) void
+        +concluir_manutencao(usuario_id: UUID) void
+        +entregar_veiculo(usuario_id: UUID) void
+        +cancelar(usuario_id: UUID, motivo: str) void
         +estimar_entrega(momento_consulta: datetime) Optional~datetime~
         +collect_domain_events() List~DomainEvent~
     }
@@ -482,9 +483,10 @@ classDiagram
 
 * **`Peca` e `EstoquePeca` são entidades separadas, na relação 1:1.** `Peca` guarda o cadastro (código de referência, nome, preço unitário, prazo de reposição e exclusão lógica), alterado só pelo Gerente (RF-12). `EstoquePeca` é a raiz do agregado de estoque e guarda as quantidades física e reservada. A separação faz a reserva, a baixa e o estorno bloquearem apenas o registro de estoque, sem disputar o registro do cadastro.
 * **Tempo estimado e prazo de reposição são congelados no item.** Na inclusão do item e, de novo, em `finalizar_orcamento` (com os valores vigentes do catálogo), junto com os preços (RF-17), a OS copia `Servico.tempo_estimado_minutos` para `ItemServico` e `Peca.prazo_reposicao_dias` para `ItemPeca`. Assim, `estimar_entrega` (RF-25) usa só os dados da OS, e a estimativa corresponde ao orçamento apresentado ao cliente. Uma alteração posterior no catálogo não muda a estimativa das OS já orçadas.
-* **A OS não consulta o catálogo.** `congelar_valores` recebe do caso de uso o `Servico` e a `Peca` vigentes de cada item, atualiza os valores congelados e calcula o `Orcamento`; `finalizar_orcamento(servicos_vigentes, pecas_vigentes)` o chama antes da transição, depois de validar o status de origem. Os itens só mudam em `EM_DIAGNOSTICO` (RF-17), e a OS recusa itens inativos, o mesmo serviço ou peça repetidos e peça com quantidade que não seja um inteiro maior que zero. `Orcamento` guarda os subtotais de serviços e de peças e calcula o total na criação. Incluir ou remover um item descarta o orçamento já calculado, para ele nunca contradizer os itens, e os valores só ficam definitivos quando a OS sai do diagnóstico e os itens deixam de mudar.
+* **A OS não consulta o catálogo.** `congelar_valores` recebe do caso de uso o `Servico` e a `Peca` vigentes de cada item, atualiza os valores congelados e calcula o `Orcamento`; `finalizar_orcamento(usuario_id, servicos_vigentes, pecas_vigentes)` o chama antes da transição, depois de validar o status de origem. Os itens só mudam em `EM_DIAGNOSTICO` (RF-17), e a OS recusa itens inativos, o mesmo serviço ou peça repetidos e peça com quantidade que não seja um inteiro maior que zero. `Orcamento` guarda os subtotais de serviços e de peças e calcula o total na criação. Incluir ou remover um item descarta o orçamento já calculado, para ele nunca contradizer os itens, e os valores só ficam definitivos quando a OS sai do diagnóstico e os itens deixam de mudar.
 * **Documento do cliente.** `CPF` e `CNPJ` são objetos de valor separados, por decisão do grupo na issue #14, e herdam da base abstrata `Documento`. A base guarda só os dígitos, aplica o cálculo do módulo 11 com o tamanho e os pesos de cada subclasse e expõe `tres_primeiros_digitos()`, usado no número da OS (RF-05, RF-13). `Cliente.documento` é do tipo `Documento`, e por isso `Cliente` e a consulta pública (RF-25) trabalham com um só tipo.
 * **Transições e quem as executa.** Cada método da máquina de estados declara de quais status parte, e só `_mudar_status` altera o `status`, o ponto onde o histórico e os eventos se encaixam. `iniciar_execucao` recebe o `Usuario` e só aceita o mecânico atribuído à OS ou o Gerente; outro usuário recebe `AcessoNegado` (`403`). `liberar_para_execucao` recusa a OS que ainda tem peça pendente (`PecasPendentes`), e `cancelar` exige o motivo (`MotivoObrigatorio`). `rejeitar_orcamento` e `cancelar` descartam as pendências dos itens (RF-18), e as quantidades reservadas ficam até o estorno devolvê-las ao estoque, porque o `OSCanceladaEvent` as usa para calcular as quantidades a estornar. `iniciar_execucao` também recusa o usuário desativado (`AcessoNegado`). `finalizar_orcamento` deixa toda a quantidade de cada `ItemPeca` pendente, e a reserva de estoque converte a pendente em reservada (RF-18). A conferência do perfil (Mecânico, Gerente, Atendente) de cada operação fica na camada `presentation`.
+* **Histórico de status.** `_mudar_status` é o único ponto que altera o `status` e grava um `HistoricoStatusOS` por transição, com o mesmo instante de `data_inicio_execucao` e `data_finalizacao`. A origem segue a coluna "Quem executa" da Linguagem Ubíqua: as transições feitas por Mecânico, Gerente ou Atendente gravam `USUARIO` e o `usuario_id` (por isso os métodos recebem o usuário como primeiro parâmetro); `aprovar_orcamento` e `rejeitar_orcamento` gravam `CLIENTE` e `liberar_para_execucao` grava `SISTEMA`, ambos sem usuário. O registro da abertura nasce na fábrica `OrdemServico.abrir`, sem status anterior e com o atendente como usuário; o construtor só reconstitui uma OS e nunca inventa registro, por isso o adaptador de persistência precisa carregar o histórico completo e em ordem (o construtor recusa um histórico que não seja uma sequência de registros, que não esteja encadeado ou que não termine no status da OS). `cancelar` grava o motivo. Os registros são imutáveis (`dataclass` congelada), com data e hora com fuso horário, e o `historico` da OS é uma tupla somente leitura: só os métodos de transição o ampliam, e nada o altera nem remove (RF-24).
 * **Prioridade pela OS mais antiga.** `EstoquePeca.alocar_pendencias` recebe as pendências da peça, ordena pela data de abertura da OS e reserva o saldo da mais antiga para a mais nova (RF-18, RF-19). A conclusão do orçamento e o aumento de saldo usam o mesmo método, e `OrdemServico.alocar_peca` converte a quantidade pendente do item em reservada.
 * **Estorno e baixa.** `cancelar` e `rejeitar_orcamento` calculam as quantidades a estornar a partir do status da OS e as enviam em `OSCanceladaEvent.estornos`. A OS cancelada em `EM_EXECUCAO` envia a lista vazia, porque `iniciar_execucao` já deu baixa em todas as reservas (RF-20); por isso `ItemPeca` não guarda quantidade baixada.
 * **Ajuste de estoque.** `ajustar_quantidade_fisica` corrige a quantidade física para perda, quebra ou inventário (RF-12). O valor novo não pode ficar abaixo da quantidade reservada, e o método emite `SaldoPecaAtualizadoEvent` só quando o saldo disponível aumenta.

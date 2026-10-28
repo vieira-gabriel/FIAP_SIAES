@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import ClassVar
 
-from domain.exceptions import ValorInvalido
+from domain.exceptions import DocumentoInvalido, ValorInvalido
 
 _PONTUACAO = re.compile(r"[.\-/\s]")
 _SOMENTE_DIGITOS = re.compile(r"[0-9]+")
@@ -28,6 +28,19 @@ class Documento(ABC):
         if not self._e_valido(digitos):
             raise self._erro()
         object.__setattr__(self, "valor", digitos)
+
+    @staticmethod
+    def de_texto(valor: str) -> "Documento":
+        """`CPF` com 11 dígitos ou `CNPJ` com 14, ignorando a pontuação (RF-04, RF-05)."""
+        # Import local porque cpf.py e cnpj.py importam este módulo.
+        from domain.value_objects.cnpj import CNPJ
+        from domain.value_objects.cpf import CPF
+
+        quantidade_de_digitos = len(_PONTUACAO.sub("", valor))
+        for tipo in (CPF, CNPJ):
+            if quantidade_de_digitos == tipo.TAMANHO:
+                return tipo(valor)
+        raise DocumentoInvalido()
 
     def tres_primeiros_digitos(self) -> str:
         """Prefixo do número da OS (RF-13)."""

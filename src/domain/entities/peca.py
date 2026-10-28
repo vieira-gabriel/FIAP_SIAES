@@ -62,7 +62,8 @@ class Peca:
         preco_unitario: Valor,
         prazo_reposicao_dias: int,
     ) -> None:
-        codigo_referencia, nome = codigo_referencia.strip(), nome.strip()
+        # Em maiúsculas para "flt-001" e "FLT-001" não virarem duas peças (RF-12).
+        codigo_referencia, nome = codigo_referencia.strip().upper(), nome.strip()
         if not codigo_referencia:
             raise PecaInvalida("o código de referência é obrigatório")
         if not nome:

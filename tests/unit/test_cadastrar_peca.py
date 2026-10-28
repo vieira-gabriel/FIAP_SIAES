@@ -47,3 +47,10 @@ async def test_dados_invalidos_nao_gravam_nada(pecas, estoques, dados, erro):
         await _cadastrar(pecas, estoques, **dados)
 
     assert pecas.dados == estoques.dados == {}
+
+
+async def test_codigo_em_minusculas_conflita_com_o_mesmo_em_maiusculas(pecas, estoques):
+    await _cadastrar(pecas, estoques, "FLT-001")
+
+    with pytest.raises(CodigoDePecaJaCadastrado):
+        await _cadastrar(pecas, estoques, "flt-001")

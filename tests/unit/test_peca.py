@@ -115,3 +115,12 @@ def test_peca_pendente_em_alguma_os_nao_pode_ser_excluida():
 
     assert erro.value.numeros_das_os == ["529-7F3A9C2B", "123-00000001"]
     assert peca.ativo
+
+
+def test_codigo_de_referencia_fica_em_maiusculas():
+    peca = criar_peca(codigo_referencia=" flt-001 ")
+
+    peca.atualizar_dados("vel-002", "Vela", Valor("20.00"), 2)
+
+    assert criar_peca(codigo_referencia="fo-1234").codigo_referencia == "FO-1234"
+    assert peca.codigo_referencia == "VEL-002"

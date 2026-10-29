@@ -40,6 +40,9 @@ class UsuarioRepositoryEmMemoria(UsuarioRepository):
     async def buscar_por_email(self, email):
         return self.por_email(email)
 
+    async def listar(self):
+        return sorted(self.dados.values(), key=lambda usuario: usuario.nome)
+
     def por_email(self, email):
         """Leitura síncrona para os testes, que usam o `TestClient` síncrono."""
         return next((u for u in self.dados.values() if u.email == email), None)

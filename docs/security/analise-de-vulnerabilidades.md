@@ -2,14 +2,14 @@
 
 Análise das dependências, do código-fonte e da imagem Docker exigida pelo RNF-07, com as ferramentas decididas na issue #5 (issue #111).
 
-> Análise feita em 28/10/2026 sobre o commit `90623dd` da `main`, com o ajuste do Dockerfile descrito na seção 4.1. **Na entrega, a análise deve ser refeita sobre o commit final**, com os comandos da seção 5, e este relatório atualizado.
+> Análise feita em 28/10/2026 sobre o commit `a4f2f03` da `main`, com o ajuste do Dockerfile descrito na seção 4.1. **Na entrega, a análise deve ser refeita sobre o commit final**, com os comandos da seção 5, e este relatório atualizado.
 
 ## 1. Resultado
 
 | Ferramenta | Versão | Alvo | Crítico | Alto | Médio | Baixo |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
 | pip-audit | 2.10.1 | 34 dependências de produção (do `uv.lock`, com hashes) e o ambiente completo | 0 | 0 | 0 | 0 |
-| Bandit | 1.9.4 | `src/` e `migrations/` (2.595 linhas), em todos os níveis de severidade e confiança | 0 | 0 | 0 | 0 |
+| Bandit | 1.9.4 | `src/` e `migrations/` (4.124 linhas), em todos os níveis de severidade e confiança | 0 | 0 | 0 | 0 |
 | Trivy (`image`) | 0.57.1 | Imagem da aplicação (`python:3.12-slim`, Debian 13.7) | 0 | 44 | 58 | 61 |
 | Trivy (`config`) | 0.57.1 | `Dockerfile` | 0 | 0 | 0 | 1 |
 

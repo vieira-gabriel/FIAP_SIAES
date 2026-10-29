@@ -79,6 +79,7 @@ Toda dependência externa segue o mesmo padrão:
 | `domain/repositories/ordem_servico_repository.py` | `infrastructure/repositories/postgres_ordem_servico_repository.py` |
 | `domain/repositories/usuario_repository.py` | `infrastructure/repositories/postgres_usuario_repository.py` |
 | `domain/repositories/cliente_repository.py` | `infrastructure/repositories/postgres_cliente_repository.py` |
+| `domain/repositories/servico_repository.py` | `infrastructure/repositories/postgres_servico_repository.py` |
 | `domain/repositories/estoque_repository.py` | `infrastructure/repositories/postgres_estoque_repository.py` |
 | `application/ports/token_service.py` | `infrastructure/security/jwt_token_service.py` |
 | `application/ports/password_hasher.py` | `infrastructure/security/bcrypt_password_hasher.py` |
@@ -394,6 +395,7 @@ A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Tod
 | ORM | SQLAlchemy 2.0 (RNF-04) |
 | Modo do SQLAlchemy | Assíncrono, com o driver asyncpg (issue #3). São `async def` as portas de repositório, as portas de serviço que bloqueiam (como `PasswordHasher`, que executa o bcrypt com `asyncio.to_thread`), os casos de uso e as rotas. `TokenService` é síncrono, pois não faz I/O. Carregamento preguiçoso proibido: as coleções são carregadas com `selectinload`. Testes com pytest-asyncio (`asyncio_mode = "auto"`) |
 | JWT e hash de senha | PyJWT e bcrypt (RF-01, RF-03) |
+| Catálogo de serviços (RF-10, RF-11) | Rotas `/servicos` (issue #84): todos os perfis listam e consultam, só o Gerente cadastra, edita e exclui. O código do serviço é único, inclusive para serviços excluídos (`CodigoDeServicoJaCadastrado`, `422`), e a edição altera todos os dados. O `valor_base` é gravado como `NUMERIC(12, 2)` e trafega como texto no JSON (`"120.50"`), sem erro de ponto flutuante (RNF-11) |
 | Gestão de usuários (RF-03) | Rotas `/usuarios`, só para o Gerente (issue #81). A senha tem no mínimo 8 caracteres e no máximo 72 bytes, o limite do bcrypt, e muda só pela rota `PUT /usuarios/{id}/senha`. O Gerente não desativa o próprio acesso nem muda o próprio perfil (`AlteracaoDoProprioAcesso`, `422`), para a oficina não ficar sem Gerente. A listagem e o detalhamento mostram também os usuários desativados, para que possam ser reativados |
 | Gerenciamento de dependências | `uv` com `pyproject.toml` e lockfile `uv.lock`. Comandos: `uv sync` (instala o ambiente), `uv add <pacote>` (adiciona dependência), `uv run pytest` (executa sem ativar o venv) |
 | Imports a partir de `src/` | `PYTHONPATH=src`: `pythonpath = ["src"]` no pytest (`pyproject.toml`), `ENV PYTHONPATH=/app/src` no Dockerfile e `PYTHONPATH=src` no `.env` para a IDE |

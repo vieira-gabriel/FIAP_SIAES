@@ -131,7 +131,7 @@ Toda transição gera um registro no Histórico de Status (RF-24), com a origem 
 | **Adaptador de Infraestrutura** | Implementação ORM / SQL (`PostgreSQL`) | `src/infrastructure/repositories/postgres_ordem_servico_repository.py` |
 | **Evento de Domínio** | Dataclass de Evento Imutável | `src/domain/events/orcamento_finalizado_event.py` |
 
-Os exemplos de caso de uso, adaptador e evento da OS acima mostram o padrão a seguir; os arquivos ainda não existem (`aprovar_orcamento.py`) ou são provisórios (`postgres_ordem_servico_repository.py` só devolve a lista vazia de OS com peça pendente até a issue #88), e entram com a Fase 5. Já existem como exemplos reais: `entities/ordem_servico.py`, `value_objects/cpf.py`, `repositories/ordem_servico_repository.py`, `repositories/estoque_repository.py`, `infrastructure/repositories/postgres_estoque_repository.py`, `use_cases/cadastrar_cliente.py` e `events/orcamento_finalizado_event.py`.
+Os exemplos de caso de uso, adaptador e evento da OS acima mostram o padrão a seguir; o arquivo `aprovar_orcamento.py` ainda não existe e entra com a Fase 5. Já existem como exemplos reais: `entities/ordem_servico.py`, `value_objects/cpf.py`, `repositories/ordem_servico_repository.py`, `repositories/estoque_repository.py`, `infrastructure/repositories/postgres_ordem_servico_repository.py`, `infrastructure/repositories/postgres_estoque_repository.py`, `use_cases/cadastrar_cliente.py` e `events/orcamento_finalizado_event.py`.
 
 ---
 

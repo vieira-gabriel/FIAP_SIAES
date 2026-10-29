@@ -166,7 +166,8 @@ class OrdemServico:
         """Atualiza os itens com os valores vigentes do catálogo e calcula o orçamento (RF-17).
 
         O domínio não consulta o catálogo: o caso de uso entrega o `Servico` e a `Peca` de cada
-        item. Se faltar algum, nenhum item é alterado. O orçamento vale até os itens mudarem:
+        item. Se faltar algum, ou se algum foi excluído do catálogo depois de incluído, nenhum item
+        é alterado. O orçamento vale até os itens mudarem:
         incluir ou remover um item o descarta, e só então o congelamento pode ser refeito.
         """
         self._exigir_itens_editaveis()
@@ -178,6 +179,12 @@ class OrdemServico:
             raise OrdemServicoInvalida(
                 f"faltam os valores vigentes de: {', '.join(sem_valor_vigente)}"
             )
+        excluidos = [
+            i.nome for i in self.servicos if not servicos[i.servico_id].pode_ser_incluido_em_os()
+        ]
+        excluidos += [i.nome for i in self.pecas if not pecas[i.peca_id].pode_ser_incluida_em_os()]
+        if excluidos:
+            raise ItemIndisponivel(excluidos[0])
         for item_servico in self.servicos:
             item_servico.congelar(servicos[item_servico.servico_id])
         for item_peca in self.pecas:

@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 
+from application.use_cases.finalizar_orcamento import FinalizarOrcamento
 from domain.entities.cliente import Cliente
 from domain.entities.estoque_peca import EstoquePeca
 from domain.entities.historico_status_os import HistoricoStatusOS
@@ -15,7 +16,7 @@ from domain.entities.peca import Peca
 from domain.entities.servico import Servico
 from domain.entities.usuario import Usuario
 from domain.entities.veiculo import Veiculo
-from domain.exceptions import NumeroOSJaCadastrado
+from domain.exceptions import ItemIndisponivel, NumeroOSJaCadastrado
 from domain.value_objects.cpf import CPF
 from domain.value_objects.numero_os import NumeroOS
 from domain.value_objects.origem_transicao import OrigemTransicao
@@ -302,3 +303,51 @@ async def test_os_lida_fica_bloqueada_ate_o_fim_da_transacao(fabrica_de_sessoes,
             async with UnidadeDeTrabalhoSqlAlchemy(fabrica_de_sessoes) as segunda:
                 await segunda.sessao.execute(text("SET LOCAL lock_timeout = '200ms'"))
                 await PostgresOrdemServicoRepository(segunda.sessao).buscar_por_numero(os.numero)
+
+
+async def test_finalizar_orcamento_recusa_peca_excluida_depois_de_incluida(
+    fabrica_de_sessoes, cadastros
+):
+    os = _abrir(cadastros)
+    os.atribuir_mecanico(cadastros.mecanico.id)
+    os.incluir_peca(cadastros.filtro, quantidade=1)
+    await _salvar(fabrica_de_sessoes, os)
+    cadastros.filtro.excluir([])
+    async with UnidadeDeTrabalhoSqlAlchemy(fabrica_de_sessoes) as unidade:
+        await PostgresPecaRepository(unidade.sessao).salvar(cadastros.filtro)
+
+    with pytest.raises(ItemIndisponivel):
+        async with UnidadeDeTrabalhoSqlAlchemy(fabrica_de_sessoes) as unidade:
+            sessao = unidade.sessao
+            await FinalizarOrcamento(
+                PostgresOrdemServicoRepository(sessao),
+                PostgresEstoqueRepository(sessao),
+                PostgresServicoRepository(sessao),
+                PostgresPecaRepository(sessao),
+            ).executar(os.id, cadastros.mecanico.id)
+
+    assert (await _buscar(fabrica_de_sessoes, os.id)).status is StatusOS.EM_DIAGNOSTICO
+
+
+async def test_finalizar_orcamento_espera_a_exclusao_da_peca_em_andamento(
+    fabrica_de_sessoes, cadastros
+):
+    """A exclusão bloqueia o estoque; a conclusão espera e então vê a peça excluída (RF-12)."""
+    os = _abrir(cadastros)
+    os.atribuir_mecanico(cadastros.mecanico.id)
+    os.incluir_peca(cadastros.filtro, quantidade=1)
+    await _salvar(fabrica_de_sessoes, os)
+
+    async with UnidadeDeTrabalhoSqlAlchemy(fabrica_de_sessoes) as exclusao:
+        await PostgresEstoqueRepository(exclusao.sessao).buscar_por_peca(cadastros.filtro.id)
+
+        with pytest.raises(DBAPIError, match="lock timeout"):
+            async with UnidadeDeTrabalhoSqlAlchemy(fabrica_de_sessoes) as unidade:
+                sessao = unidade.sessao
+                await sessao.execute(text("SET LOCAL lock_timeout = '200ms'"))
+                await FinalizarOrcamento(
+                    PostgresOrdemServicoRepository(sessao),
+                    PostgresEstoqueRepository(sessao),
+                    PostgresServicoRepository(sessao),
+                    PostgresPecaRepository(sessao),
+                ).executar(os.id, cadastros.mecanico.id)

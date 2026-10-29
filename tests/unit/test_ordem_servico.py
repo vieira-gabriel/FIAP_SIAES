@@ -5,10 +5,14 @@ from uuid import uuid4
 import pytest
 
 from domain.entities.historico_status_os import HistoricoStatusOS
+from domain.entities.item_peca import ItemPeca
 from domain.entities.ordem_servico import OrdemServico
 from domain.entities.peca import Peca
 from domain.entities.servico import Servico
 from domain.entities.usuario import Usuario
+from domain.events.execucao_iniciada_event import ExecucaoIniciadaEvent
+from domain.events.orcamento_finalizado_event import OrcamentoFinalizadoEvent
+from domain.events.os_cancelada_event import OSCanceladaEvent
 from domain.exceptions import (
     AcessoNegado,
     EntidadeNaoEncontrada,
@@ -25,6 +29,7 @@ from domain.value_objects.numero_os import NumeroOS
 from domain.value_objects.orcamento import Orcamento
 from domain.value_objects.origem_transicao import OrigemTransicao
 from domain.value_objects.perfil_usuario import PerfilUsuario
+from domain.value_objects.quantidade_peca import QuantidadePeca
 from domain.value_objects.status_os import StatusOS
 from domain.value_objects.valor import Valor
 
@@ -1373,3 +1378,181 @@ def _catalogo_de(os: OrdemServico) -> tuple[list[Servico], list[Peca]]:
         for i, item in enumerate(os.pecas)
     ]
     return servicos, pecas
+
+
+def item_peca_reservado(quantidade: int, reservada: int, pendente: int = 0) -> ItemPeca:
+    return ItemPeca(
+        peca_id=uuid4(),
+        nome="Filtro de óleo",
+        quantidade=quantidade,
+        preco_unitario_congelado=Valor("35.90"),
+        prazo_reposicao_dias=3,
+        quantidade_reservada=reservada,
+        quantidade_pendente=pendente,
+    )
+
+
+def test_os_nova_nao_tem_eventos_acumulados():
+    assert criar_os().collect_domain_events() == []
+
+
+def test_finalizar_orcamento_acumula_orcamento_finalizado():
+    peca = criar_peca()
+    os = criar_os()
+    os.incluir_peca(peca, quantidade=2)
+
+    os.finalizar_orcamento(USUARIO_ID, [], [peca])
+
+    (evento,) = os.collect_domain_events()
+    assert isinstance(evento, OrcamentoFinalizadoEvent)
+    assert evento.os_id == os.id
+
+
+def test_finalizar_orcamento_recusado_nao_acumula_evento():
+    os = criar_os(status=StatusOS.RECEBIDA)
+
+    with pytest.raises(TransicaoDeStatusInvalida):
+        os.finalizar_orcamento(USUARIO_ID, [], [])
+
+    assert os.collect_domain_events() == []
+
+
+def test_rejeitar_orcamento_acumula_os_cancelada_com_as_quantidades_reservadas():
+    os = os_aguardando_aprovacao_com_peca_pendente()
+    os.collect_domain_events()
+
+    os.rejeitar_orcamento()
+
+    (evento,) = os.collect_domain_events()
+    assert isinstance(evento, OSCanceladaEvent)
+    assert evento.os_id == os.id
+    assert evento.estornos == [QuantidadePeca(os.pecas[0].peca_id, 1)]
+
+
+def test_rejeitar_orcamento_sem_reservas_acumula_os_cancelada_sem_estornos():
+    os = criar_os(status=StatusOS.AGUARDANDO_APROVACAO)
+
+    os.rejeitar_orcamento()
+
+    (evento,) = os.collect_domain_events()
+    assert isinstance(evento, OSCanceladaEvent)
+    assert evento.estornos == []
+
+
+def test_cancelar_acumula_os_cancelada_com_as_quantidades_reservadas_de_cada_peca():
+    inteiro, parcial = item_peca_reservado(2, reservada=2), item_peca_reservado(3, 1, pendente=2)
+    sem_reserva = item_peca_reservado(4, reservada=0, pendente=4)
+    os = criar_os(status=StatusOS.AGUARDANDO_PECA, pecas=[inteiro, parcial, sem_reserva])
+
+    os.cancelar(USUARIO_ID, "Cliente desistiu do serviço")
+
+    (evento,) = os.collect_domain_events()
+    assert isinstance(evento, OSCanceladaEvent)
+    assert evento.os_id == os.id
+    assert evento.estornos == [
+        QuantidadePeca(inteiro.peca_id, 2),
+        QuantidadePeca(parcial.peca_id, 1),
+    ]
+
+
+@pytest.mark.parametrize("status", [StatusOS.RECEBIDA, StatusOS.EM_DIAGNOSTICO])
+def test_cancelar_antes_do_orcamento_acumula_os_cancelada_sem_estornos(status):
+    os = criar_os(status=status)
+
+    os.cancelar(USUARIO_ID, "Cliente desistiu do serviço")
+
+    (evento,) = os.collect_domain_events()
+    assert isinstance(evento, OSCanceladaEvent)
+    assert evento.estornos == []
+
+
+def test_cancelar_em_execucao_acumula_os_cancelada_com_estornos_vazios():
+    item = item_peca_reservado(2, reservada=2)
+    os = criar_os(status=StatusOS.EM_EXECUCAO, pecas=[item])
+
+    os.cancelar(USUARIO_ID, "Peça com defeito de fábrica")
+
+    (evento,) = os.collect_domain_events()
+    assert isinstance(evento, OSCanceladaEvent)
+    assert evento.os_id == os.id
+    assert evento.estornos == []
+
+
+def test_cancelamento_recusado_nao_acumula_evento():
+    os = criar_os(status=StatusOS.EM_DIAGNOSTICO)
+
+    with pytest.raises(MotivoObrigatorio):
+        os.cancelar(USUARIO_ID, "  ")
+    os.status = StatusOS.ENTREGUE
+    with pytest.raises(TransicaoDeStatusInvalida):
+        os.cancelar(USUARIO_ID, "Tarde demais")
+
+    assert os.collect_domain_events() == []
+
+
+def test_iniciar_execucao_acumula_execucao_iniciada_com_as_quantidades_reservadas():
+    primeira, segunda = item_peca_reservado(2, reservada=2), item_peca_reservado(1, reservada=1)
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
+    os = criar_os(
+        status=StatusOS.AGUARDANDO_EXECUCAO, mecanico_id=mecanico.id, pecas=[primeira, segunda]
+    )
+
+    os.iniciar_execucao(mecanico)
+
+    (evento,) = os.collect_domain_events()
+    assert isinstance(evento, ExecucaoIniciadaEvent)
+    assert evento.os_id == os.id
+    assert evento.baixas == [
+        QuantidadePeca(primeira.peca_id, 2),
+        QuantidadePeca(segunda.peca_id, 1),
+    ]
+
+
+def test_iniciar_execucao_sem_pecas_acumula_execucao_iniciada_sem_baixas():
+    os = criar_os(status=StatusOS.AGUARDANDO_EXECUCAO)
+
+    os.iniciar_execucao(criar_usuario(PerfilUsuario.GERENTE))
+
+    (evento,) = os.collect_domain_events()
+    assert isinstance(evento, ExecucaoIniciadaEvent)
+    assert evento.baixas == []
+
+
+def test_iniciar_execucao_recusada_nao_acumula_evento():
+    os = criar_os(status=StatusOS.AGUARDANDO_EXECUCAO, mecanico_id=uuid4())
+
+    with pytest.raises(AcessoNegado):
+        os.iniciar_execucao(criar_usuario(PerfilUsuario.MECANICO))
+
+    assert os.collect_domain_events() == []
+
+
+def test_transicoes_sem_reacao_no_estoque_nao_acumulam_evento():
+    os = criar_os(status=StatusOS.RECEBIDA)
+    os.atribuir_mecanico(uuid4())
+    aguardando_peca = os_aguardando_aprovacao_com_peca_pendente()
+    aguardando_peca.collect_domain_events()
+
+    aguardando_peca.aprovar_orcamento()
+    aguardando_peca.pecas[0].quantidade_reservada = 2
+    aguardando_peca.pecas[0].quantidade_pendente = 0
+    aguardando_peca.liberar_para_execucao()
+    em_execucao = criar_os(status=StatusOS.EM_EXECUCAO)
+    em_execucao.concluir_manutencao(USUARIO_ID)
+    em_execucao.entregar_veiculo(USUARIO_ID)
+
+    for ordem in (os, aguardando_peca, em_execucao):
+        assert ordem.collect_domain_events() == []
+
+
+def test_collect_domain_events_devolve_na_ordem_e_esvazia_a_lista():
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
+    item = item_peca_reservado(1, reservada=1)
+    os = criar_os(status=StatusOS.AGUARDANDO_EXECUCAO, mecanico_id=mecanico.id, pecas=[item])
+    os.iniciar_execucao(mecanico)
+    os.cancelar(USUARIO_ID, "Peça com defeito de fábrica")
+
+    eventos = os.collect_domain_events()
+
+    assert [type(evento) for evento in eventos] == [ExecucaoIniciadaEvent, OSCanceladaEvent]
+    assert os.collect_domain_events() == []

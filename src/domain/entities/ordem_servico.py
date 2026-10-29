@@ -9,6 +9,10 @@ from domain.entities.item_servico import ItemServico
 from domain.entities.peca import Peca
 from domain.entities.servico import Servico
 from domain.entities.usuario import Usuario
+from domain.events.domain_event import DomainEvent
+from domain.events.execucao_iniciada_event import ExecucaoIniciadaEvent
+from domain.events.orcamento_finalizado_event import OrcamentoFinalizadoEvent
+from domain.events.os_cancelada_event import OSCanceladaEvent
 from domain.exceptions import (
     AcessoNegado,
     EntidadeNaoEncontrada,
@@ -24,6 +28,7 @@ from domain.value_objects.numero_os import NumeroOS
 from domain.value_objects.orcamento import Orcamento
 from domain.value_objects.origem_transicao import OrigemTransicao
 from domain.value_objects.perfil_usuario import PerfilUsuario
+from domain.value_objects.quantidade_peca import QuantidadePeca
 from domain.value_objects.status_os import StatusOS
 from domain.value_objects.valor import Valor
 
@@ -37,7 +42,9 @@ class OrdemServico:
     Os itens só mudam durante o diagnóstico e só aceitam serviços e peças ativos (RF-17). O
     orçamento soma os valores congelados nos itens (RNF-11). Apenas as transições da Linguagem
     Ubíqua (§5) são permitidas, cada uma por um método que declara de quais status parte, e
-    cada transição gera um registro no histórico (RF-24).
+    cada transição gera um registro no histórico (RF-24). A conclusão do orçamento, o
+    cancelamento e o início da execução acumulam um evento de domínio para o estoque reagir
+    (RF-18, RF-20, RF-23).
     """
 
     numero: NumeroOS
@@ -54,6 +61,7 @@ class OrdemServico:
     pecas: list[ItemPeca] = field(default_factory=list)
     orcamento: Orcamento | None = None
     historico: tuple[HistoricoStatusOS, ...] = ()
+    _domain_events: list[DomainEvent] = field(default_factory=list, init=False, repr=False)
 
     def __post_init__(self):
         if not isinstance(self.numero, NumeroOS):
@@ -219,6 +227,7 @@ class OrdemServico:
             origem=OrigemTransicao.USUARIO,
             usuario_id=usuario_id,
         )
+        self._domain_events.append(OrcamentoFinalizadoEvent(os_id=self.id))
 
     def aprovar_orcamento(self) -> None:
         """Com peças pendentes a OS espera a reposição; sem elas, aguarda a execução (RF-26)."""
@@ -237,6 +246,7 @@ class OrdemServico:
             StatusOS.CANCELADA, de={StatusOS.AGUARDANDO_APROVACAO}, origem=OrigemTransicao.CLIENTE
         )
         self._descartar_pendencias()
+        self._acumular_os_cancelada(baixa_ja_realizada=False)
 
     def liberar_para_execucao(self) -> None:
         """A OS só sai de `AGUARDANDO_PECA` quando todas as peças estão reservadas (RF-19)."""
@@ -264,6 +274,9 @@ class OrdemServico:
             origem=OrigemTransicao.USUARIO,
             usuario_id=usuario.id,
         )
+        self._domain_events.append(
+            ExecucaoIniciadaEvent(os_id=self.id, baixas=self._quantidades_reservadas())
+        )
 
     def cancelar(self, usuario_id: UUID, motivo: str) -> None:
         """Vale de `RECEBIDA` até `EM_EXECUCAO` e exige o motivo, que vai ao histórico (RF-23).
@@ -274,6 +287,7 @@ class OrdemServico:
         self._validar_transicao(StatusOS.CANCELADA, de=_CANCELAVEIS)
         if not isinstance(motivo, str) or not motivo.strip():
             raise MotivoObrigatorio()
+        baixa_ja_realizada = self.status is StatusOS.EM_EXECUCAO
         self._mudar_status(
             StatusOS.CANCELADA,
             de=_CANCELAVEIS,
@@ -282,6 +296,7 @@ class OrdemServico:
             motivo=motivo,
         )
         self._descartar_pendencias()
+        self._acumular_os_cancelada(baixa_ja_realizada=baixa_ja_realizada)
 
     def concluir_manutencao(self, usuario_id: UUID) -> None:
         """Grava o momento da conclusão técnica (RF-21)."""
@@ -316,6 +331,10 @@ class OrdemServico:
         except OverflowError:
             raise OrdemServicoInvalida("os prazos dos itens passam do limite de datas") from None
 
+    def collect_domain_events(self) -> list[DomainEvent]:
+        eventos, self._domain_events = self._domain_events, []
+        return eventos
+
     def _estimativa(self, momento_consulta: datetime) -> datetime | None:
         match self.status:
             case StatusOS.RECEBIDA | StatusOS.EM_DIAGNOSTICO | StatusOS.CANCELADA:
@@ -344,6 +363,17 @@ class OrdemServico:
     def _descartar_pendencias(self) -> None:
         for item in self.pecas:
             item.descartar_pendencia()
+
+    def _acumular_os_cancelada(self, *, baixa_ja_realizada: bool) -> None:
+        estornos = [] if baixa_ja_realizada else self._quantidades_reservadas()
+        self._domain_events.append(OSCanceladaEvent(os_id=self.id, estornos=estornos))
+
+    def _quantidades_reservadas(self) -> list[QuantidadePeca]:
+        return [
+            QuantidadePeca(item.peca_id, item.quantidade_reservada)
+            for item in self.pecas
+            if item.quantidade_reservada > 0
+        ]
 
     def _nomes_das_pecas_pendentes(self) -> list[str]:
         return [item.nome for item in self.pecas if item.quantidade_pendente > 0]

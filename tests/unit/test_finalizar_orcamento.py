@@ -7,6 +7,7 @@ from domain.entities.ordem_servico import OrdemServico
 from domain.entities.peca import Peca
 from domain.entities.servico import Servico
 from domain.exceptions import EntidadeNaoEncontrada, ItemIndisponivel
+from domain.repositories.estoque_repository import EstoqueRepository
 from domain.value_objects.numero_os import NumeroOS
 from domain.value_objects.status_os import StatusOS
 from domain.value_objects.valor import Valor
@@ -14,12 +15,18 @@ from domain.value_objects.valor import Valor
 USUARIO_ID = uuid4()
 
 
-class EstoquesQueRegistramOBloqueio:
+class EstoquesQueRegistramOBloqueio(EstoqueRepository):
     def __init__(self):
         self.bloqueados: list[UUID] = []
 
+    async def salvar(self, estoque):
+        raise NotImplementedError
+
     async def buscar_por_peca(self, peca_id):
         self.bloqueados.append(peca_id)
+
+    async def buscar_por_pecas(self, peca_ids):
+        raise NotImplementedError
 
 
 def _peca(codigo: str) -> Peca:

@@ -351,7 +351,8 @@ async def test_finalizar_orcamento_recusa_peca_excluida_depois_de_incluida(
 async def test_finalizar_orcamento_espera_a_exclusao_da_peca_em_andamento(
     fabrica_de_sessoes, cadastros
 ):
-    """A exclusão bloqueia o estoque; a conclusão espera e então vê a peça excluída (RF-12)."""
+    """A exclusão bloqueia o estoque, e a conclusão espera o bloqueio antes de ler o catálogo
+    (RF-12)."""
     os = _abrir(cadastros)
     os.atribuir_mecanico(cadastros.mecanico.id)
     os.incluir_peca(cadastros.filtro, quantidade=1)

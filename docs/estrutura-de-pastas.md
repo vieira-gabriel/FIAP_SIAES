@@ -126,7 +126,7 @@ A autenticação JWT (seção 5), a configuração do PostgreSQL (RNF-08) e o `D
 
 * o caso de uso `criar_os.py`, que existe vazio (Fase 5);
 * o modelo do ORM e a tabela da OS, com o adaptador `postgres_ordem_servico_repository.py` completo (issue #88): hoje ele é provisório e só devolve a lista vazia de OS com peça pendente, usada na exclusão da peça;
-* os eventos de domínio da OS e os handlers de `application/handlers/` (issue #45);
+* os handlers de `application/handlers/` que reagem aos eventos de domínio (Fase 5);
 * a evidência da medição de cobertura (RNF-14), que a Fase 7 registra.
 
 As portas e os adaptadores de usuário, cliente, veículo, serviço, peça e estoque já existem, e a porta da OS (`ordem_servico_repository.py`) também. Os relatórios de segredos (RNF-06) e de vulnerabilidades (RNF-07) estão em `docs/security/`.

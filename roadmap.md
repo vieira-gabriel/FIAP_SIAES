@@ -8,7 +8,7 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 
 ## Estado Atual
 
-> Atualizado em 29/10/2026, considerando a `main` até o merge do PR #133.
+> Atualizado em 29/10/2026, considerando a `main` até o merge do PR #134 e a issue #45.
 
 | Item | Situação |
 | :--- | :--- |
@@ -17,12 +17,12 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 | Modelo C4 | Documentado nos 4 níveis; camada de entrada renomeada para `src/presentation/`; estrutura de pastas da seção 6 aprovada pelo grupo (issue #9) |
 | Guia de desenvolvimento e estrutura de pastas | Atualizados para a numeração atual dos requisitos, com as decisões técnicas da seção 8 |
 | Event Storming | PDF reexportado com os fluxos de peça pendente e de cancelamento; link do board registrado em [docs/ddd/event-storming.md](docs/ddd/event-storming.md) |
-| Código (`src/`) e testes | Domínio implementado: objetos de valor, `Cliente`, `Veiculo`, `Usuario`, `Servico`, `Peca`, `OrdemServico` (itens, orçamento, máquina de estados, histórico e estimativa de entrega) e `EstoquePeca` (reserva, baixa, estorno e alocação por prioridade), com as sete portas de repositório (cliente, veículo, usuário, serviço, peça, estoque e OS). Aplicação com o Event Dispatcher e os casos de uso de login, de carga inicial e dos cadastros de usuários (issue #81), clientes (issue #82), veículos (issue #83), serviços (issue #84) e peças com o saldo do estoque (issue #85). Infraestrutura com configuração, engine, unidade de trabalho, seis migrations (`usuarios`, `clientes`, `servicos`, `veiculos`, `pecas` e `estoque_pecas`) e a persistência desses cadastros. Apresentação com `/health`, login, validação de token com checagem de perfil (RBAC), rotas `/usuarios`, `/clientes`, `/veiculos`, `/servicos` e `/pecas` e tratamento padronizado de erros. 1008 testes passando (893 unitários e 115 de integração), com 100% de cobertura em `domain/` e `application/` |
+| Código (`src/`) e testes | Domínio implementado: objetos de valor, `Cliente`, `Veiculo`, `Usuario`, `Servico`, `Peca`, `OrdemServico` (itens, orçamento, máquina de estados, histórico e estimativa de entrega) e `EstoquePeca` (reserva, baixa, estorno e alocação por prioridade), com os quatro eventos de domínio acumulados por eles e as sete portas de repositório (cliente, veículo, usuário, serviço, peça, estoque e OS). Aplicação com o Event Dispatcher e os casos de uso de login, de carga inicial e dos cadastros de usuários (issue #81), clientes (issue #82), veículos (issue #83), serviços (issue #84) e peças com o saldo do estoque (issue #85). Infraestrutura com configuração, engine, unidade de trabalho, seis migrations (`usuarios`, `clientes`, `servicos`, `veiculos`, `pecas` e `estoque_pecas`) e a persistência desses cadastros. Apresentação com `/health`, login, validação de token com checagem de perfil (RBAC), rotas `/usuarios`, `/clientes`, `/veiculos`, `/servicos` e `/pecas` e tratamento padronizado de erros. 1045 testes passando (930 unitários e 115 de integração), com 100% de cobertura em `domain/` e `application/` |
 | Configuração do repositório | `.gitignore`, `.env.example`, `pyproject.toml` (com o uv fixado em 0.8.22) e `uv.lock` criados. A proteção da `main` no GitHub ainda não está configurada (API: `protected: false`, sem ruleset) |
 | CI | `.github/workflows/ci.yml` em cada PR e em cada push na `main`: lint, testes com PostgreSQL, cobertura mínima de 80%, Bandit, pip-audit e `docker build` (issue #29) |
 | Docker | `Dockerfile` em Python 3.12, multi-stage com `uv`, usuário não-root e sem o `pip` da imagem base, e `docker-compose.yml` com `app` e `db` (PostgreSQL 16); as migrations rodam antes do Uvicorn |
 | Segurança | Revisão de segredos no código e no histórico (issue #114, `docs/security/revisao-de-segredos.md`) e análise de vulnerabilidades das dependências, do código e da imagem (issue #111, `docs/security/analise-de-vulnerabilidades.md`), ambas sem achado crítico e a repetir no commit final. Medição de desempenho, revisão de SQL Injection, IDOR e XSS e revisão do Swagger seguem pendentes (Fase 7) |
-| Pendências do domínio | `OrdemServico.alocar_peca` (issue #43, parte 2) e os eventos da OS, com o objeto de valor `QuantidadePeca` (issue #45). O `criar_os.py` segue vazio, e o adaptador `PostgresOrdemServicoRepository` é provisório: só atende à exclusão da peça com OS pendente até a persistência da OS (issue #88) |
+| Pendências do domínio | `OrdemServico.alocar_peca` (issue #43, parte 2). Os eventos de domínio estão prontos (issue #45), e os handlers que reagem a eles entram com a Fase 5. O `criar_os.py` segue vazio, e o adaptador `PostgresOrdemServicoRepository` é provisório: só atende à exclusão da peça com OS pendente até a persistência da OS (issue #88) |
 | README | Objetivo, solução, arquitetura, tecnologias e banco de dados (issue #116), pré-requisitos, execução, testes, Swagger e usuários de demonstração (issue #117); faltam a estrutura de diretórios, o link para a documentação DDD e o link do vídeo (issue #121) |
 
 ---
@@ -47,7 +47,7 @@ flowchart LR
 | **0** | Fundação | - | Decisões fechadas, documentos alinhados entre si e ao enunciado, repositório configurado | Em andamento |
 | **1** | Modelagem DDD | 0 | Event Storming completo e legível, diagramas e linguagem ubíqua consistentes entre si | Em andamento |
 | **2** | Infraestrutura base | 0 | `docker compose up --build` sobe API + PostgreSQL com Swagger em `/docs` | Concluída |
-| **3** | Domínio | 1 | Entidades, objetos de valor, eventos e regras de negócio com testes unitários | Quase concluída (faltam as issues #43 parte 2 e #45) |
+| **3** | Domínio | 1 | Entidades, objetos de valor, eventos e regras de negócio com testes unitários | Quase concluída (falta a issue #43 parte 2) |
 | **4** | Autenticação e cadastros | 2, 3 | Login JWT, RBAC, gestão de usuários e cadastros administrativos | Concluída (login, RBAC, carga inicial, usuários, clientes, veículos, serviços e peças) |
 | **5** | Fluxo da OS | 4 | Abertura, orçamento, reserva e pendência de peças, aprovação, execução e consulta pública | Não iniciada |
 | **6** | Gestão e métricas | 5 | Listagem, detalhamento e relatório de tempos médios | Não iniciada |
@@ -263,7 +263,7 @@ Tarefas da fase:
 - [x] Agregado `EstoquePeca` com quantidade física, reserva, pendência, baixa e estorno, sem permitir saldo negativo (RF-12, RF-18, RF-20; issue #42): `reservar` devolve (reservada, pendente), `SaldoPecaAtualizadoEvent` acumulado quando o saldo aumenta, e porta `EstoqueRepository`; a alocação por prioridade (`alocar_pendencias`) fica na #43
 - [ ] Regra de prioridade pela OS mais antiga na reserva e na alocação de peças repostas (RF-18, RF-19; issue #43): `PendenciaPeca`, `AlocacaoPeca` e `EstoquePeca.alocar_pendencias` prontos (parte 1); falta `OrdemServico.alocar_peca` (parte 2)
 - [x] Cálculo da estimativa de entrega por status (RF-25; issue #44): `OrdemServico.estimar_entrega(momento_consulta)` com os valores congelados nos itens e uma linha de teste para cada status da tabela
-- [ ] Eventos de domínio acumulados no agregado (`collect_domain_events`; issue #45): `DomainEvent` e o `SaldoPecaAtualizadoEvent` do `EstoquePeca` prontos; faltam `OrcamentoFinalizadoEvent`, `OSCanceladaEvent`, `ExecucaoIniciadaEvent`, o acúmulo na `OrdemServico` e o objeto de valor `QuantidadePeca`, que unifica a validação da quantidade de peça (guia, seção 8.2)
+- [x] Eventos de domínio acumulados nos agregados (`collect_domain_events`; issue #45): `DomainEvent` e os quatro eventos do catálogo (`OrcamentoFinalizadoEvent`, `OSCanceladaEvent`, `ExecucaoIniciadaEvent` e `SaldoPecaAtualizadoEvent`), acumulados pela `OrdemServico` e pelo `EstoquePeca`, e o objeto de valor `QuantidadePeca` das listas de estornos e de baixas. A unificação da validação da quantidade de peça segue em aberto (guia, seção 8.2)
 - [x] Interfaces (portas) dos repositórios (issue #46): `ClienteRepository`, `VeiculoRepository`, `UsuarioRepository`, `ServicoRepository`, `PecaRepository`, `EstoqueRepository` e `OrdemServicoRepository`, esta com a consulta das OS que têm a peça pendente, na ordem da abertura
 
 ### Testes

@@ -2,6 +2,7 @@ import pytest
 
 from application.ports.password_hasher import PasswordHasher
 from domain.repositories.cliente_repository import ClienteRepository
+from domain.repositories.servico_repository import ServicoRepository
 from domain.repositories.usuario_repository import UsuarioRepository
 
 
@@ -61,3 +62,26 @@ def usuarios() -> UsuarioRepositoryEmMemoria:
 @pytest.fixture
 def password_hasher() -> PasswordHasherFalso:
     return PasswordHasherFalso()
+
+
+class ServicoRepositoryEmMemoria(ServicoRepository):
+    def __init__(self):
+        self.dados = {}
+
+    async def salvar(self, servico):
+        self.dados[servico.id] = servico
+
+    async def buscar_por_id(self, id):
+        return self.dados.get(id)
+
+    async def buscar_por_codigo(self, codigo):
+        return next((s for s in self.dados.values() if s.codigo == codigo), None)
+
+    async def listar(self):
+        ativos = (s for s in self.dados.values() if s.ativo)
+        return sorted(ativos, key=lambda servico: servico.nome)
+
+
+@pytest.fixture
+def servicos() -> ServicoRepositoryEmMemoria:
+    return ServicoRepositoryEmMemoria()

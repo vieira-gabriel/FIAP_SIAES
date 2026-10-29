@@ -160,6 +160,14 @@ class AlteracaoDoProprioAcesso(RegraDeNegocioViolada):
         self.acao = acao
 
 
+class CodigoDeServicoJaCadastrado(RegraDeNegocioViolada):
+    """O código identifica um único serviço do catálogo, mesmo excluído (RF-10, RF-11)."""
+
+    def __init__(self, codigo: str):
+        super().__init__(f"Já existe um serviço com o código {codigo!r}.")
+        self.codigo = codigo
+
+
 class DocumentoJaCadastrado(RegraDeNegocioViolada):
     """Um documento identifica um único cliente, mesmo excluído logicamente (RF-04, RF-06).
 

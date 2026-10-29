@@ -27,6 +27,10 @@ dev = [
     "bandit>=1.9.4",
 ]
 
+[tool.uv]
+# A mesma versão do Dockerfile e do CI: outra versão reescreve o `uv.lock` em outro formato.
+required-version = "==0.8.22"
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]

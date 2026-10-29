@@ -9,14 +9,16 @@ on:
 permissions:
   contents: read
 
+# Só o PR cancela a execução anterior; na `main`, todo commit precisa ter o resultado dele.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   qualidade:
     name: Lint, testes e segurança
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       db:
@@ -44,10 +46,12 @@ jobs:
       ADMIN_PASSWORD: senha-do-admin-de-ci
 
     steps:
-      - uses: actions/checkout@v4
+      # As actions ficam fixadas pelo SHA do commit, para uma tag alterada não mudar o pipeline.
+      # Sem Dependabot (guia, seção 8.1), a atualização delas é manual.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      # A mesma versão do uv do Dockerfile: um lockfile que quebraria a imagem quebra o CI.
-      - uses: astral-sh/setup-uv@v6
+      # A mesma versão do uv do Dockerfile e do `required-version` do pyproject.toml.
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
         with:
           version: "0.8.22"
 
@@ -70,3 +74,7 @@ jobs:
         run: |
           uv export --frozen --no-dev --no-emit-project -o requisitos-de-producao.txt
           uv run pip-audit -r requisitos-de-producao.txt --require-hashes --disable-pip
+
+      # Um erro no Dockerfile não passa despercebido até a entrega; o Trivy (RNF-07) precisará dela.
+      - name: Construir a imagem Docker (RNF-15)
+        run: docker build --tag siaes:ci .

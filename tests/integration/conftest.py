@@ -1,7 +1,8 @@
 """Fixtures dos testes de integração contra o PostgreSQL do Compose (RNF-13).
 
 Suba o banco antes: `docker compose -f docker-compose.yml -f docker-compose.testes.yml up -d db`.
-Sem o `.env` preenchido ou sem o banco no ar, os testes de integração são pulados.
+Sem o `.env` preenchido ou sem o banco no ar, os testes de integração são pulados; no CI
+(`CI=true`), eles falham.
 
 A sessão de testes recria o banco `<POSTGRES_DB>_test`, aplica as migrations nele e o apaga no
 final; o banco de desenvolvimento não é tocado. Cada teste roda dentro de uma transação desfeita

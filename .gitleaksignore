@@ -1,0 +1,5 @@
+# Falsos positivos analisados na revisão de segredos (issue #114, docs/security/revisao-de-segredos.md).
+# A regra generic-api-key leu `JWT_SECRET_KEY=` vazio, atravessou a quebra de linha e tomou como
+# segredo a linha seguinte, `JWT_EXPIRATION_HOURS=24`.
+3f661dee4c2ece15e2c00d5229767ffc31150368:.env.example:generic-api-key:15
+5f3faa7e59255e8cde45e664985d0fbd60649541:.env.example:generic-api-key:15

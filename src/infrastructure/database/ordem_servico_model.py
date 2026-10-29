@@ -84,7 +84,7 @@ class ItemPecaModel(Base):
 
 
 class HistoricoStatusOSModel(Base):
-    """Só aceita inserção: um trigger da migration recusa UPDATE e DELETE (RF-24)."""
+    """Só aceita inserção: os triggers da migration recusam UPDATE, DELETE e TRUNCATE (RF-24)."""
 
     __tablename__ = "historico_status_os"
 

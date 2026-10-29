@@ -361,12 +361,12 @@ Tarefas da fase:
 - [x] Descrição resumida da solução
 - [x] Arquitetura utilizada (pode referenciar o [modelo C4](docs/ddd/c4-model.md))
 - [x] Tecnologias utilizadas
-- [ ] Pré-requisitos
-- [ ] Instruções para execução, incluindo a cópia do `.env.example` para `.env` e o preenchimento das variáveis obrigatórias
-- [ ] Instruções para execução dos testes
-- [ ] Instruções de acesso ao Swagger (`/docs`)
+- [x] Pré-requisitos
+- [x] Instruções para execução, incluindo a cópia do `.env.example` para `.env` e o preenchimento das variáveis obrigatórias
+- [x] Instruções para execução dos testes
+- [x] Instruções de acesso ao Swagger (`/docs`)
 - [x] Decisão e justificativa do banco de dados (pode reaproveitar o RNF-09)
-- [ ] Usuários de demonstração (`SEED_DEMO=true`) e procedimento de autenticação
+- [x] Usuários de demonstração (`SEED_DEMO=true`) e procedimento de autenticação
 - [ ] Estrutura dos principais diretórios (pode reaproveitar o guia de desenvolvimento)
 - [ ] Link para a documentação DDD
 - [ ] Link para o vídeo da entrega

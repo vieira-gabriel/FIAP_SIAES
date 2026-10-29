@@ -92,6 +92,130 @@ O banco escolhido é o **PostgreSQL 16** (RNF-09), pelos seguintes motivos:
 
 O schema é versionado com o Alembic, em `migrations/`, e aplicado automaticamente antes da subida da API.
 
+## Pré-requisitos
+
+| Para | Ferramenta |
+| :--- | :--- |
+| Executar a aplicação | [Docker](https://docs.docker.com/get-docker/) com o Docker Compose v2 (`docker compose`) |
+| Rodar os testes e desenvolver | Os itens acima e o [uv](https://docs.astral.sh/uv/) **0.8.22**, a versão exigida pelo `pyproject.toml`. O uv instala o Python 3.12 sozinho, se ele não estiver na máquina |
+
+Com outra versão do uv instalada, troque para a 0.8.22 com `uv self update 0.8.22` ou use `uvx uv@0.8.22` no lugar de `uv` nos comandos abaixo.
+
+As portas `8000` (API) e, para os testes de integração, `5432` (PostgreSQL) precisam estar livres.
+
+## Como executar
+
+**1. Crie o `.env` a partir do exemplo:**
+
+```bash
+cp .env.example .env
+```
+
+**2. Preencha as variáveis obrigatórias** no `.env`. A aplicação não inicia se alguma delas estiver vazia (RNF-06):
+
+| Variável | O que informar |
+| :--- | :--- |
+| `POSTGRES_USER` e `POSTGRES_PASSWORD` | Usuário e senha do banco, criados pelo container `db` na primeira subida |
+| `JWT_SECRET_KEY` | Chave de assinatura dos tokens; use um texto aleatório e longo |
+| `ADMIN_PASSWORD` | Senha do Gerente padrão, `admin@oficina.com` |
+| `SEED_DEMO`, `DEMO_ATENDENTE_PASSWORD` e `DEMO_MECANICO_PASSWORD` | Opcionais: com `SEED_DEMO=true`, as duas senhas passam a ser obrigatórias (veja [Usuários de demonstração](#usuários-de-demonstração)) |
+
+Para gerar uma chave aleatória para o `JWT_SECRET_KEY`, use um dos comandos:
+
+```bash
+openssl rand -base64 48
+```
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+As demais variáveis já vêm com valores que funcionam no Docker Compose.
+
+**3. Suba a aplicação e o banco:**
+
+```bash
+docker compose up --build
+```
+
+Na subida, o container `app` aplica as migrations do banco e cria o Gerente padrão (e os usuários de demonstração, com `SEED_DEMO=true`). A aplicação está pronta quando os dois serviços aparecem como `healthy` em `docker compose ps` e o `http://localhost:8000/health` responde `{"status": "online", "banco": "disponivel", ...}`.
+
+**Para parar:**
+
+```bash
+# Mantém os dados do banco para a próxima subida
+docker compose down
+
+# Apaga também os dados do banco
+docker compose down -v
+```
+
+## Swagger e autenticação
+
+A documentação interativa da API (OpenAPI/Swagger) fica em **http://localhost:8000/docs**.
+
+As rotas da Frente da Loja exigem um token JWT. Para usá-las pelo Swagger:
+
+1. Em **Autenticação**, abra `POST /auth/login`, clique em **Try it out** e envie o e-mail e a senha, por exemplo:
+   ```json
+   {"email": "admin@oficina.com", "senha": "<valor do ADMIN_PASSWORD>"}
+   ```
+2. Copie o valor de `access_token` da resposta.
+3. Clique no botão **Authorize**, no topo da página, cole o token (sem o prefixo `Bearer`) e confirme.
+4. As próximas chamadas do Swagger levam o token. Ele vale por 24 horas (`JWT_EXPIRATION_HOURS`).
+
+Sem token, as rotas protegidas respondem `401`; com um perfil sem permissão para a rota, `403`.
+
+## Usuários de demonstração
+
+A carga inicial (RF-03) sempre cria o Gerente padrão. Com `SEED_DEMO=true` no `.env`, cria também um Atendente e um Mecânico, para testar as permissões de cada perfil:
+
+| E-mail | Perfil | Senha | Criado quando |
+| :--- | :--- | :--- | :--- |
+| `admin@oficina.com` | Gerente | Valor de `ADMIN_PASSWORD` | Sempre |
+| `atendente@oficina.com` | Atendente | Valor de `DEMO_ATENDENTE_PASSWORD` | `SEED_DEMO=true` |
+| `mecanico@oficina.com` | Mecânico | Valor de `DEMO_MECANICO_PASSWORD` | `SEED_DEMO=true` |
+
+As senhas não têm valor fixo no repositório: cada uma vem do `.env` (RNF-06). Um usuário que já existe não é recriado nem tem a senha trocada quando o container reinicia; para mudar a senha depois da primeira subida, use as rotas de gestão de usuários com o Gerente ou recomece o banco com `docker compose down -v`.
+
+## Testes
+
+Os testes ficam em `tests/unit/` (domínio e casos de uso, sem banco) e `tests/integration/` (rotas HTTP e repositórios, com PostgreSQL). Antes da primeira execução, instale as dependências:
+
+```bash
+uv sync
+```
+
+**Testes unitários**, sem banco:
+
+```bash
+uv run pytest tests/unit
+```
+
+**Testes de integração**, com o `.env` preenchido como na seção [Como executar](#como-executar). Eles usam um banco separado, `<POSTGRES_DB>_test`, recriado a cada execução, sem tocar nos dados da aplicação:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.testes.yml up -d db
+uv run pytest tests/integration
+```
+
+Sem o banco no ar, os testes de integração são pulados, e `uv run pytest` roda só os unitários.
+
+**Todos os testes, com a cobertura** do domínio e da aplicação (RNF-14, mínimo de 80%):
+
+```bash
+uv run pytest --cov --cov-report=term-missing
+```
+
+**Lint e formatação:**
+
+```bash
+uv run ruff check src tests migrations
+uv run ruff format --check src tests migrations
+```
+
+O CI (`.github/workflows/ci.yml`) roda tudo isso em cada Pull Request, com um PostgreSQL 16, e também o Bandit e o pip-audit (RNF-07).
+
 ## Documentação
 
 - [Requisitos funcionais](docs/requisitos-funcionais.md) e [não funcionais](docs/requisitos-nao-funcionais.md)

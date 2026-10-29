@@ -346,7 +346,7 @@ Tarefas da fase:
 - [ ] Relatório da análise de vulnerabilidades salvo em `docs/security/` (RNF-07)
 - [ ] Revisão das proteções contra SQL Injection, IDOR e XSS (RNF-04) e do rate limiting (RNF-05)
 - [ ] Medição do tempo de resposta (p95 < 500 ms) com evidência registrada (RNF-10)
-- [ ] Revisão do repositório: nenhum segredo, senha ou token no código ou no histórico do git (RNF-06)
+- [x] Revisão do repositório: nenhum segredo, senha ou token no código ou no histórico do git (RNF-06; issue #114, `docs/security/revisao-de-segredos.md`). Repetir no commit final
 - [ ] Revisão do Swagger: schemas de entrada e saída, códigos HTTP e autenticação Bearer (RNF-16)
 
 ---

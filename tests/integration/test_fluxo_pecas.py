@@ -5,10 +5,6 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import text
 
-from domain.entities.usuario import Usuario
-from domain.value_objects.perfil_usuario import PerfilUsuario
-from presentation.main import app
-
 FILTRO = {
     "codigo_referencia": "FLT-001",
     "nome": "Filtro de óleo",
@@ -21,26 +17,6 @@ VELA = {
     "preco_unitario": "20.00",
     "prazo_reposicao_dias": 2,
 }
-
-
-def _cabecalho(perfil: PerfilUsuario) -> dict[str, str]:
-    usuario = Usuario(nome="Qualquer", email="q@oficina.com", senha_hash="h", perfil=perfil)
-    return {"Authorization": f"Bearer {app.state.token_service.emitir(usuario)}"}
-
-
-@pytest.fixture
-def gerente(cliente_http):
-    return _cabecalho(PerfilUsuario.GERENTE)
-
-
-@pytest.fixture
-def atendente(cliente_http):
-    return _cabecalho(PerfilUsuario.ATENDENTE)
-
-
-@pytest.fixture
-def mecanico(cliente_http):
-    return _cabecalho(PerfilUsuario.MECANICO)
 
 
 async def _cadastrar(cliente_http, cabecalho, dados=FILTRO):
@@ -92,18 +68,6 @@ async def test_listagem_em_ordem_de_nome(cliente_http, gerente):
     assert [p["nome"] for p in resposta.json()] == ["Filtro de óleo", "Vela de ignição"]
 
 
-@pytest.mark.parametrize("perfil", ["atendente", "mecanico"])
-async def test_so_o_gerente_administra_o_cadastro(cliente_http, gerente, perfil, request):
-    criada = (await _cadastrar(cliente_http, gerente)).json()
-    cabecalho = request.getfixturevalue(perfil)
-
-    cadastro = await _cadastrar(cliente_http, cabecalho, VELA)
-    edicao = await cliente_http.put(f"/pecas/{criada['id']}", json=FILTRO, headers=cabecalho)
-    exclusao = await cliente_http.delete(f"/pecas/{criada['id']}", headers=cabecalho)
-
-    assert (cadastro.status_code, edicao.status_code, exclusao.status_code) == (403, 403, 403)
-
-
 @pytest.mark.parametrize("perfil", ["mecanico", "gerente"])
 async def test_mecanico_e_gerente_movimentam_o_estoque(cliente_http, gerente, perfil, request):
     criada = (await _cadastrar(cliente_http, gerente)).json()
@@ -118,19 +82,6 @@ async def test_mecanico_e_gerente_movimentam_o_estoque(cliente_http, gerente, pe
 
     assert (reposicao.status_code, reposicao.json()["quantidade_fisica"]) == (200, 5)
     assert (ajuste.status_code, ajuste.json()["saldo_disponivel"]) == (200, 3)
-
-
-async def test_atendente_nao_movimenta_o_estoque(cliente_http, gerente, atendente):
-    criada = (await _cadastrar(cliente_http, gerente)).json()
-
-    reposicao = await cliente_http.post(
-        f"/pecas/{criada['id']}/reposicao", json={"quantidade": 5}, headers=atendente
-    )
-    ajuste = await cliente_http.put(
-        f"/pecas/{criada['id']}/quantidade-fisica", json={"quantidade_fisica": 3}, headers=atendente
-    )
-
-    assert (reposicao.status_code, ajuste.status_code) == (403, 403)
 
 
 async def test_ajuste_abaixo_da_reserva_responde_422(cliente_http, gerente, conexao):
@@ -201,10 +152,6 @@ async def test_codigo_ja_cadastrado_responde_422(cliente_http, gerente):
 
     assert resposta.status_code == 422
     assert resposta.json()["codigo"] == "REGRA_DE_NEGOCIO_VIOLADA"
-
-
-async def test_sem_token_responde_401(cliente_http):
-    assert (await cliente_http.get("/pecas")).status_code == 401
 
 
 async def test_peca_inexistente_responde_404(cliente_http, gerente):

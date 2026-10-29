@@ -72,7 +72,7 @@ A pasta `src/api/` foi removida, pois a RNF-01 nomeia a camada de entrada como `
 
 | Caminho | Origem na Documentação |
 | :--- | :--- |
-| `src/domain/value_objects/` | Linguagem Ubíqua §2 (CPF, CNPJ, Placa, Valor, StatusOS) e §4 — Objeto de Valor (`src/domain/value_objects/cpf.py` e `src/domain/value_objects/cnpj.py`, classes separadas por decisão do grupo na issue #14) |
+| `src/domain/value_objects/` | Linguagem Ubíqua §2 (CPF, CNPJ, Documento, Placa, Valor, StatusOS) e §4 — Objeto de Valor (`src/domain/value_objects/cpf.py` e `src/domain/value_objects/cnpj.py`, classes separadas por decisão do grupo na issue #14, com a base abstrata comum em `src/domain/value_objects/documento.py`) |
 | `src/domain/repositories/ordem_servico_repository.py` | Linguagem Ubíqua §4 — Porta de Repositório (Interface Abstrata); RNF-02 — isolamento do domínio |
 | `tests/integration/` | RNF-13 — testes de integração dos fluxos principais |
 | `src/presentation/routers/` | Decisão do grupo no fechamento da Fase 0: rotas FastAPI, um arquivo por recurso |

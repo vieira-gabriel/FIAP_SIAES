@@ -3,10 +3,6 @@
 import pytest
 from sqlalchemy import text
 
-from domain.entities.usuario import Usuario
-from domain.value_objects.perfil_usuario import PerfilUsuario
-from presentation.main import app
-
 MARIA = {
     "nome": "Maria Silva",
     "documento": "529.982.247-25",
@@ -19,31 +15,6 @@ EMPRESA = {
     "email": "contato@autopecas.com",
     "telefone": "1133334444",
 }
-
-
-def _cabecalho(perfil: PerfilUsuario) -> dict[str, str]:
-    usuario = Usuario(
-        nome=perfil.value.title(),
-        email=f"{perfil.value.lower()}@oficina.com",
-        senha_hash="hash-qualquer",
-        perfil=perfil,
-    )
-    return {"Authorization": f"Bearer {app.state.token_service.emitir(usuario)}"}
-
-
-@pytest.fixture
-def gerente(cliente_http):
-    return _cabecalho(PerfilUsuario.GERENTE)
-
-
-@pytest.fixture
-def atendente(cliente_http):
-    return _cabecalho(PerfilUsuario.ATENDENTE)
-
-
-@pytest.fixture
-def mecanico(cliente_http):
-    return _cabecalho(PerfilUsuario.MECANICO)
 
 
 async def _cadastrar(cliente_http, cabecalho, dados):

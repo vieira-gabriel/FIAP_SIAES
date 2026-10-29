@@ -8,6 +8,7 @@ from sqlalchemy.engine import Connection
 import infrastructure.database.cliente_model  # noqa: F401
 import infrastructure.database.servico_model  # noqa: F401
 import infrastructure.database.usuario_model  # noqa: F401
+import infrastructure.database.veiculo_model  # noqa: F401
 from infrastructure.config import carregar_configuracao
 from infrastructure.database.base import Base
 from infrastructure.database.engine import criar_engine

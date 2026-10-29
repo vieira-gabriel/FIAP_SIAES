@@ -15,6 +15,7 @@ Antes de implementar, consulte os documentos abaixo. Em caso de conflito entre o
 | `docs/ddd/linguagem-ubiqua.md` | Nomes oficiais do domínio, máquina de estados da OS e o mapeamento entre conceitos e código. |
 | `docs/estrutura-de-pastas.md` | Por que a estrutura de pastas é como é, incluindo a autenticação JWT. |
 | `docs/guia-de-desenvolvimento.md` | Este guia: como implementar cada coisa. |
+| `docs/CHANGELOG.md` | Motivo de cada alteração estrutural ou arquitetural da documentação. |
 
 ---
 
@@ -79,6 +80,7 @@ Toda dependência externa segue o mesmo padrão:
 | `domain/repositories/ordem_servico_repository.py` | `infrastructure/repositories/postgres_ordem_servico_repository.py` |
 | `domain/repositories/usuario_repository.py` | `infrastructure/repositories/postgres_usuario_repository.py` |
 | `domain/repositories/cliente_repository.py` | `infrastructure/repositories/postgres_cliente_repository.py` |
+| `domain/repositories/veiculo_repository.py` | `infrastructure/repositories/postgres_veiculo_repository.py` |
 | `domain/repositories/servico_repository.py` | `infrastructure/repositories/postgres_servico_repository.py` |
 | `domain/repositories/estoque_repository.py` | `infrastructure/repositories/postgres_estoque_repository.py` |
 | `application/ports/token_service.py` | `infrastructure/security/jwt_token_service.py` |
@@ -298,6 +300,7 @@ Operações que precisam ser **atômicas** (RNF-08) rodam dentro de uma única t
 * atualização de saldo com alocação às OS pendentes e liberação de OS em `AGUARDANDO_PECA` (RF-12, RF-19);
 * início da execução com baixa das peças reservadas (RF-20);
 * rejeição e cancelamento com estorno das reservas (RF-18, RF-23, RF-26);
+* exclusão lógica do cliente com a exclusão lógica dos veículos dele (RF-06, RF-09);
 * toda transição de status com o registro no histórico (RF-24).
 
 Nenhuma dessas operações pode deixar o saldo disponível negativo (RF-12).

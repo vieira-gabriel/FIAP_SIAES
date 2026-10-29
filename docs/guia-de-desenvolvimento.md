@@ -15,6 +15,7 @@ Antes de implementar, consulte os documentos abaixo. Em caso de conflito entre o
 | `docs/ddd/linguagem-ubiqua.md` | Nomes oficiais do domínio, máquina de estados da OS e o mapeamento entre conceitos e código. |
 | `docs/estrutura-de-pastas.md` | Por que a estrutura de pastas é como é, incluindo a autenticação JWT. |
 | `docs/guia-de-desenvolvimento.md` | Este guia: como implementar cada coisa. |
+| `docs/CHANGELOG.md` | Motivo de cada alteração estrutural ou arquitetural da documentação. |
 
 ---
 
@@ -79,6 +80,7 @@ Toda dependência externa segue o mesmo padrão:
 | `domain/repositories/ordem_servico_repository.py` | `infrastructure/repositories/postgres_ordem_servico_repository.py` |
 | `domain/repositories/usuario_repository.py` | `infrastructure/repositories/postgres_usuario_repository.py` |
 | `domain/repositories/cliente_repository.py` | `infrastructure/repositories/postgres_cliente_repository.py` |
+| `domain/repositories/veiculo_repository.py` | `infrastructure/repositories/postgres_veiculo_repository.py` |
 | `domain/repositories/servico_repository.py` | `infrastructure/repositories/postgres_servico_repository.py` |
 | `domain/repositories/peca_repository.py` | `infrastructure/repositories/postgres_peca_repository.py` |
 | `domain/repositories/estoque_repository.py` | `infrastructure/repositories/postgres_estoque_repository.py` |
@@ -120,6 +122,7 @@ Toda dependência externa segue o mesmo padrão:
 | Teste de integração | `tests/integration/` | `test_<fluxo>.py` | `test_fluxo_aprovacao_orcamento.py` |
 | Migration do banco | `migrations/versions/` (raiz do projeto) | gerado pelo Alembic | `<revisão>_cria_tabela_cliente.py` |
 | Relatório de segurança | `docs/security/` | — | relatório da análise de vulnerabilidades (RNF-07) |
+| Workflow de CI | `.github/workflows/` (raiz do projeto) | nome do pipeline | `ci.yml` |
 
 Se algo não se encaixa em nenhuma linha desta tabela, **não crie uma pasta nova por conta própria**: discuta com o grupo e, se aprovado, atualize esta tabela e `docs/estrutura-de-pastas.md` no mesmo PR.
 
@@ -298,6 +301,7 @@ Operações que precisam ser **atômicas** (RNF-08) rodam dentro de uma única t
 * atualização de saldo com alocação às OS pendentes e liberação de OS em `AGUARDANDO_PECA` (RF-12, RF-19);
 * início da execução com baixa das peças reservadas (RF-20);
 * rejeição e cancelamento com estorno das reservas (RF-18, RF-23, RF-26);
+* exclusão lógica do cliente com a exclusão lógica dos veículos dele (RF-06, RF-09);
 * toda transição de status com o registro no histórico (RF-24).
 
 Nenhuma dessas operações pode deixar o saldo disponível negativo (RF-12).
@@ -353,7 +357,7 @@ docker compose -f docker-compose.yml -f docker-compose.testes.yml up -d db
 uv run pytest tests/integration
 ```
 
-Sem o `.env` preenchido ou sem o banco no ar, os testes de integração são pulados, e `uv run pytest` roda só os unitários.
+Fora do CI, sem o `.env` preenchido ou sem o banco no ar, os testes de integração são pulados, e `uv run pytest` roda só os unitários. No CI (`CI=true`), eles falham em vez de serem pulados.
 
 As fixtures de `tests/integration/conftest.py` servem de base para todo teste de integração:
 
@@ -397,7 +401,7 @@ A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Tod
 
 ## 7. Fluxo de Git
 
-* Não faça commit direto na `main`. Crie uma branch e abra um PR. A `main` é protegida no GitHub: o merge exige PR com 1 aprovação de outro integrante e push forçado é bloqueado (exigência do enunciado).
+* Não faça commit direto na `main`. Crie uma branch e abra um PR. A `main` é protegida no GitHub: o merge exige PR com 1 aprovação de outro integrante e push forçado é bloqueado (exigência do enunciado). O check "Lint, testes e segurança" do CI (seção 8.1) também precisa passar: ele deve estar marcado como obrigatório (*required status check*) na proteção da `main`, em Settings → Branches.
 * Nomes de branch: `<tipo>/<descricao-curta>`, por exemplo `feat/crud-clientes`, `fix/validacao-cnpj`, `chore/estrutura-conforme-docs`.
 * Mensagens de commit em português, no formato `<tipo>: <descrição>`, com os tipos `feat`, `fix`, `chore`, `docs`, `test`, `refactor`.
 * Sempre que possível, cite o requisito no corpo do commit ou no PR (ex.: "Implementa RF-04").
@@ -419,18 +423,18 @@ A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Tod
 | Catálogo de serviços (RF-10, RF-11) | Rotas `/servicos` (issue #84): todos os perfis listam e consultam, só o Gerente cadastra, edita e exclui. O código do serviço é único, inclusive para serviços excluídos (`CodigoDeServicoJaCadastrado`, `422`), e a edição altera todos os dados. O `valor_base` é gravado como `NUMERIC(12, 2)` e trafega como texto no JSON (`"120.50"`), sem erro de ponto flutuante (RNF-11) |
 | Gestão de peças (RF-12) | Rotas `/pecas` (issue #85): todos os perfis listam e consultam; Mecânico e Gerente repõem (`POST /pecas/{id}/reposicao`, soma à quantidade física) e ajustam (`PUT /pecas/{id}/quantidade-fisica`, nova quantidade absoluta); só o Gerente cadastra, edita e exclui. O cadastro cria a peça e o `EstoquePeca` na mesma transação, com quantidade física inicial opcional. As respostas trazem as quantidades física e reservada e o saldo disponível. O código de referência é gravado em maiúsculas e é único, inclusive para peças excluídas (`CodigoDePecaJaCadastrado`, `422`), e o preço trafega como texto no JSON. A peça excluída responde `404` em todas as rotas, e a exclusão é recusada com OS pendente (`PecaComPendencia`, `422`). O ajuste abaixo da quantidade reservada responde `422` (`QuantidadeFisicaAbaixoDaReservada`). Cada valor informado acima dos limites de `INTEGER` e `NUMERIC(12, 2)` é recusado no DTO com `422`; a soma da quantidade física com a reposição não é verificada e, se passar do limite do `INTEGER`, a gravação falha com `500` |
 | Gestão de usuários (RF-03) | Rotas `/usuarios`, só para o Gerente (issue #81). A senha tem no mínimo 8 caracteres e no máximo 72 bytes, o limite do bcrypt, e muda só pela rota `PUT /usuarios/{id}/senha`. O Gerente não desativa o próprio acesso nem muda o próprio perfil (`AlteracaoDoProprioAcesso`, `422`), para a oficina não ficar sem Gerente. A listagem e o detalhamento mostram também os usuários desativados, para que possam ser reativados |
-| Gerenciamento de dependências | `uv` com `pyproject.toml` e lockfile `uv.lock`. Comandos: `uv sync` (instala o ambiente), `uv add <pacote>` (adiciona dependência), `uv run pytest` (executa sem ativar o venv) |
+| Gerenciamento de dependências | `uv` com `pyproject.toml` e lockfile `uv.lock`. Comandos: `uv sync` (instala o ambiente), `uv add <pacote>` (adiciona dependência), `uv run pytest` (executa sem ativar o venv). A versão do uv é fixa em 0.8.22 (`required-version` no `pyproject.toml`), a mesma do Dockerfile e do CI: outra versão reescreve o `uv.lock` em outro formato (`revision`) e gera diffs e conflitos no lockfile |
 | Imports a partir de `src/` | `PYTHONPATH=src`: `pythonpath = ["src"]` no pytest (`pyproject.toml`), `ENV PYTHONPATH=/app/src` no Dockerfile e `PYTHONPATH=src` no `.env` para a IDE |
 | Lint e formatação | Ruff (`ruff check` e `ruff format`), configurado no `pyproject.toml` |
 | Testes e cobertura | pytest + pytest-cov (RNF-12 a RNF-14) |
-| Banco dos testes de integração | Banco `<POSTGRES_DB>_test` no mesmo container `db` do Compose, publicado em `127.0.0.1` pelo `docker-compose.testes.yml` (issue #28). Nenhuma dependência nova; os testes de integração exigem o banco no ar e são pulados sem ele. As fixtures e os comandos estão na seção 5.7 |
+| Banco dos testes de integração | Banco `<POSTGRES_DB>_test` no mesmo container `db` do Compose, publicado em `127.0.0.1` pelo `docker-compose.testes.yml` (issue #28). Nenhuma dependência nova; os testes de integração exigem o banco no ar e, fora do CI, são pulados sem ele; no CI (`CI=true`), falham. As fixtures e os comandos estão na seção 5.7 |
 | Migrations | Alembic com o template `async` (issue #4). A pasta `migrations/` e o `alembic.ini` ficam na raiz do projeto; cada mudança de schema é gerada com `uv run alembic revision --autogenerate -m "<descrição>"`, revisada antes do commit e aplicada com `alembic upgrade head` no `CMD` do Dockerfile, antes do Uvicorn (issue #25). O `migrations/env.py` é o ponto de montagem do Alembic e, por isso, é a exceção à regra de que só o `presentation/container.py` importa `infrastructure/config.py`: ele lê a configuração com `carregar_configuracao()` e cria a conexão com `criar_engine`. O `target_metadata` é o `Base.metadata` de `infrastructure/database/base.py`; cada modelo novo precisa ser importado no `env.py` para entrar no `--autogenerate`. A primeira revisão, `0001_schema_base`, é vazia; a `0002` cria a tabela `usuarios`. Um teste de integração compara os modelos com o banco migrado e falha se faltar migration |
 | Rate limiting | SlowAPI com contador em memória (RNF-05) |
 | Rotas e DTOs | `presentation/routers/` e `presentation/schemas/`, um arquivo por recurso |
 | Estrutura de pastas | Alinhada à seção 6 do modelo C4 (issue #9): `domain/events/`, `application/events/`, `application/handlers/`, `infrastructure/database/` e `presentation/middlewares/` (seções 2 e 3) |
 | Configuração | `infrastructure/config.py` com pydantic-settings (issue #9). A configuração é lida e validada na subida da aplicação, nunca no import do módulo. Só o `presentation/container.py` importa o módulo, e os demais objetos recebem os valores pelo construtor |
 | Ponto de entrada e montagem | `presentation/main.py` cria o app, registra os routers, declara o título, a versão, a descrição e o esquema Bearer JWT do OpenAPI (botão "Authorize" em `/docs`) e liga o ciclo de vida; `presentation/container.py` cria na subida a engine, a fábrica de sessões, o `JwtTokenService`, o `BcryptPasswordHasher` e o verificador do banco, e fecha a engine no encerramento (issues #9 e #26). Os casos de uso que alteram o saldo de peças recebem um `EventDispatcher` montado por requisição em `_eventos_da_requisicao`, e despacham os eventos dentro da unidade de trabalho; os handlers são registrados ali com os repositórios da mesma sessão, para gravar na mesma transação (RF-12, RNF-08). O handler de alocação às OS com peça pendente entra na issue #94 (RF-19). O `/health` vive em `routers/saude.py`, usa a porta `VerificadorDoBanco` e devolve `200` com o banco disponível e `503` sem ele. O container oferece `obter_autenticar_usuario`, que monta por requisição a unidade de trabalho, o `PostgresUsuarioRepository` e o caso de uso, e o `main.py` registra o router de login. Na subida, depois das migrations, o ciclo de vida chama `executar_carga_inicial`, que roda o caso de uso `CriarCargaInicial` (Gerente padrão e, com `SEED_DEMO=true`, os usuários de demonstração; usuário já existente é mantido como está) (RF-03) |
-| CI (GitHub Actions) | Opcional; implementar somente se houver tempo ao final |
+| CI (GitHub Actions) | `.github/workflows/ci.yml`, em cada PR e em cada push na `main` (issue #29): `uv sync --frozen`, `ruff check`, `ruff format --check`, `pytest` com PostgreSQL 16 e cobertura mínima de 80% em `domain/` e `application/` (`--cov-fail-under=80`), Bandit no `src/`, pip-audit nas dependências de produção, exportadas do `uv.lock` com hashes, e `docker build` da imagem. Usa o uv 0.8.22, a mesma versão do Dockerfile. As actions ficam fixadas pelo SHA do commit e atualizadas à mão, o job tem limite de 15 minutos, e só a execução de PR é cancelada por um push novo, para todo commit da `main` ter resultado. No CI (`CI=true`), os testes de integração falham em vez de serem pulados quando o banco não está disponível. As variáveis do workflow são valores de teste, sem segredo real (RNF-06) |
 | Análise de vulnerabilidades (RNF-07) | pip-audit para as dependências, Bandit para o código-fonte e Trivy para a imagem Docker (issue #5). pip-audit e Bandit entram como dependências de desenvolvimento; o Trivy roda como binário separado ou pela imagem `aquasec/trivy`. Sem Dependabot. A análise roda sobre o commit final da entrega e o relatório vai para `docs/security/` |
 | Teste de desempenho (RNF-10) | Locust, como dependência de desenvolvimento (issue #6). O relatório com o p95 é a evidência da medição; a falha automática quando o p95 passar de 500 ms precisa ser escrita no cenário |
 

@@ -21,6 +21,7 @@ from domain.exceptions import (
     PecasPendentes,
     PlacaInvalida,
     QuantidadeFisicaAbaixoDaReservada,
+    PlacaJaCadastrada,
     QuantidadeInvalida,
     RegraDeNegocioViolada,
     SaldoInsuficiente,
@@ -60,6 +61,7 @@ def test_bases_herdam_de_erro_de_dominio(base):
         (QuantidadeFisicaAbaixoDaReservada(2, 3), RegraDeNegocioViolada),
         (CodigoDePecaJaCadastrado("FLT-001"), RegraDeNegocioViolada),
         (PecaComPendencia("Filtro de óleo", ["529-7F3A9C2B"]), RegraDeNegocioViolada),
+        (PlacaJaCadastrada(), RegraDeNegocioViolada),
     ],
 )
 def test_especificas_herdam_da_base_correta(excecao, base):

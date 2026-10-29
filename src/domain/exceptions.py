@@ -210,6 +210,13 @@ class PecaComPendencia(RegraDeNegocioViolada):
         self.numeros_das_os = numeros_das_os
 
 
+class PlacaJaCadastrada(RegraDeNegocioViolada):
+    """A placa identifica um único veículo ativo; a de um excluído pode ser recadastrada (RF-07)."""
+
+    def __init__(self):
+        super().__init__("Já existe um veículo ativo cadastrado com esta placa.")
+
+
 class PecasPendentes(RegraDeNegocioViolada):
     """A OS só sai de `AGUARDANDO_PECA` quando todas as peças estão reservadas (RF-19)."""
 

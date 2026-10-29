@@ -229,7 +229,7 @@ Tarefas da fase:
 - [x] Tratamento padronizado de erros, traduzindo as exceções do domínio para códigos HTTP, incluindo `401` e `403` (RNF-03; issue #30): corpo único `ErroResponse` e tabela na seção 5.5 do guia
 - [ ] Event Dispatcher síncrono em memória (Modelo C4)
 - [x] Estrutura para testes de integração com banco PostgreSQL de teste (RNF-13; issue #28): banco `<POSTGRES_DB>_test` no container `db`, fixtures em `tests/integration/conftest.py` e comandos na seção 5.7 do guia
-- [ ] (Opcional, se houver tempo) Pipeline de CI no GitHub Actions executando lint, testes e cobertura em cada Pull Request
+- [x] (Opcional, se houver tempo) Pipeline de CI no GitHub Actions executando lint, testes e cobertura em cada Pull Request (issue #29), com Bandit e pip-audit (RNF-07)
 
 ---
 
@@ -283,8 +283,8 @@ Tarefas da fase:
 - [x] Carga inicial do Gerente na subida do container, com `ADMIN_PASSWORD` obrigatória, e dos usuários de demonstração quando `SEED_DEMO=true` (RF-03)
 - [x] Cadastro, atualização e listagem de clientes, com validação de CPF/CNPJ (RF-04, RF-05; issue #82)
 - [x] Exclusão lógica de clientes pelo Gerente (RF-06; issue #82)
-- [ ] Cadastro, atualização e listagem de veículos vinculados ao cliente, com validação de placa (RF-07, RF-08)
-- [ ] Exclusão lógica de veículos por Atendente e Gerente (RF-09)
+- [x] Cadastro, atualização e listagem de veículos vinculados ao cliente, com validação de placa (RF-07, RF-08; issue #83)
+- [x] Exclusão lógica de veículos por Atendente e Gerente (RF-09; issue #83)
 - [x] Listagem do catálogo de serviços (RF-10) e CRUD restrito ao Gerente, com tempo estimado e exclusão lógica (RF-11; issue #84)
 - [x] Gestão de peças, com prazo de reposição, exclusão lógica (recusada com OS pendente) e atualização de saldo com permissões por perfil (RF-12; issue #85). O adaptador de OS usado na exclusão é provisório até a persistência da OS (issue #88); a alocação do saldo às OS com peça pendente fica com o handler da Fase 5 (RF-19; issue #94)
 - [ ] Testes de integração das rotas, cobrindo acesso sem token (`401`) e com perfil sem permissão (`403`) (RNF-13)
@@ -357,15 +357,15 @@ Tarefas da fase:
 
 ### README.md
 
-- [ ] Objetivo do projeto
-- [ ] Descrição resumida da solução
-- [ ] Arquitetura utilizada (pode referenciar o [modelo C4](docs/ddd/c4-model.md))
-- [ ] Tecnologias utilizadas
+- [x] Objetivo do projeto
+- [x] Descrição resumida da solução
+- [x] Arquitetura utilizada (pode referenciar o [modelo C4](docs/ddd/c4-model.md))
+- [x] Tecnologias utilizadas
 - [ ] Pré-requisitos
 - [ ] Instruções para execução, incluindo a cópia do `.env.example` para `.env` e o preenchimento das variáveis obrigatórias
 - [ ] Instruções para execução dos testes
 - [ ] Instruções de acesso ao Swagger (`/docs`)
-- [ ] Decisão e justificativa do banco de dados (pode reaproveitar o RNF-09)
+- [x] Decisão e justificativa do banco de dados (pode reaproveitar o RNF-09)
 - [ ] Usuários de demonstração (`SEED_DEMO=true`) e procedimento de autenticação
 - [ ] Estrutura dos principais diretórios (pode reaproveitar o guia de desenvolvimento)
 - [ ] Link para a documentação DDD

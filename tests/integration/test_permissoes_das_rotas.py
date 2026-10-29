@@ -137,4 +137,4 @@ def test_toda_rota_da_aplicacao_esta_na_matriz():
         for metodo in operacoes
     }
 
-    assert rotas_da_aplicacao - ROTAS_PUBLICAS == {(m, c) for m, c, _ in ROTAS}
+    assert rotas_da_aplicacao == ROTAS_PUBLICAS | {(m, c) for m, c, _ in ROTAS}

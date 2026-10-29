@@ -123,6 +123,18 @@ class SaldoInsuficiente(RegraDeNegocioViolada):
         self.saldo_disponivel = saldo_disponivel
 
 
+class QuantidadeFisicaAbaixoDaReservada(RegraDeNegocioViolada):
+    """O ajuste não pode deixar a quantidade física abaixo da reservada às OS (RF-12)."""
+
+    def __init__(self, nova_quantidade_fisica: int, quantidade_reservada: int):
+        super().__init__(
+            f"A quantidade física ({nova_quantidade_fisica}) não pode ficar abaixo da quantidade "
+            f"reservada ({quantidade_reservada})."
+        )
+        self.nova_quantidade_fisica = nova_quantidade_fisica
+        self.quantidade_reservada = quantidade_reservada
+
+
 class ItensBloqueados(RegraDeNegocioViolada):
     """Alteração de serviços ou peças em um status que não a permite, como `FINALIZADA` (RF-21)."""
 
@@ -176,6 +188,26 @@ class DocumentoJaCadastrado(RegraDeNegocioViolada):
 
     def __init__(self):
         super().__init__("Já existe um cliente cadastrado com este documento.")
+
+
+class CodigoDePecaJaCadastrado(RegraDeNegocioViolada):
+    """O código de referência identifica uma única peça, mesmo excluída (RF-12)."""
+
+    def __init__(self, codigo_referencia: str):
+        super().__init__(f"Já existe uma peça com o código de referência {codigo_referencia!r}.")
+        self.codigo_referencia = codigo_referencia
+
+
+class PecaComPendencia(RegraDeNegocioViolada):
+    """Peça que alguma OS ainda espera não pode ser excluída (RF-12)."""
+
+    def __init__(self, peca: str, numeros_das_os: list[str]):
+        super().__init__(
+            f"A peça {peca!r} está pendente nas OS {', '.join(numeros_das_os)} e não pode ser "
+            "excluída."
+        )
+        self.peca = peca
+        self.numeros_das_os = numeros_das_os
 
 
 class PlacaJaCadastrada(RegraDeNegocioViolada):

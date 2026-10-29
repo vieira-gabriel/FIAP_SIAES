@@ -6,6 +6,8 @@ from sqlalchemy.engine import Connection
 
 # Um modelo só entra no `Base.metadata`, e portanto no autogenerate, depois de importado.
 import infrastructure.database.cliente_model  # noqa: F401
+import infrastructure.database.estoque_peca_model  # noqa: F401
+import infrastructure.database.peca_model  # noqa: F401
 import infrastructure.database.servico_model  # noqa: F401
 import infrastructure.database.usuario_model  # noqa: F401
 import infrastructure.database.veiculo_model  # noqa: F401

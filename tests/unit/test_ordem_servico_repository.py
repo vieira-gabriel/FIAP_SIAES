@@ -14,28 +14,6 @@ PECA_ID = uuid4()
 AGORA = datetime.now(UTC)
 
 
-class OrdemServicoRepositoryEmMemoria(OrdemServicoRepository):
-    def __init__(self):
-        self.dados = {}
-
-    async def salvar(self, os):
-        self.dados[os.id] = os
-
-    async def buscar_por_id(self, id):
-        return self.dados.get(id)
-
-    async def buscar_por_numero(self, numero):
-        return next((os for os in self.dados.values() if os.numero == numero), None)
-
-    async def listar_pendentes_da_peca(self, peca_id):
-        pendentes = [
-            os
-            for os in self.dados.values()
-            if any(i.peca_id == peca_id and i.quantidade_pendente > 0 for i in os.pecas)
-        ]
-        return sorted(pendentes, key=lambda os: os.data_abertura)
-
-
 def criar_os(numero="529-7F3A9C2B", data_abertura=AGORA, quantidade_pendente=0):
     item = ItemPeca(
         peca_id=PECA_ID,
@@ -77,24 +55,22 @@ def test_implementacao_incompleta_nao_pode_ser_criada():
         SemPendencias()
 
 
-async def test_salva_e_busca_a_os_pelo_id_e_pelo_numero():
-    repositorio = OrdemServicoRepositoryEmMemoria()
+async def test_salva_e_busca_a_os_pelo_id_e_pelo_numero(ordens):
     os = criar_os()
-    await repositorio.salvar(os)
+    await ordens.salvar(os)
 
-    assert await repositorio.buscar_por_id(os.id) == os
-    assert await repositorio.buscar_por_numero(NumeroOS("529-7F3A9C2B")) == os
-    assert await repositorio.buscar_por_id(uuid4()) is None
-    assert await repositorio.buscar_por_numero(NumeroOS("529-00000000")) is None
+    assert await ordens.buscar_por_id(os.id) == os
+    assert await ordens.buscar_por_numero(NumeroOS("529-7F3A9C2B")) == os
+    assert await ordens.buscar_por_id(uuid4()) is None
+    assert await ordens.buscar_por_numero(NumeroOS("529-00000000")) is None
 
 
-async def test_lista_as_pendentes_da_peca_da_mais_antiga_para_a_mais_nova():
-    repositorio = OrdemServicoRepositoryEmMemoria()
+async def test_lista_as_pendentes_da_peca_da_mais_antiga_para_a_mais_nova(ordens):
     mais_nova = criar_os("529-00000002", AGORA, quantidade_pendente=2)
     mais_antiga = criar_os("529-00000001", AGORA - timedelta(days=1), quantidade_pendente=1)
     sem_pendencia = criar_os("529-00000003", AGORA - timedelta(days=2))
     for os in (mais_nova, sem_pendencia, mais_antiga):
-        await repositorio.salvar(os)
+        await ordens.salvar(os)
 
-    assert await repositorio.listar_pendentes_da_peca(PECA_ID) == [mais_antiga, mais_nova]
-    assert await repositorio.listar_pendentes_da_peca(uuid4()) == []
+    assert await ordens.listar_pendentes_da_peca(PECA_ID) == [mais_antiga, mais_nova]
+    assert await ordens.listar_pendentes_da_peca(uuid4()) == []

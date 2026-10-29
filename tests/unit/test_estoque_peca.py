@@ -8,6 +8,7 @@ from domain.events.saldo_peca_atualizado_event import SaldoPecaAtualizadoEvent
 from domain.exceptions import (
     AlocacaoInvalida,
     PecaInvalida,
+    QuantidadeFisicaAbaixoDaReservada,
     QuantidadeInvalida,
     SaldoInsuficiente,
     ValorInvalido,
@@ -175,10 +176,10 @@ def test_ajuste_para_baixo_ou_igual_nao_acumula_evento(nova):
 def test_ajuste_abaixo_da_quantidade_reservada_e_recusado_sem_alterar_nada():
     estoque = criar_estoque(fisica=10, reservada=4)
 
-    with pytest.raises(SaldoInsuficiente) as erro:
+    with pytest.raises(QuantidadeFisicaAbaixoDaReservada) as erro:
         estoque.ajustar_quantidade_fisica(3)
 
-    assert (erro.value.quantidade_solicitada, erro.value.saldo_disponivel) == (4, 3)
+    assert (erro.value.nova_quantidade_fisica, erro.value.quantidade_reservada) == (3, 4)
     assert estoque.quantidade_fisica == 10
     assert estoque.collect_domain_events() == []
 
@@ -190,7 +191,7 @@ def test_ajuste_para_zero_e_aceito_sem_reservas_e_recusado_com_reservas():
     sem_reservas.ajustar_quantidade_fisica(0)
 
     assert sem_reservas.quantidade_fisica == 0
-    with pytest.raises(SaldoInsuficiente):
+    with pytest.raises(QuantidadeFisicaAbaixoDaReservada):
         com_reservas.ajustar_quantidade_fisica(0)
 
 

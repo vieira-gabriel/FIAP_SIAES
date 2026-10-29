@@ -18,6 +18,7 @@ from domain.exceptions import (
     OrdemServicoInvalida,
     PecasPendentes,
     PlacaInvalida,
+    PlacaJaCadastrada,
     QuantidadeInvalida,
     RegraDeNegocioViolada,
     SaldoInsuficiente,
@@ -54,6 +55,7 @@ def test_bases_herdam_de_erro_de_dominio(base):
         (ItemJaIncluido("Filtro de óleo"), RegraDeNegocioViolada),
         (PecasPendentes(["Filtro de óleo"]), RegraDeNegocioViolada),
         (MotivoObrigatorio(), RegraDeNegocioViolada),
+        (PlacaJaCadastrada(), RegraDeNegocioViolada),
     ],
 )
 def test_especificas_herdam_da_base_correta(excecao, base):

@@ -22,6 +22,9 @@ class UsuarioRepositoryEmMemoria(UsuarioRepository):
     async def buscar_por_email(self, email):
         return next((u for u in self.dados.values() if u.email == email), None)
 
+    async def listar(self):
+        return sorted(self.dados.values(), key=lambda usuario: usuario.nome)
+
 
 class PasswordHasherFalso(PasswordHasher):
     async def gerar_hash(self, senha):

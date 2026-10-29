@@ -1,0 +1,80 @@
+# Lint, testes com PostgreSQL, cobertura e análise de vulnerabilidades em cada PR (issue #29).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Só o PR cancela a execução anterior; na `main`, todo commit precisa ter o resultado dele.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  qualidade:
+    name: Lint, testes e segurança
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      db:
+        image: postgres:16
+        env:
+          POSTGRES_DB: siaes
+          POSTGRES_USER: siaes
+          POSTGRES_PASSWORD: senha-do-banco-de-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U siaes -d siaes"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # Valores só de teste, sem relação com nenhum ambiente real (RNF-06).
+    env:
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: siaes
+      POSTGRES_USER: siaes
+      POSTGRES_PASSWORD: senha-do-banco-de-ci
+      JWT_SECRET_KEY: chave-de-teste-do-ci-sem-uso-real-0123456789
+      ADMIN_PASSWORD: senha-do-admin-de-ci
+
+    steps:
+      # As actions ficam fixadas pelo SHA do commit, para uma tag alterada não mudar o pipeline.
+      # Sem Dependabot (guia, seção 8.1), a atualização delas é manual.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # A mesma versão do uv do Dockerfile e do `required-version` do pyproject.toml.
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: "0.8.22"
+
+      - name: Instalar as dependências
+        run: uv sync --frozen
+
+      - name: Ruff (lint)
+        run: uv run ruff check src tests migrations
+
+      - name: Ruff (formatação)
+        run: uv run ruff format --check src tests migrations
+
+      - name: Testes unitários e de integração, com cobertura (RNF-12 a RNF-14)
+        run: uv run pytest --cov --cov-report=term-missing --cov-fail-under=80
+
+      - name: Bandit no código-fonte (RNF-07)
+        run: uv run bandit -r src -q
+
+      - name: pip-audit nas dependências de produção (RNF-07)
+        run: |
+          uv export --frozen --no-dev --no-emit-project -o requisitos-de-producao.txt
+          uv run pip-audit -r requisitos-de-producao.txt --require-hashes --disable-pip
+
+      # Um erro no Dockerfile não passa despercebido até a entrega; o Trivy (RNF-07) precisará dela.
+      - name: Construir a imagem Docker (RNF-15)
+        run: docker build --tag siaes:ci .

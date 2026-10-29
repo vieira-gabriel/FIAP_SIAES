@@ -8,7 +8,7 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 
 ## Estado Atual
 
-> Atualizado em 27/10/2026, considerando a `main` até o merge do PR #77.
+> Atualizado em 28/10/2026, considerando a `main` até o merge do PR #126.
 
 | Item | Situação |
 | :--- | :--- |
@@ -17,11 +17,12 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 | Modelo C4 | Documentado nos 4 níveis; camada de entrada renomeada para `src/presentation/`; estrutura de pastas da seção 6 aprovada pelo grupo (issue #9) |
 | Guia de desenvolvimento e estrutura de pastas | Atualizados para a numeração atual dos requisitos, com as decisões técnicas da seção 8 |
 | Event Storming | PDF reexportado com os fluxos de peça pendente e de cancelamento; link do board registrado em [docs/ddd/event-storming.md](docs/ddd/event-storming.md) |
-| Código (`src/`) e testes | Domínio implementado: objetos de valor, `Cliente`, `Veiculo`, `Usuario`, `Servico`, `Peca`, `OrdemServico` (itens, orçamento, máquina de estados, histórico e estimativa de entrega) e `EstoquePeca` (reserva, baixa, estorno e alocação por prioridade). Aplicação com o Event Dispatcher e os casos de uso de login e de carga inicial. Infraestrutura com configuração, engine, unidade de trabalho, migrations e persistência de usuários. Apresentação com `/health`, login, validação de token com checagem de perfil (RBAC) e tratamento padronizado de erros. 758 testes passando, com 100% de cobertura em `domain/` e `application/` |
-| Configuração do repositório | `.gitignore`, `.env.example`, `pyproject.toml` e `uv.lock` criados |
+| Código (`src/`) e testes | Domínio implementado: objetos de valor, `Cliente`, `Veiculo`, `Usuario`, `Servico`, `Peca`, `OrdemServico` (itens, orçamento, máquina de estados, histórico e estimativa de entrega) e `EstoquePeca` (reserva, baixa, estorno e alocação por prioridade). Aplicação com o Event Dispatcher e os casos de uso de login, de carga inicial, da gestão de usuários (issue #81) e do cadastro de clientes (issue #82). Infraestrutura com configuração, engine, unidade de trabalho, migrations (`usuarios` e `clientes`) e persistência de usuários e clientes. Apresentação com `/health`, login, validação de token com checagem de perfil (RBAC), rotas `/usuarios` e `/clientes` e tratamento padronizado de erros. 851 testes passando, com 100% de cobertura em `domain/` e `application/` |
+| Configuração do repositório | `.gitignore`, `.env.example`, `pyproject.toml` (com o uv fixado em 0.8.22) e `uv.lock` criados. A proteção da `main` no GitHub ainda não está configurada (API: `protected: false`, sem ruleset) |
+| CI | `.github/workflows/ci.yml` em cada PR e em cada push na `main`: lint, testes com PostgreSQL, cobertura mínima de 80%, Bandit, pip-audit e `docker build` (issue #29) |
 | Docker | `Dockerfile` em Python 3.12, multi-stage com `uv` e usuário não-root, e `docker-compose.yml` com `app` e `db` (PostgreSQL 16); as migrations rodam antes do Uvicorn |
 | Pendências do domínio | `OrdemServico.alocar_peca` (issue #43, parte 2), eventos da OS (issue #45) e a porta do repositório da OS (issue #46); os arquivos `ordem_servico_repository.py` e `criar_os.py` seguem vazios |
-| README | Apenas o título e os links do Event Storming e do modelo C4 |
+| README | Objetivo, solução, arquitetura, tecnologias e banco de dados (issue #116); faltam pré-requisitos, execução, testes, Swagger e usuários de demonstração (issue #117) e estrutura de diretórios e link do vídeo (issue #121) |
 
 ---
 
@@ -44,13 +45,13 @@ flowchart LR
 | :--- | :--- | :--- | :--- | :--- |
 | **0** | Fundação | - | Decisões fechadas, documentos alinhados entre si e ao enunciado, repositório configurado | Em andamento |
 | **1** | Modelagem DDD | 0 | Event Storming completo e legível, diagramas e linguagem ubíqua consistentes entre si | Em andamento |
-| **2** | Infraestrutura base | 0 | `docker compose up --build` sobe API + PostgreSQL com Swagger em `/docs` | Concluída (CI opcional não feito) |
+| **2** | Infraestrutura base | 0 | `docker compose up --build` sobe API + PostgreSQL com Swagger em `/docs` | Concluída |
 | **3** | Domínio | 1 | Entidades, objetos de valor, eventos e regras de negócio com testes unitários | Quase concluída (faltam as issues #43 parte 2, #45 e #46) |
-| **4** | Autenticação e cadastros | 2, 3 | Login JWT, RBAC, gestão de usuários e cadastros administrativos | Em andamento (login, RBAC e carga inicial prontos) |
+| **4** | Autenticação e cadastros | 2, 3 | Login JWT, RBAC, gestão de usuários e cadastros administrativos | Em andamento (login, RBAC, carga inicial, usuários e clientes prontos) |
 | **5** | Fluxo da OS | 4 | Abertura, orçamento, reserva e pendência de peças, aprovação, execução e consulta pública | Não iniciada |
 | **6** | Gestão e métricas | 5 | Listagem, detalhamento e relatório de tempos médios | Não iniciada |
 | **7** | Qualidade e segurança | 6 | Cobertura ≥ 80% comprovada, relatório de vulnerabilidades e medição de desempenho | Não iniciada |
-| **8** | Documentação e entrega | 7 | README, documentação DDD final, vídeo e PDF de entrega | Não iniciada |
+| **8** | Documentação e entrega | 7 | README, documentação DDD final, vídeo e PDF de entrega | Em andamento (README parcial) |
 
 ---
 
@@ -135,7 +136,7 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 
 ### Repositório
 
-- [ ] Proteger a branch `main` no GitHub (Settings → Branches): exigir PR com 1 aprovação e bloquear push forçado. O enunciado exige a proteção e o repositório precisa estar público
+- [ ] Proteger a branch `main` no GitHub (Settings → Branches): exigir PR com 1 aprovação, bloquear push forçado e marcar o check "Lint, testes e segurança" do CI como obrigatório. O enunciado exige a proteção. Em 28/10/2026 a API do GitHub devolvia `protected: false` e nenhum ruleset, com o repositório público; a configuração depende do dono do repositório
 - [x] Definir o padrão de branches e de mensagens de commit (guia de desenvolvimento, seção 7)
 - [x] Criar `.gitignore` para Python (incluindo `.env`, `.venv/`, `__pycache__/`, relatórios de cobertura e o PDF do enunciado)
 - [x] Remover da `main` os arquivos `.pyc` commitados no health check; o `.gitignore` ignora `__pycache__/`
@@ -230,7 +231,7 @@ Tarefas da fase:
 - [x] Tratamento padronizado de erros, traduzindo as exceções do domínio para códigos HTTP, incluindo `401` e `403` (RNF-03; issue #30): corpo único `ErroResponse` e tabela na seção 5.5 do guia
 - [x] Event Dispatcher síncrono em memória (Modelo C4; `application/events/event_dispatcher.py`)
 - [x] Estrutura para testes de integração com banco PostgreSQL de teste (RNF-13; issue #28): banco `<POSTGRES_DB>_test` no container `db`, fixtures em `tests/integration/conftest.py` e comandos na seção 5.7 do guia
-- [ ] (Opcional, se houver tempo) Pipeline de CI no GitHub Actions executando lint, testes e cobertura em cada Pull Request
+- [x] (Opcional, se houver tempo) Pipeline de CI no GitHub Actions executando lint, testes e cobertura em cada Pull Request (issue #29), com Bandit e pip-audit (RNF-07)
 
 ---
 
@@ -280,10 +281,10 @@ Tarefas da fase:
 
 - [x] Login com e-mail e senha, emitindo JWT com a claim `role` e expiração de 24 horas (RF-01)
 - [x] Guard de RBAC retornando `401` sem token válido e `403` sem permissão (RF-02, RNF-03): `obter_usuario_autenticado` e `exigir_perfis` em `presentation/middlewares/dependencies.py`
-- [ ] Gestão de usuários internos exclusiva do Gerente, com senhas em hash bcrypt (RF-03)
+- [x] Gestão de usuários internos exclusiva do Gerente, com senhas em hash bcrypt (RF-03; issue #81)
 - [x] Carga inicial do Gerente na subida do container, com `ADMIN_PASSWORD` obrigatória, e dos usuários de demonstração quando `SEED_DEMO=true` (RF-03)
-- [ ] Cadastro, atualização e listagem de clientes, com validação de CPF/CNPJ (RF-04, RF-05)
-- [ ] Exclusão lógica de clientes pelo Gerente (RF-06)
+- [x] Cadastro, atualização e listagem de clientes, com validação de CPF/CNPJ (RF-04, RF-05; issue #82)
+- [x] Exclusão lógica de clientes pelo Gerente (RF-06; issue #82)
 - [ ] Cadastro, atualização e listagem de veículos vinculados ao cliente, com validação de placa (RF-07, RF-08)
 - [ ] Exclusão lógica de veículos por Atendente e Gerente (RF-09)
 - [ ] Listagem do catálogo de serviços (RF-10) e CRUD restrito ao Gerente, com tempo estimado e exclusão lógica (RF-11)
@@ -358,15 +359,15 @@ Tarefas da fase:
 
 ### README.md
 
-- [ ] Objetivo do projeto
-- [ ] Descrição resumida da solução
-- [ ] Arquitetura utilizada (pode referenciar o [modelo C4](docs/ddd/c4-model.md))
-- [ ] Tecnologias utilizadas
+- [x] Objetivo do projeto
+- [x] Descrição resumida da solução
+- [x] Arquitetura utilizada (pode referenciar o [modelo C4](docs/ddd/c4-model.md))
+- [x] Tecnologias utilizadas
 - [ ] Pré-requisitos
 - [ ] Instruções para execução, incluindo a cópia do `.env.example` para `.env` e o preenchimento das variáveis obrigatórias
 - [ ] Instruções para execução dos testes
 - [ ] Instruções de acesso ao Swagger (`/docs`)
-- [ ] Decisão e justificativa do banco de dados (pode reaproveitar o RNF-09)
+- [x] Decisão e justificativa do banco de dados (pode reaproveitar o RNF-09)
 - [ ] Usuários de demonstração (`SEED_DEMO=true`) e procedimento de autenticação
 - [ ] Estrutura dos principais diretórios (pode reaproveitar o guia de desenvolvimento)
 - [ ] Link para a documentação DDD

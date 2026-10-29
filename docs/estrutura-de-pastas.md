@@ -79,6 +79,7 @@ A pasta `src/api/` foi removida, pois a RNF-01 nomeia a camada de entrada como `
 | `src/domain/events/`, `src/application/events/`, `src/application/handlers/` e `src/infrastructure/database/` | Seção 6 do modelo C4, aprovadas pelo grupo na issue #9 |
 | `src/presentation/middlewares/` | Seção 6 do modelo C4, aprovada pelo grupo na issue #9; substitui `src/presentation/auth/` |
 | `docs/security/` | RNF-07 — relatório de análise de vulnerabilidades |
+| `.github/workflows/` | Guia de desenvolvimento, seção 8.1 — CI no GitHub Actions (issue #29) |
 
 A porta do repositório no domínio é o que permite à camada `application` depender de uma abstração, e não da implementação em PostgreSQL, conforme exige a RNF-02.
 
@@ -119,11 +120,11 @@ Pontos de atenção:
 
 ## 6. Itens da Documentação Ainda Não Representados
 
-A pasta `migrations/` do Alembic (guia, seção 8.1) fica na raiz do projeto, junto com o `alembic.ini`, e foi criada na issue #25 com a revisão de base `0001_schema_base`, vazia; as tabelas entram com cada entidade. `src/infrastructure/config.py` (configuração) e `src/presentation/container.py` (montagem das dependências), decididos na issue #9, foram criados na issue #22; o container monta a engine, a fábrica de sessões, os serviços de token e de hash e o verificador do banco (issue #26). O login já está ligado: o container oferece `obter_autenticar_usuario` e executa a carga inicial de usuários na subida; as demais funções `obter_<caso_de_uso>` entram com os casos de uso seguintes.
+A pasta `migrations/` do Alembic (guia, seção 8.1) fica na raiz do projeto, junto com o `alembic.ini`, e foi criada na issue #25 com a revisão de base `0001_schema_base`, vazia; as tabelas entram com cada entidade. `src/infrastructure/config.py` (configuração) e `src/presentation/container.py` (montagem das dependências), decididos na issue #9, foram criados na issue #22; o container monta a engine, a fábrica de sessões, os serviços de token e de hash e o verificador do banco (issue #26). O login já está ligado: o container oferece `obter_autenticar_usuario` e executa a carga inicial de usuários na subida; as funções `obter_<caso_de_uso>` dos cadastros de usuários e de clientes também já existem, e as demais entram com os casos de uso seguintes.
 
 A autenticação JWT (seção 5), a configuração do PostgreSQL (RNF-08) e o `Dockerfile` com o `docker-compose.yml` (RNF-15) já estão implementados. Permanecem pendentes, por dependerem de implementação:
 
 * a porta `ordem_servico_repository.py` e o caso de uso `criar_os.py`, que existem vazios (issues #46 e Fase 5);
-* os adaptadores PostgreSQL da OS, do estoque, do cliente e do veículo, com os modelos do ORM e as tabelas (Fase 4);
+* os adaptadores PostgreSQL da OS e do estoque, com os modelos do ORM e as tabelas (Fases 4 e 5), e os do veículo e do serviço (issues #83 e #84); os de usuário e de cliente já existem;
 * os eventos de domínio da OS e os handlers de `application/handlers/` (issue #45);
 * o relatório da análise de vulnerabilidades em `docs/security/` (RNF-07) e a evidência da medição de cobertura (RNF-14), que a Fase 7 registra.

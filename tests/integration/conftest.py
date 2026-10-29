@@ -1,7 +1,8 @@
 """Fixtures dos testes de integração contra o PostgreSQL do Compose (RNF-13).
 
 Suba o banco antes: `docker compose -f docker-compose.yml -f docker-compose.testes.yml up -d db`.
-Sem o `.env` preenchido ou sem o banco no ar, os testes de integração são pulados.
+Sem o `.env` preenchido ou sem o banco no ar, os testes de integração são pulados; no CI
+(`CI=true`), eles falham.
 
 A sessão de testes recria o banco `<POSTGRES_DB>_test`, aplica as migrations nele e o apaga no
 final; o banco de desenvolvimento não é tocado. Cada teste roda dentro de uma transação desfeita
@@ -12,8 +13,10 @@ inteira, usam `banco_temporario` ou `banco_migrado`.
 """
 
 import asyncio
+import os
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
+from typing import NoReturn
 from uuid import uuid4
 
 import pytest
@@ -39,7 +42,7 @@ def configuracao() -> Configuracao:
     try:
         return carregar_configuracao()
     except ConfiguracaoInvalida:
-        pytest.skip("Preencha o .env para rodar os testes de integração.")
+        _pular_fora_do_ci("Preencha o .env para rodar os testes de integração.")
 
 
 @pytest.fixture(scope="session")
@@ -67,7 +70,7 @@ def banco_de_teste(configuracao: Configuracao, parametros_de_conexao: dict) -> I
             )
         )
     except OSError:
-        pytest.skip(
+        _pular_fora_do_ci(
             "PostgreSQL indisponível em 127.0.0.1: suba o db com "
             "`docker compose -f docker-compose.yml -f docker-compose.testes.yml up -d db`."
         )
@@ -166,6 +169,14 @@ async def banco_temporario(
 async def banco_migrado(banco_temporario: AsyncEngine, aplicar_migrations) -> AsyncEngine:
     await aplicar_migrations()
     return banco_temporario
+
+
+def _pular_fora_do_ci(motivo: str) -> NoReturn:
+    """No CI (o GitHub Actions define `CI=true`), falha em vez de pular: um teste de integração
+    pulado ali esconderia um banco que não subiu."""
+    if os.environ.get("CI") == "true":
+        pytest.fail(motivo)
+    pytest.skip(motivo)
 
 
 async def _executar_como_administrador(parametros: dict, *comandos_sql: str) -> None:

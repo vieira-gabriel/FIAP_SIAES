@@ -204,7 +204,7 @@ Sem o banco no ar, os testes de integração são pulados, e `uv run pytest` rod
 **Todos os testes, com a cobertura** do domínio e da aplicação (RNF-14, mínimo de 80%):
 
 ```bash
-uv run pytest --cov --cov-report=term-missing
+uv run pytest --cov --cov-report=term-missing --cov-fail-under=80
 ```
 
 **Lint e formatação:**

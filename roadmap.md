@@ -23,7 +23,7 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 | Docker | `Dockerfile` em Python 3.12, multi-stage com `uv`, usuário não-root e sem o `pip` da imagem base, e `docker-compose.yml` com `app` e `db` (PostgreSQL 16); as migrations rodam antes do Uvicorn |
 | Segurança | Revisão de segredos no código e no histórico (issue #114, `docs/security/revisao-de-segredos.md`) e análise de vulnerabilidades das dependências, do código e da imagem (issue #111, `docs/security/analise-de-vulnerabilidades.md`), ambas sem achado crítico e a repetir no commit final. Medição de desempenho, revisão de SQL Injection, IDOR e XSS e revisão do Swagger seguem pendentes (Fase 7) |
 | Pendências do domínio | `OrdemServico.alocar_peca` (issue #43, parte 2) e os eventos da OS, com o objeto de valor `QuantidadePeca` (issue #45). O `criar_os.py` segue vazio, e o adaptador `PostgresOrdemServicoRepository` é provisório: só atende à exclusão da peça com OS pendente até a persistência da OS (issue #88) |
-| README | Objetivo, solução, arquitetura, tecnologias e banco de dados (issue #116); faltam pré-requisitos, execução, testes, Swagger e usuários de demonstração (issue #117) e estrutura de diretórios e link do vídeo (issue #121) |
+| README | Objetivo, solução, arquitetura, tecnologias e banco de dados (issue #116), pré-requisitos, execução, testes, Swagger e usuários de demonstração (issue #117); faltam a estrutura de diretórios, o link para a documentação DDD e o link do vídeo (issue #121) |
 
 ---
 
@@ -52,7 +52,7 @@ flowchart LR
 | **5** | Fluxo da OS | 4 | Abertura, orçamento, reserva e pendência de peças, aprovação, execução e consulta pública | Não iniciada |
 | **6** | Gestão e métricas | 5 | Listagem, detalhamento e relatório de tempos médios | Não iniciada |
 | **7** | Qualidade e segurança | 6 | Cobertura ≥ 80% comprovada, relatório de vulnerabilidades e medição de desempenho | Não iniciada |
-| **8** | Documentação e entrega | 7 | README, documentação DDD final, vídeo e PDF de entrega | Em andamento (README parcial) |
+| **8** | Documentação e entrega | 7 | README, documentação DDD final, vídeo e PDF de entrega | Em andamento (README sem a estrutura de diretórios e os links da documentação DDD e do vídeo) |
 
 ---
 

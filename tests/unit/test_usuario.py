@@ -1,7 +1,9 @@
+from uuid import uuid4
+
 import pytest
 
 from domain.entities.usuario import Usuario
-from domain.exceptions import UsuarioInvalido
+from domain.exceptions import AlteracaoDoProprioAcesso, UsuarioInvalido
 from domain.value_objects.perfil_usuario import PerfilUsuario
 
 
@@ -73,3 +75,62 @@ def test_igualdade_pela_identidade():
     assert usuario != outro_com_mesmos_dados
     assert usuario == criar_usuario(id=usuario.id, nome="Outro nome")
     assert len({usuario, outro_com_mesmos_dados}) == 2
+
+
+def test_atualizar_dados_normaliza_e_valida():
+    usuario = criar_usuario()
+
+    usuario.atualizar_dados("  Ana Souza ", " Ana.Souza@Oficina.com ")
+
+    assert (usuario.nome, usuario.email) == ("Ana Souza", "ana.souza@oficina.com")
+    with pytest.raises(UsuarioInvalido):
+        usuario.atualizar_dados("Ana", "sem-arroba")
+    assert usuario.email == "ana.souza@oficina.com"
+
+
+def test_gerente_altera_o_perfil_de_outro_usuario():
+    usuario = criar_usuario()
+
+    usuario.alterar_perfil(PerfilUsuario.MECANICO, responsavel_id=uuid4())
+
+    assert usuario.perfil is PerfilUsuario.MECANICO
+
+
+def test_ninguem_altera_o_proprio_perfil():
+    gerente = criar_usuario(perfil=PerfilUsuario.GERENTE)
+
+    with pytest.raises(AlteracaoDoProprioAcesso):
+        gerente.alterar_perfil(PerfilUsuario.ATENDENTE, responsavel_id=gerente.id)
+
+    assert gerente.perfil is PerfilUsuario.GERENTE
+
+
+def test_manter_o_proprio_perfil_e_permitido():
+    gerente = criar_usuario(perfil=PerfilUsuario.GERENTE)
+
+    gerente.alterar_perfil(PerfilUsuario.GERENTE, responsavel_id=gerente.id)
+
+    assert gerente.perfil is PerfilUsuario.GERENTE
+
+
+def test_alterar_para_perfil_desconhecido_e_recusado():
+    with pytest.raises(UsuarioInvalido):
+        criar_usuario().alterar_perfil("CHEFE", responsavel_id=uuid4())
+
+
+def test_desativar_por_outro_usuario():
+    usuario = criar_usuario()
+
+    usuario.desativar_por(responsavel_id=uuid4())
+
+    assert not usuario.ativo
+
+
+def test_ninguem_desativa_o_proprio_acesso():
+    gerente = criar_usuario(perfil=PerfilUsuario.GERENTE)
+
+    with pytest.raises(AlteracaoDoProprioAcesso) as erro:
+        gerente.desativar_por(responsavel_id=gerente.id)
+
+    assert gerente.ativo
+    assert erro.value.acao == "desativar o próprio acesso"

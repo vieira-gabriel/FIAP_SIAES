@@ -23,7 +23,13 @@ dev = [
     "httpx>=0.27",
     "ruff>=0.6",
     "pytest-asyncio>=0.24",
+    "pip-audit>=2.10.1",
+    "bandit>=1.9.4",
 ]
+
+[tool.uv]
+# A mesma versão do Dockerfile e do CI: outra versão reescreve o `uv.lock` em outro formato.
+required-version = "==0.8.22"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

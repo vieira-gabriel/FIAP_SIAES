@@ -28,8 +28,9 @@ _RESTRICAO_DO_NUMERO = "ordens_servico_numero_key"
 class PostgresOrdemServicoRepository(OrdemServicoRepository):
     """Usa a sessão da unidade de trabalho; quem confirma a transação é ela (RNF-08).
 
-    Toda busca bloqueia as OS lidas até o fim da transação: duas operações na mesma OS esperam
-    uma pela outra, e a segunda parte do status e do histórico gravados pela primeira (RNF-09).
+    As buscas de uma OS bloqueiam a OS lida até o fim da transação: duas operações na mesma OS
+    esperam uma pela outra, e a segunda parte do status e do histórico gravados pela primeira
+    (RNF-09). A lista de pendências não bloqueia, porque quem a usa já bloqueou o estoque da peça.
     """
 
     def __init__(self, sessao: AsyncSession):
@@ -66,7 +67,7 @@ class PostgresOrdemServicoRepository(OrdemServicoRepository):
             ItemPecaModel.quantidade_pendente > 0,
         )
         consulta = (
-            _consulta_com_bloqueio()
+            _consulta()
             .where(com_pendencia)
             .order_by(OrdemServicoModel.data_abertura, OrdemServicoModel.id)
         )
@@ -84,10 +85,9 @@ class PostgresOrdemServicoRepository(OrdemServicoRepository):
         await self._sessao.flush()
 
 
-def _consulta_com_bloqueio() -> Select[tuple[OrdemServicoModel]]:
-    # `populate_existing` relê a OS depois do bloqueio, mesmo que a sessão já a tenha carregado:
-    # o estado usado é o gravado pela transação que liberou o bloqueio. Só a linha da OS é
-    # bloqueada; os itens e o histórico só mudam junto com ela.
+def _consulta() -> Select[tuple[OrdemServicoModel]]:
+    # `populate_existing` relê a OS mesmo que a sessão já a tenha carregado: depois de um
+    # bloqueio, o estado usado é o gravado pela transação que o liberou.
     return (
         select(OrdemServicoModel)
         .options(
@@ -95,9 +95,13 @@ def _consulta_com_bloqueio() -> Select[tuple[OrdemServicoModel]]:
             selectinload(OrdemServicoModel.pecas),
             selectinload(OrdemServicoModel.historico),
         )
-        .with_for_update(of=OrdemServicoModel)
         .execution_options(populate_existing=True)
     )
+
+
+def _consulta_com_bloqueio() -> Select[tuple[OrdemServicoModel]]:
+    # Só a linha da OS é bloqueada; os itens e o histórico só mudam junto com ela.
+    return _consulta().with_for_update(of=OrdemServicoModel)
 
 
 def _para_modelo(os: OrdemServico) -> OrdemServicoModel:

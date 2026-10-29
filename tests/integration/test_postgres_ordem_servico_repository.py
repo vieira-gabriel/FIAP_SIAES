@@ -305,6 +305,24 @@ async def test_os_lida_fica_bloqueada_ate_o_fim_da_transacao(fabrica_de_sessoes,
                 await PostgresOrdemServicoRepository(segunda.sessao).buscar_por_numero(os.numero)
 
 
+async def test_lista_de_pendencias_nao_bloqueia_as_os(fabrica_de_sessoes, cadastros):
+    """Quem lista já bloqueou o estoque; bloquear as OS depois dele causaria impasse com o
+    cancelamento, que bloqueia a OS e depois o estoque."""
+    os = _orcada(cadastros)
+    await _salvar(fabrica_de_sessoes, os)
+
+    async with UnidadeDeTrabalhoSqlAlchemy(fabrica_de_sessoes) as primeira:
+        await PostgresOrdemServicoRepository(primeira.sessao).listar_pendentes_da_peca(
+            cadastros.filtro.id
+        )
+
+        async with UnidadeDeTrabalhoSqlAlchemy(fabrica_de_sessoes) as segunda:
+            await segunda.sessao.execute(text("SET LOCAL lock_timeout = '200ms'"))
+            lida = await PostgresOrdemServicoRepository(segunda.sessao).buscar_por_id(os.id)
+
+    assert lida == os
+
+
 async def test_finalizar_orcamento_recusa_peca_excluida_depois_de_incluida(
     fabrica_de_sessoes, cadastros
 ):

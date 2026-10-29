@@ -22,6 +22,10 @@ build/
 dist/
 *.egg-info/
 
+# Arquivos temporários da análise de vulnerabilidades (docs/security/analise-de-vulnerabilidades.md)
+siaes-imagem.tar
+requisitos-de-producao.txt
+
 # Editores e sistema operacional
 .vscode/
 .idea/

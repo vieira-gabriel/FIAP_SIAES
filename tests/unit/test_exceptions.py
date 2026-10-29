@@ -6,6 +6,7 @@ from domain.exceptions import (
     AcessoNegado,
     AlocacaoInvalida,
     CNPJInvalido,
+    CodigoDePecaJaCadastrado,
     CPFInvalido,
     CredenciaisInvalidas,
     EntidadeNaoEncontrada,
@@ -16,8 +17,11 @@ from domain.exceptions import (
     MotivoObrigatorio,
     NumeroOSInvalido,
     OrdemServicoInvalida,
+    PecaComPendencia,
     PecasPendentes,
     PlacaInvalida,
+    PlacaJaCadastrada,
+    QuantidadeFisicaAbaixoDaReservada,
     QuantidadeInvalida,
     RegraDeNegocioViolada,
     SaldoInsuficiente,
@@ -54,6 +58,10 @@ def test_bases_herdam_de_erro_de_dominio(base):
         (ItemJaIncluido("Filtro de óleo"), RegraDeNegocioViolada),
         (PecasPendentes(["Filtro de óleo"]), RegraDeNegocioViolada),
         (MotivoObrigatorio(), RegraDeNegocioViolada),
+        (QuantidadeFisicaAbaixoDaReservada(2, 3), RegraDeNegocioViolada),
+        (CodigoDePecaJaCadastrado("FLT-001"), RegraDeNegocioViolada),
+        (PecaComPendencia("Filtro de óleo", ["529-7F3A9C2B"]), RegraDeNegocioViolada),
+        (PlacaJaCadastrada(), RegraDeNegocioViolada),
     ],
 )
 def test_especificas_herdam_da_base_correta(excecao, base):
@@ -174,3 +182,18 @@ def test_alocacao_invalida_informa_o_motivo():
 
 def test_motivo_obrigatorio_tem_mensagem():
     assert str(MotivoObrigatorio()) == "Informe o motivo do cancelamento."
+
+
+def test_peca_com_pendencia_informa_a_peca_e_as_os():
+    erro = PecaComPendencia("Filtro de óleo", ["529-7F3A9C2B", "123-00000001"])
+
+    assert erro.peca == "Filtro de óleo"
+    assert erro.numeros_das_os == ["529-7F3A9C2B", "123-00000001"]
+    assert "529-7F3A9C2B, 123-00000001" in str(erro)
+
+
+def test_quantidade_fisica_abaixo_da_reservada_informa_as_duas_quantidades():
+    erro = QuantidadeFisicaAbaixoDaReservada(2, 3)
+
+    assert (erro.nova_quantidade_fisica, erro.quantidade_reservada) == (2, 3)
+    assert str(erro) == "A quantidade física (2) não pode ficar abaixo da quantidade reservada (3)."

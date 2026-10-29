@@ -7,6 +7,7 @@ from domain.events.saldo_peca_atualizado_event import SaldoPecaAtualizadoEvent
 from domain.exceptions import (
     AlocacaoInvalida,
     PecaInvalida,
+    QuantidadeFisicaAbaixoDaReservada,
     QuantidadeInvalida,
     SaldoInsuficiente,
 )
@@ -92,7 +93,7 @@ class EstoquePeca:
         """Corrige a quantidade física por perda, quebra ou inventário (RF-12)."""
         _exigir_nao_negativa(nova_quantidade)
         if nova_quantidade < self.quantidade_reservada:
-            raise SaldoInsuficiente(str(self.peca_id), self.quantidade_reservada, nova_quantidade)
+            raise QuantidadeFisicaAbaixoDaReservada(nova_quantidade, self.quantidade_reservada)
         saldo_aumentou = nova_quantidade > self.quantidade_fisica
         self.quantidade_fisica = nova_quantidade
         if saldo_aumentou:

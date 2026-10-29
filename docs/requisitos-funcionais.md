@@ -2,7 +2,7 @@
 
 Este documento especifica todos os **Requisitos Funcionais (RF)** do MVP do sistema de gestão da oficina mecânica, estabelecendo as regras de negócio operacionais para as duas frentes do sistema: a **Frente da Loja** (acesso autenticado e controlado por perfis - RBAC) e a **Frente do Cliente** (acompanhamento público desautenticado e seguro).
 
-> Documento atualizado em 27/10/2026 - Versão 1.4
+> Documento atualizado em 28/10/2026 - Versão 1.5
 ---
 
 ## Matriz de Perfis e Permissões de Acesso (RBAC)
@@ -135,9 +135,11 @@ O sistema deve permitir a consulta, cadastro, atualização dos dados, atualiza�
 ###### Critério de Aceite / Validação
 * Controlar quantidade física, quantidade reservada, preço unitário de venda, código de referência e prazo de reposição da peça (em dias, usado na estimativa de entrega do RF-25).
 * Apenas o Gerente altera preço unitário de venda, código de referência e prazo de reposição.
+* O código de referência é único, inclusive entre peças excluídas, e é gravado em maiúsculas: `flt-001` e `FLT-001` são a mesma peça.
 * O saldo disponível é a quantidade física menos a quantidade reservada, e nunca pode ficar negativo.
-* Todo aumento de saldo aciona a alocação automática às OS com peça pendente (RF-19), na mesma transação.
+* Todo aumento de saldo aciona a alocação automática às OS com peça pendente (RF-19), na mesma transação. A quantidade física inicial informada no cadastro da peça é a exceção, pois nenhuma OS pode ter pendência de uma peça que acabou de ser cadastrada.
 * A remoção é uma exclusão lógica: a peça deixa de ser listada e de poder ser incluída em novas OS, e as reservas e OS existentes permanecem íntegras.
+* Uma peça com quantidade pendente em alguma OS não pode ser excluída, pois essas OS dependem da reposição dela.
 
 ---
 

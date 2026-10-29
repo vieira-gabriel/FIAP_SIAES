@@ -72,7 +72,7 @@ A pasta `src/api/` foi removida, pois a RNF-01 nomeia a camada de entrada como `
 
 | Caminho | Origem na Documentação |
 | :--- | :--- |
-| `src/domain/value_objects/` | Linguagem Ubíqua §2 (CPF, CNPJ, Placa, Valor, StatusOS) e §4 — Objeto de Valor (`src/domain/value_objects/cpf.py` e `src/domain/value_objects/cnpj.py`, classes separadas por decisão do grupo na issue #14) |
+| `src/domain/value_objects/` | Linguagem Ubíqua §2 (CPF, CNPJ, Documento, Placa, Valor, StatusOS) e §4 — Objeto de Valor (`src/domain/value_objects/cpf.py` e `src/domain/value_objects/cnpj.py`, classes separadas por decisão do grupo na issue #14, com a base abstrata comum em `src/domain/value_objects/documento.py`) |
 | `src/domain/repositories/ordem_servico_repository.py` | Linguagem Ubíqua §4 — Porta de Repositório (Interface Abstrata); RNF-02 — isolamento do domínio |
 | `tests/integration/` | RNF-13 — testes de integração dos fluxos principais |
 | `src/presentation/routers/` | Decisão do grupo no fechamento da Fase 0: rotas FastAPI, um arquivo por recurso |
@@ -90,7 +90,7 @@ A porta do repositório no domínio é o que permite à camada `application` dep
 | Item | Justificativa |
 | :--- | :--- |
 | Arquivos `__init__.py` em cada pasta de `src/` | A Linguagem Ubíqua referencia classes como módulos Python (ex.: `domain.entities.OrdemServico`), o que pressupõe pacotes. Também garantem que as pastas sejam versionadas pelo Git. |
-| Arquivos `.gitkeep` em `tests/integration/` e `docs/security/` | O Git não versiona pastas vazias; os arquivos podem ser removidos quando as pastas receberem conteúdo. |
+| Arquivo `.gitkeep` em `docs/security/` | O Git não versiona pastas vazias; o arquivo pode ser removido, pois a pasta já tem os relatórios de segredos (RNF-06) e de vulnerabilidades (RNF-07). O de `tests/integration/` já foi removido, pois a pasta tem testes. |
 
 ---
 
@@ -120,6 +120,13 @@ Pontos de atenção:
 
 ## 6. Itens da Documentação Ainda Não Representados
 
-A pasta `migrations/` do Alembic (guia, seção 8.1) fica na raiz do projeto, junto com o `alembic.ini`, e foi criada na issue #25 com a revisão de base `0001_schema_base`, vazia; as tabelas entram com cada entidade. `src/infrastructure/config.py` (configuração) e `src/presentation/container.py` (montagem das dependências), decididos na issue #9, foram criados na issue #22; o container monta a engine, a fábrica de sessões, os serviços de token e de hash e o verificador do banco (issue #26). O login já está ligado: o container oferece `obter_autenticar_usuario` e executa a carga inicial de usuários na subida; as demais funções `obter_<caso_de_uso>` entram com os casos de uso seguintes.
+A pasta `migrations/` do Alembic (guia, seção 8.1) fica na raiz do projeto, junto com o `alembic.ini`, e foi criada na issue #25 com a revisão de base `0001_schema_base`, vazia; as tabelas entram com cada entidade (da `0002` à `0006`: `usuarios`, `clientes`, `servicos`, `veiculos`, `pecas` e `estoque_pecas`). `src/infrastructure/config.py` (configuração) e `src/presentation/container.py` (montagem das dependências), decididos na issue #9, foram criados na issue #22; o container monta a engine, a fábrica de sessões, os serviços de token e de hash e o verificador do banco (issue #26). O login já está ligado: o container oferece `obter_autenticar_usuario` e executa a carga inicial de usuários na subida; as funções `obter_<caso_de_uso>` dos cadastros de usuários, clientes, veículos, serviços e peças também já existem, e as demais entram com os casos de uso do fluxo da OS.
 
-Também permanecem pendentes, por dependerem de implementação: a lógica da autenticação JWT (RNF-03, ver seção 5), configuração do PostgreSQL (RNF-08), conteúdo do `Dockerfile` e do `docker-compose.yml` (RNF-15) e medição de cobertura de testes (RNF-14).
+A autenticação JWT (seção 5), a configuração do PostgreSQL (RNF-08) e o `Dockerfile` com o `docker-compose.yml` (RNF-15) já estão implementados. Permanecem pendentes, por dependerem de implementação:
+
+* o caso de uso `criar_os.py`, que existe vazio (Fase 5);
+* o modelo do ORM e a tabela da OS, com o adaptador `postgres_ordem_servico_repository.py` completo (issue #88): hoje ele é provisório e só devolve a lista vazia de OS com peça pendente, usada na exclusão da peça;
+* os eventos de domínio da OS e os handlers de `application/handlers/` (issue #45);
+* a evidência da medição de cobertura (RNF-14), que a Fase 7 registra.
+
+As portas e os adaptadores de usuário, cliente, veículo, serviço, peça e estoque já existem, e a porta da OS (`ordem_servico_repository.py`) também. Os relatórios de segredos (RNF-06) e de vulnerabilidades (RNF-07) estão em `docs/security/`.

@@ -11,9 +11,9 @@ Este documento estabelece a **Linguagem Ubíqua** do sistema de gestão da ofici
 | **Ordem de Serviço (OS)** | Entidade-raiz do agregado principal. Representa o documento e ciclo de vida completo do atendimento, consolidando cliente, veículo, mecânico, serviços, peças e orçamento. | `domain.entities.OrdemServico` |
 | **Número da OS** | Identificador da OS informado ao cliente: 3 primeiros dígitos do CPF/CNPJ do cliente, hífen e 8 primeiros caracteres hexadecimais do UUID interno (ex.: `123-7F3A9C2B`). Usado junto com o CPF/CNPJ na consulta pública. | `domain.value_objects.NumeroOS` |
 | **Cliente** | Pessoa física ou jurídica proprietária do veículo e tomadora dos serviços da oficina. | `domain.entities.Cliente` |
-| **Veículo** | Automóvel cadastrado no sistema vinculado a um cliente específico pela placa. | `domain.entities.Veiculo` |
+| **Veículo** | Automóvel cadastrado no sistema vinculado a um cliente específico pela placa. A placa é única entre os veículos ativos: a de um veículo excluído pode ser recadastrada, e as OS antigas continuam no registro excluído. O proprietário não muda na atualização, e a exclusão do cliente exclui também os veículos dele. | `domain.entities.Veiculo` |
 | **Serviço** | Atividade técnica de manutenção ou reparo realizada pelos mecânicos (ex.: troca de óleo, alinhamento), com valor base e tempo estimado de execução. | `domain.entities.Servico` |
-| **Peça / Insumo** | Componente físico utilizado na manutenção (ex.: filtro de óleo, pastilha de freio). A entidade guarda o cadastro, com código de referência, nome, preço unitário de venda e prazo de reposição em dias. As quantidades ficam no Estoque, na relação 1:1. | `domain.entities.Peca` |
+| **Peça / Insumo** | Componente físico utilizado na manutenção (ex.: filtro de óleo, pastilha de freio). A entidade guarda o cadastro, com código de referência, nome, preço unitário de venda e prazo de reposição em dias. As quantidades ficam no Estoque, na relação 1:1. A exclusão é lógica e é recusada enquanto alguma OS tiver quantidade pendente da peça. | `domain.entities.Peca` |
 | **Item de Serviço** | Serviço incluído em uma OS, com o preço e o tempo estimado de execução congelados na conclusão do orçamento. | `domain.entities.ItemServico` |
 | **Item de Peça** | Peça incluída em uma OS, com a quantidade solicitada, a quantidade reservada, a quantidade pendente, o preço unitário e o prazo de reposição congelados na conclusão do orçamento. | `domain.entities.ItemPeca` |
 | **Orçamento** | Cálculo que consolida o valor congelado dos serviços solicitados e peças alocadas para aprovação do cliente. | `domain.value_objects.Orcamento` |
@@ -36,7 +36,7 @@ Este documento estabelece a **Linguagem Ubíqua** do sistema de gestão da ofici
 | **CPF** | Identificador de cliente pessoa física com validação matemática rigorosa de dígitos verificadores. Imutável. | `domain.value_objects.CPF` |
 | **CNPJ** | Identificador de cliente pessoa jurídica com validação matemática rigorosa de dígitos verificadores. Imutável. | `domain.value_objects.CNPJ` |
 | **Documento** | Base abstrata de CPF e CNPJ. Remove a pontuação, valida o tamanho e os dígitos verificadores e fornece os 3 primeiros dígitos usados no Número da OS. Não é instanciada diretamente. É o tipo do documento do Cliente. | `domain.value_objects.Documento` |
-| **Placa** | Identificador de veículo compatível com formatos padrão antigo (`ABC1234`) e Padrão Mercosul (`ABC1D23`). | `domain.value_objects.Placa` |
+| **Placa** | Identificador de veículo compatível com formatos padrão antigo (`ABC1234`) e Padrão Mercosul (`ABC1D23`). Converte as letras para maiúsculas, remove hífens e espaços e guarda o valor normalizado, para que a mesma placa digitada de formas diferentes seja igual. Imutável. | `domain.value_objects.Placa` |
 | **Valor** | Representação numérica com precisão decimal adequada para valores financeiros e totais em reais. | `domain.value_objects.Valor` |
 | **NumeroOS** | Número da OS no formato `DDD-XXXXXXXX` (3 dígitos do documento e 8 caracteres hexadecimais maiúsculos). Imutável. | `domain.value_objects.NumeroOS` |
 | **StatusOS** | Enumeração dos estados válidos do ciclo de vida da Ordem de Serviço. | `domain.value_objects.StatusOS` |
@@ -131,11 +131,13 @@ Toda transição gera um registro no Histórico de Status (RF-24), com a origem 
 | **Adaptador de Infraestrutura** | Implementação ORM / SQL (`PostgreSQL`) | `src/infrastructure/repositories/postgres_ordem_servico_repository.py` |
 | **Evento de Domínio** | Dataclass de Evento Imutável | `src/domain/events/orcamento_finalizado_event.py` |
 
+Os exemplos de caso de uso, adaptador e evento da OS acima mostram o padrão a seguir; os arquivos ainda não existem (`aprovar_orcamento.py` e `orcamento_finalizado_event.py`) ou são provisórios (`postgres_ordem_servico_repository.py` só devolve a lista vazia de OS com peça pendente até a issue #88), e entram com a issue #45 e a Fase 5. Já existem como exemplos reais: `entities/ordem_servico.py`, `value_objects/cpf.py`, `repositories/ordem_servico_repository.py`, `repositories/estoque_repository.py`, `infrastructure/repositories/postgres_estoque_repository.py`, `use_cases/cadastrar_cliente.py` e `events/saldo_peca_atualizado_event.py`.
+
 ---
 
 ## 7. Eventos de Domínio
 
-Fatos do domínio que fazem um agregado alterar outro. O catálogo completo, com o momento da emissão, o handler consumidor e a correspondência com o board, está na seção 7 de `docs/ddd/event-storming.md`.
+Fatos do domínio que fazem um agregado alterar outro. O catálogo completo, com o momento da emissão, o handler consumidor e a correspondência com o board, está na seção 7 de `docs/ddd/event-storming.md`. Todos herdam de `DomainEvent` (`domain_event.py`), que traz o identificador e a data e hora de ocorrência. Hoje só o `SaldoPecaAtualizadoEvent` está implementado; os outros três entram com a issue #45.
 
 | Evento | Definição no Domínio | Correspondência no Código (`src/domain/events/`) |
 | :--- | :--- | :--- |

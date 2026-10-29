@@ -198,6 +198,14 @@ class CodigoDePecaJaCadastrado(RegraDeNegocioViolada):
         self.codigo_referencia = codigo_referencia
 
 
+class NumeroOSJaCadastrado(RegraDeNegocioViolada):
+    """O número identifica uma única OS na consulta pública (RF-13, RF-25)."""
+
+    def __init__(self, numero: str):
+        super().__init__(f"Já existe uma OS com o número {numero}.")
+        self.numero = numero
+
+
 class PecaComPendencia(RegraDeNegocioViolada):
     """Peça que alguma OS ainda espera não pode ser excluída (RF-12)."""
 

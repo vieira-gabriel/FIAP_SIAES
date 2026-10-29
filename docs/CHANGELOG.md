@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-29 — PR #128 (estado das Fases 0 a 3)
+
+**O que mudou:** no guia, a nova seção 4.4 define a construção de entidades (argumentos nomeados; o construtor só reconstitui, e a criação com efeito colateral vem de uma fábrica, como `OrdemServico.abrir`); a seção 7 passou a dizer que a `main` **deve ser** protegida, com a configuração pendente com o dono do repositório; a seção 8.1 lista as migrations `0002` a `0006`; e a seção 8.2 recebeu sete decisões em aberto (OS sem itens, item excluído do catálogo, exceção da quantidade de peça, token de usuário desativado ou rebaixado, perfil Gerente no cadastro de usuários, reativação de cliente e caractere NUL nos textos). Em `docs/estrutura-de-pastas.md`, a seção 6 foi atualizada para o que já existe (portas, adaptadores, migrations e relatórios de `docs/security/`) e para o que falta (tabela e adaptador da OS, caso de uso `criar_os.py`, eventos e handlers).
+
+**Motivo:** a documentação descrevia a `main` de antes dos cadastros de clientes, veículos, serviços e peças, das portas de repositório e dos relatórios de segurança, e o guia afirmava uma proteção da `main` que a API do GitHub não confirma (`protected: false`). As decisões em aberto foram levantadas nas revisões dos PRs #123 a #132 e, conforme o `AGENTS.md`, ficam registradas no guia até o grupo decidir, em vez de serem escolhidas por quem implementa.
+
 ## 2026-10-27 — PR da issue #83 (componentes de veículos)
 
 **O que mudou:** no diagrama de componentes do C4 (`docs/ddd/c4-model.md`, seção 4), as rotas de veículos saíram de `routers/clientes.py` para o componente próprio `routers/veiculos.py`, e as portas `ClienteRepository` e `VeiculoRepository` e os adaptadores `PostgresClienteRepository` e `PostgresVeiculoRepository` passaram a constar no diagrama. O guia ganhou a linha da porta e do adaptador de veículos (seção 2.2) e a exclusão do cliente com os veículos na lista de operações atômicas (seção 5.4).

@@ -150,6 +150,11 @@ from domain.value_objects.placa import Placa
 
 Toda pasta dentro de `src/` deve ter um `__init__.py`. Ao criar uma pasta nova (depois de aprovada), crie também o `__init__.py`.
 
+### 4.4. Construção de Entidades
+
+* Construa as entidades com **argumentos nomeados**. A ordem dos campos da `dataclass` não faz parte do contrato (em `OrdemServico`, `mecanico_id` vem antes de `id`), e o adaptador de persistência não deve depender dela.
+* O construtor só **reconstitui** uma entidade já existente e nunca cria registros novos. O que é criação com efeito colateral vem de uma fábrica, como `OrdemServico.abrir`, que grava o registro de abertura no histórico. Um adaptador que reconstitui uma OS do banco usa o construtor, com o histórico completo e em ordem.
+
 ---
 
 ## 5. Receitas
@@ -401,7 +406,7 @@ A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Tod
 
 ## 7. Fluxo de Git
 
-* Não faça commit direto na `main`. Crie uma branch e abra um PR. A `main` é protegida no GitHub: o merge exige PR com 1 aprovação de outro integrante e push forçado é bloqueado (exigência do enunciado). O check "Lint, testes e segurança" do CI (seção 8.1) também precisa passar: ele deve estar marcado como obrigatório (*required status check*) na proteção da `main`, em Settings → Branches.
+* Não faça commit direto na `main`. Crie uma branch e abra um PR. A `main` deve ser protegida no GitHub (exigência do enunciado): o merge exige PR com 1 aprovação de outro integrante, e o push forçado é bloqueado. O check "Lint, testes e segurança" do CI (seção 8.1) também precisa passar: ele deve estar marcado como obrigatório (*required status check*) na proteção da `main`. A configuração é feita pelo dono do repositório em Settings → Branches e está pendente (roadmap, Fase 0); até lá, a regra vale por combinação do grupo.
 * Nomes de branch: `<tipo>/<descricao-curta>`, por exemplo `feat/crud-clientes`, `fix/validacao-cnpj`, `chore/estrutura-conforme-docs`.
 * Mensagens de commit em português, no formato `<tipo>: <descrição>`, com os tipos `feat`, `fix`, `chore`, `docs`, `test`, `refactor`.
 * Sempre que possível, cite o requisito no corpo do commit ou no PR (ex.: "Implementa RF-04").
@@ -428,7 +433,7 @@ A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Tod
 | Lint e formatação | Ruff (`ruff check` e `ruff format`), configurado no `pyproject.toml` |
 | Testes e cobertura | pytest + pytest-cov (RNF-12 a RNF-14) |
 | Banco dos testes de integração | Banco `<POSTGRES_DB>_test` no mesmo container `db` do Compose, publicado em `127.0.0.1` pelo `docker-compose.testes.yml` (issue #28). Nenhuma dependência nova; os testes de integração exigem o banco no ar e, fora do CI, são pulados sem ele; no CI (`CI=true`), falham. As fixtures e os comandos estão na seção 5.7 |
-| Migrations | Alembic com o template `async` (issue #4). A pasta `migrations/` e o `alembic.ini` ficam na raiz do projeto; cada mudança de schema é gerada com `uv run alembic revision --autogenerate -m "<descrição>"`, revisada antes do commit e aplicada com `alembic upgrade head` no `CMD` do Dockerfile, antes do Uvicorn (issue #25). O `migrations/env.py` é o ponto de montagem do Alembic e, por isso, é a exceção à regra de que só o `presentation/container.py` importa `infrastructure/config.py`: ele lê a configuração com `carregar_configuracao()` e cria a conexão com `criar_engine`. O `target_metadata` é o `Base.metadata` de `infrastructure/database/base.py`; cada modelo novo precisa ser importado no `env.py` para entrar no `--autogenerate`. A primeira revisão, `0001_schema_base`, é vazia; a `0002` cria a tabela `usuarios`. Um teste de integração compara os modelos com o banco migrado e falha se faltar migration |
+| Migrations | Alembic com o template `async` (issue #4). A pasta `migrations/` e o `alembic.ini` ficam na raiz do projeto; cada mudança de schema é gerada com `uv run alembic revision --autogenerate -m "<descrição>"`, revisada antes do commit e aplicada com `alembic upgrade head` no `CMD` do Dockerfile, antes do Uvicorn (issue #25). O `migrations/env.py` é o ponto de montagem do Alembic e, por isso, é a exceção à regra de que só o `presentation/container.py` importa `infrastructure/config.py`: ele lê a configuração com `carregar_configuracao()` e cria a conexão com `criar_engine`. O `target_metadata` é o `Base.metadata` de `infrastructure/database/base.py`; cada modelo novo precisa ser importado no `env.py` para entrar no `--autogenerate`. A primeira revisão, `0001_schema_base`, é vazia; da `0002` à `0006` criam as tabelas `usuarios`, `clientes`, `servicos`, `veiculos` e `pecas` com `estoque_pecas`. Um teste de integração compara os modelos com o banco migrado e falha se faltar migration |
 | Rate limiting | SlowAPI com contador em memória (RNF-05) |
 | Rotas e DTOs | `presentation/routers/` e `presentation/schemas/`, um arquivo por recurso |
 | Estrutura de pastas | Alinhada à seção 6 do modelo C4 (issue #9): `domain/events/`, `application/events/`, `application/handlers/`, `infrastructure/database/` e `presentation/middlewares/` (seções 2 e 3) |
@@ -445,6 +450,13 @@ Os itens abaixo **ainda não foram decididos** pelo grupo. Não assuma uma escol
 | Decisão | Opções levantadas e custos |
 | :--- | :--- |
 | Cenário do teste de desempenho (RNF-10) | O RNF-10 não define as "condições normais de operação local". Falta definir o número de usuários simultâneos, a duração do teste e as rotas medidas. |
+| OS sem serviços nem peças | Hoje `finalizar_orcamento` aceita uma OS sem itens e gera um orçamento de R$ 0,00 (o RF-17 não diz nada). Opções: manter, ou recusar a conclusão do orçamento sem ao menos um item (nova exceção de regra de negócio, `422`). |
+| Item excluído do catálogo antes do congelamento | Um serviço ou uma peça excluída depois de incluída na OS ainda é cotada no orçamento, porque o RF-11 e o RF-12 mantêm as OS existentes íntegras. Falta decidir se o orçamento deve recusar o item excluído. |
+| Exceção da quantidade de peça | A regra "inteiro maior que zero" levanta `OrdemServicoInvalida` em `ItemPeca` e `QuantidadeInvalida` em `EstoquePeca`, `PendenciaPeca` e `AlocacaoPeca`. A proposta é unificá-la no objeto de valor `QuantidadePeca`, na issue #45, e escolher uma só exceção. |
+| Token de usuário desativado ou rebaixado | O JWT vale por 24 h (RF-01) e é validado só pela assinatura e pela expiração. O usuário desativado não faz login, mas o token que já emitiu continua acessando as rotas até expirar, e um Gerente rebaixado continua agindo como Gerente. Dois Gerentes podem se desativar um ao outro com tokens antigos e deixar a oficina sem Gerente ativo. Opções: (A) conferir só o responsável nas rotas de escrita de `/usuarios`; (B) `obter_usuario_autenticado` consultar o banco e exigir usuário ativo e com o perfil atual, ao custo de 1 SELECT por requisição (RNF-10); (C) registrar a limitação. |
+| Perfil Gerente no cadastro de usuários | O RF-03 diz que o Gerente cadastra "funcionários (Atendentes e Mecânicos)", mas `POST /usuarios` e `PUT /usuarios/{id}` aceitam também o perfil `GERENTE`. Falta decidir se o Gerente cria e promove outros Gerentes; conforme a resposta, o código ou o texto do RF-03 muda. |
+| Cliente excluído que volta à oficina | O documento de um cliente excluído continua reservado (`DocumentoJaCadastrado`) e não há rota de reativação, então o cadastro do mesmo cliente responde `422`. O RF-04 e o RF-06 não definem a reativação. Opções: (A) o cadastro reativa o cliente excluído e aplica os dados novos; (B) rota `POST /clientes/{id}/reativar`, só para o Gerente; (C) registrar a limitação. |
+| Caractere NUL nos campos de texto | Um `\u0000` em `nome`, `email` ou `telefone` chega ao PostgreSQL, que o recusa, e a API responde `500` em vez de `400` ou `422`. O mesmo vale para os próximos cadastros. Proposta: um validador compartilhado pelos schemas, ou a recusa na validação de cada entidade. |
 
 ## 9. Instruções para Assistentes de IA
 

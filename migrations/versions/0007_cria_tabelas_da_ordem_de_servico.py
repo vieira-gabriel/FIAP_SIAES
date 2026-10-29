@@ -150,9 +150,18 @@ def upgrade() -> None:
         FOR EACH ROW EXECUTE FUNCTION historico_status_os_somente_insercao()
         """
     )
+    # O TRUNCATE não dispara os triggers de linha.
+    op.execute(
+        """
+        CREATE TRIGGER historico_status_os_sem_truncate
+        BEFORE TRUNCATE ON historico_status_os
+        FOR EACH STATEMENT EXECUTE FUNCTION historico_status_os_somente_insercao()
+        """
+    )
 
 
 def downgrade() -> None:
+    op.execute("DROP TRIGGER historico_status_os_sem_truncate ON historico_status_os")
     op.execute("DROP TRIGGER historico_status_os_somente_insercao ON historico_status_os")
     op.execute("DROP FUNCTION historico_status_os_somente_insercao()")
     op.drop_index(op.f("ix_historico_status_os_os_id"), table_name="historico_status_os")

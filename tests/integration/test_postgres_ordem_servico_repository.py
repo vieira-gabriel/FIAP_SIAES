@@ -279,8 +279,9 @@ async def test_numero_repetido_vira_excecao_do_dominio(fabrica_de_sessoes, cadas
     [
         "UPDATE historico_status_os SET motivo = 'alterado' WHERE os_id = :id",
         "DELETE FROM historico_status_os WHERE os_id = :id",
+        "TRUNCATE historico_status_os",
     ],
-    ids=["update", "delete"],
+    ids=["update", "delete", "truncate"],
 )
 async def test_banco_recusa_alterar_ou_remover_o_historico(fabrica_de_sessoes, cadastros, comando):
     os = _abrir(cadastros)

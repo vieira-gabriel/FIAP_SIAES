@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-29 — PR da issue #88 (persistência da OS)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Persistência da OS" (quatro tabelas com os modelos em `infrastructure/database/ordem_servico_model.py`, número único com `NumeroOSJaCadastrado`, chaves estrangeiras, orçamento gravado como os dois subtotais, CHECKs nas quantidades de `itens_peca`, trigger que recusa UPDATE e DELETE no histórico, ordem dos itens e do histórico, bloqueio `SELECT ... FOR UPDATE` nas buscas da OS e ordem dos bloqueios entre OS e estoque) e a linha de Migrations passou a citar a `0007` e o teste do trigger. O item "Item excluído do catálogo antes do congelamento" saiu da seção 8.2 para a 8.1. Em `docs/estrutura-de-pastas.md` e na Linguagem Ubíqua, o adaptador da OS deixou de constar como provisório.
+
+**Motivo:** a issue #88 cria a persistência da OS, da qual dependem todos os cards da Fase 5, e as escolhas técnicas dela (bloqueio, trigger, ordenação, colisão do número) passam a valer para os casos de uso da Fase 5. A recusa do item excluído foi decidida com o usuário ao implementar a conferência pedida no comentário da issue, que impede a OS de ficar pendente de uma peça excluída durante a conclusão do orçamento.
+
 ## 2026-10-29 — PR #128 (estado das Fases 0 a 3)
 
 **O que mudou:** no guia, a nova seção 4.4 define a construção de entidades (argumentos nomeados; o construtor só reconstitui, e a criação com efeito colateral vem de uma fábrica, como `OrdemServico.abrir`); a seção 7 passou a dizer que a `main` **deve ser** protegida, com a configuração pendente com o dono do repositório; a seção 8.1 lista as migrations `0002` a `0006`; e a seção 8.2 recebeu sete decisões em aberto (OS sem itens, item excluído do catálogo, exceção da quantidade de peça, token de usuário desativado ou rebaixado, perfil Gerente no cadastro de usuários, reativação de cliente e caractere NUL nos textos). Em `docs/estrutura-de-pastas.md`, a seção 6 foi atualizada para o que já existe (portas, adaptadores, migrations e relatórios de `docs/security/`) e para o que falta (tabela e adaptador da OS, caso de uso `criar_os.py`, eventos e handlers).

@@ -22,7 +22,7 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 | CI | `.github/workflows/ci.yml` em cada PR e em cada push na `main`: lint, testes com PostgreSQL, cobertura mínima de 80%, Bandit, pip-audit e `docker build` (issue #29) |
 | Docker | `Dockerfile` em Python 3.12, multi-stage com `uv`, usuário não-root e sem o `pip` da imagem base, e `docker-compose.yml` com `app` e `db` (PostgreSQL 16); as migrations rodam antes do Uvicorn |
 | Segurança | Revisão de segredos no código e no histórico (issue #114, `docs/security/revisao-de-segredos.md`) e análise de vulnerabilidades das dependências, do código e da imagem (issue #111, `docs/security/analise-de-vulnerabilidades.md`), ambas sem achado crítico e a repetir no commit final. Medição de desempenho, revisão de SQL Injection, IDOR e XSS e revisão do Swagger seguem pendentes (Fase 7) |
-| Pendências do domínio | `OrdemServico.alocar_peca` (issue #43, parte 2) e os eventos da OS, com o objeto de valor `QuantidadePeca` (issue #45). O `criar_os.py` segue vazio, e o adaptador `PostgresOrdemServicoRepository` é provisório: só atende à exclusão da peça com OS pendente até a persistência da OS (issue #88) |
+| Pendências do domínio | `OrdemServico.alocar_peca` (issue #43, parte 2) e os eventos da OS, com o objeto de valor `QuantidadePeca` (issue #45). O `criar_os.py` segue vazio. A persistência da OS e o caso de uso `FinalizarOrcamento`, ainda sem rota nem evento, estão prontos (issue #88) |
 | README | Objetivo, solução, arquitetura, tecnologias e banco de dados (issue #116), pré-requisitos, execução, testes, Swagger e usuários de demonstração (issue #117); faltam a estrutura de diretórios, o link para a documentação DDD e o link do vídeo (issue #121) |
 
 ---
@@ -287,7 +287,7 @@ Tarefas da fase:
 - [x] Cadastro, atualização e listagem de veículos vinculados ao cliente, com validação de placa (RF-07, RF-08; issue #83)
 - [x] Exclusão lógica de veículos por Atendente e Gerente (RF-09; issue #83)
 - [x] Listagem do catálogo de serviços (RF-10) e CRUD restrito ao Gerente, com tempo estimado e exclusão lógica (RF-11; issue #84)
-- [x] Gestão de peças, com prazo de reposição, exclusão lógica (recusada com OS pendente) e atualização de saldo com permissões por perfil (RF-12; issue #85). O adaptador de OS usado na exclusão é provisório até a persistência da OS (issue #88); a alocação do saldo às OS com peça pendente fica com o handler da Fase 5 (RF-19; issue #94)
+- [x] Gestão de peças, com prazo de reposição, exclusão lógica (recusada com OS pendente) e atualização de saldo com permissões por perfil (RF-12; issue #85). A recusa com OS pendente é coberta pela rota desde a persistência da OS (issue #88); a alocação do saldo às OS com peça pendente fica com o handler da Fase 5 (RF-19; issue #94)
 - [x] Testes de integração das rotas, cobrindo acesso sem token (`401`) e com perfil sem permissão (`403`) (RNF-13): um arquivo por recurso (`test_fluxo_*.py`), com banco PostgreSQL real
 
 ---
@@ -307,7 +307,7 @@ Tarefas da fase:
 - [ ] Conclusão da manutenção com transição para `FINALIZADA` (RF-21)
 - [ ] Entrega do veículo com transição para `ENTREGUE`, restrita a Atendente e Gerente (RF-22)
 - [ ] Cancelamento pelo Gerente, com motivo no histórico e estorno das reservas (RF-23, RF-18)
-- [ ] Registro de toda transição no histórico de status (RF-24)
+- [x] Registro de toda transição no histórico de status (RF-24; issue #88): tabela só com inserção, protegida por trigger
 
 ### Frente do Cliente
 

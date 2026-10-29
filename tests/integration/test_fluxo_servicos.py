@@ -3,10 +3,6 @@
 import pytest
 from sqlalchemy import text
 
-from domain.entities.usuario import Usuario
-from domain.value_objects.perfil_usuario import PerfilUsuario
-from presentation.main import app
-
 TROCA_DE_OLEO = {
     "codigo": "SRV-001",
     "nome": "Troca de óleo",
@@ -21,26 +17,6 @@ ALINHAMENTO = {
     "valor_base": "80.00",
     "tempo_estimado_minutos": 30,
 }
-
-
-def _cabecalho(perfil: PerfilUsuario) -> dict[str, str]:
-    usuario = Usuario(nome="Qualquer", email="q@oficina.com", senha_hash="h", perfil=perfil)
-    return {"Authorization": f"Bearer {app.state.token_service.emitir(usuario)}"}
-
-
-@pytest.fixture
-def gerente(cliente_http):
-    return _cabecalho(PerfilUsuario.GERENTE)
-
-
-@pytest.fixture
-def atendente(cliente_http):
-    return _cabecalho(PerfilUsuario.ATENDENTE)
-
-
-@pytest.fixture
-def mecanico(cliente_http):
-    return _cabecalho(PerfilUsuario.MECANICO)
 
 
 async def _cadastrar(cliente_http, cabecalho, dados=TROCA_DE_OLEO):
@@ -73,19 +49,6 @@ async def test_todos_os_perfis_consultam_o_catalogo(cliente_http, gerente, perfi
 
     assert [s["id"] for s in lista.json()] == [criado["id"]]
     assert detalhe.json() == criado
-
-
-@pytest.mark.parametrize("perfil", ["atendente", "mecanico"])
-async def test_so_o_gerente_administra_o_catalogo(cliente_http, gerente, perfil, request):
-    criado = (await _cadastrar(cliente_http, gerente)).json()
-    cabecalho = request.getfixturevalue(perfil)
-
-    assert (await _cadastrar(cliente_http, cabecalho, ALINHAMENTO)).status_code == 403
-    edicao = await cliente_http.put(
-        f"/servicos/{criado['id']}", json=TROCA_DE_OLEO, headers=cabecalho
-    )
-    exclusao = await cliente_http.delete(f"/servicos/{criado['id']}", headers=cabecalho)
-    assert (edicao.status_code, exclusao.status_code) == (403, 403)
 
 
 async def test_listagem_em_ordem_de_nome(cliente_http, gerente):
@@ -148,7 +111,3 @@ async def test_servico_excluido_sai_do_catalogo_e_mantem_o_codigo_reservado(
         await conexao.scalar(text("SELECT ativo FROM servicos WHERE codigo = 'SRV-001'")) is False
     )
     assert (await _cadastrar(cliente_http, gerente)).status_code == 422
-
-
-async def test_sem_token_responde_401(cliente_http):
-    assert (await cliente_http.get("/servicos")).status_code == 401

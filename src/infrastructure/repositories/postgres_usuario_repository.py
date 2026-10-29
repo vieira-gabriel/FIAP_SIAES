@@ -26,6 +26,10 @@ class PostgresUsuarioRepository(UsuarioRepository):
         modelo = await self._sessao.scalar(consulta)
         return _para_entidade(modelo) if modelo else None
 
+    async def listar(self) -> list[Usuario]:
+        consulta = select(UsuarioModel).order_by(UsuarioModel.nome, UsuarioModel.id)
+        return [_para_entidade(modelo) for modelo in await self._sessao.scalars(consulta)]
+
 
 def _para_modelo(usuario: Usuario) -> UsuarioModel:
     return UsuarioModel(

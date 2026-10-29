@@ -5,6 +5,7 @@ from alembic import context
 from sqlalchemy.engine import Connection
 
 # Um modelo só entra no `Base.metadata`, e portanto no autogenerate, depois de importado.
+import infrastructure.database.cliente_model  # noqa: F401
 import infrastructure.database.usuario_model  # noqa: F401
 from infrastructure.config import carregar_configuracao
 from infrastructure.database.base import Base

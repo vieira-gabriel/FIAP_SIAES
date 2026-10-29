@@ -17,14 +17,14 @@ Este documento estabelece a **Linguagem Ubíqua** do sistema de gestão da ofici
 | **Item de Serviço** | Serviço incluído em uma OS, com o preço e o tempo estimado de execução congelados na conclusão do orçamento. | `domain.entities.ItemServico` |
 | **Item de Peça** | Peça incluída em uma OS, com a quantidade solicitada, a quantidade reservada, a quantidade pendente, o preço unitário e o prazo de reposição congelados na conclusão do orçamento. | `domain.entities.ItemPeca` |
 | **Orçamento** | Cálculo que consolida o valor congelado dos serviços solicitados e peças alocadas para aprovação do cliente. | `domain.value_objects.Orcamento` |
-| **Estoque** | Agregado responsável pelo controle quantitativo de uma peça, com a quantidade física e a quantidade reservada e as operações de reserva, baixa, estorno e reposição. Cada `Peca` tem um `EstoquePeca`. | `domain.entities.EstoquePeca` |
+| **Estoque** | Agregado responsável pelo controle quantitativo de uma peça, com a quantidade física, a quantidade reservada e o saldo disponível (física menos reservada, que nunca fica negativo), e as operações de reserva, baixa, estorno, reposição e ajuste. Cada `Peca` tem um `EstoquePeca`. | `domain.entities.EstoquePeca` |
 | **Reserva** | Quantidade de uma peça separada para uma OS a partir da conclusão do orçamento. Reduz o saldo disponível sem reduzir a quantidade física. | Quantidade reservada em `ItemPeca` e `EstoquePeca` |
 | **Peça Pendente** | Quantidade de uma peça da OS que não pôde ser reservada por falta de saldo. É alocada automaticamente quando o saldo disponível aumenta, com prioridade para a OS mais antiga. | Quantidade pendente em `ItemPeca`; alocação pelo método `alocar_pendencias` de `EstoquePeca` |
 | **Baixa** | Saída definitiva das peças reservadas do estoque, executada no início da execução da OS. | Método de `EstoquePeca` |
 | **Ajuste de Estoque** | Correção da quantidade física de uma peça por perda, quebra ou inventário. A quantidade física nunca fica abaixo da quantidade reservada. | Método `ajustar_quantidade_fisica` de `EstoquePeca` |
 | **Estorno** | Devolução das quantidades reservadas ao saldo disponível quando o orçamento é rejeitado ou a OS é cancelada. Peças já baixadas não são estornadas. | Método de `EstoquePeca` |
 | **Histórico de Status** | Registro imutável de cada transição de status da OS, com status anterior, novo status, data/hora, origem, usuário e motivo. | `domain.entities.HistoricoStatusOS` |
-| **Estimativa de Entrega** | Data prevista de conclusão exibida ao cliente, calculada pela soma dos tempos estimados dos serviços e pelo maior prazo de reposição entre as peças pendentes. Usa os valores congelados nos itens da OS. | Método `estimar_entrega` de `OrdemServico` |
+| **Estimativa de Entrega** | Data prevista de conclusão exibida ao cliente, calculada pela soma dos tempos estimados dos serviços e pelo maior prazo de reposição entre as peças pendentes. Usa os valores congelados nos itens da OS. Não existe enquanto os serviços não foram definidos (`RECEBIDA` e `EM_DIAGNOSTICO`) nem na OS cancelada. | Método `estimar_entrega` de `OrdemServico` |
 | **Usuário** | Funcionário interno da oficina com acesso autenticado ao sistema (Atendente, Mecânico ou Gerente). Guarda apenas o hash da senha e pode ser desativado pelo Gerente; usuário desativado não faz login. O cliente não é um usuário. | `domain.entities.Usuario` |
 
 ---
@@ -42,6 +42,8 @@ Este documento estabelece a **Linguagem Ubíqua** do sistema de gestão da ofici
 | **StatusOS** | Enumeração dos estados válidos do ciclo de vida da Ordem de Serviço. | `domain.value_objects.StatusOS` |
 | **OrigemTransicao** | Enumeração de quem provocou uma transição de status: `USUARIO`, `CLIENTE` ou `SISTEMA`. | `domain.value_objects.OrigemTransicao` |
 | **PerfilUsuario** | Enumeração dos perfis de acesso dos usuários internos: `ATENDENTE`, `MECANICO` ou `GERENTE`. É o valor da claim `role` do token JWT. | `domain.value_objects.PerfilUsuario` |
+| **PendenciaPeca** | Quantidade de uma peça que uma OS ainda espera receber, com a data de abertura da OS, que define a prioridade (a mais antiga primeiro). A data exige fuso horário. Imutável. | `domain.value_objects.PendenciaPeca` |
+| **AlocacaoPeca** | Quantidade de uma peça reservada para uma OS que a esperava, resultado de `alocar_pendencias`. Imutável. | `domain.value_objects.AlocacaoPeca` |
 
 ---
 
@@ -112,9 +114,9 @@ Apenas as transições abaixo são permitidas pelo agregado `OrdemServico`; qual
 | `AGUARDANDO_EXECUCAO` | `EM_EXECUCAO` | `iniciar_execucao` | Mecânico atribuído, Gerente | RF-20 |
 | `EM_EXECUCAO` | `FINALIZADA` | `concluir_manutencao` | Mecânico, Gerente | RF-21 |
 | `FINALIZADA` | `ENTREGUE` | `entregar_veiculo` | Atendente, Gerente | RF-22 |
-| `RECEBIDA` a `EM_EXECUCAO` | `CANCELADA` | `cancelar(motivo)` | Gerente | RF-23, RF-18 |
+| `RECEBIDA` a `EM_EXECUCAO` | `CANCELADA` | `cancelar(usuario_id, motivo)` | Gerente | RF-23, RF-18 |
 
-Toda transição gera um registro no Histórico de Status (RF-24).
+Toda transição gera um registro no Histórico de Status (RF-24), com a origem conforme a coluna "Quem executa": Atendente, Mecânico e Gerente gravam `USUARIO` e o identificador do usuário, o Cliente grava `CLIENTE` e o Sistema grava `SISTEMA`, ambos sem usuário. A abertura gera o primeiro registro, sem status anterior.
 
 ---
 
@@ -140,4 +142,4 @@ Fatos do domínio que fazem um agregado alterar outro. O catálogo completo, com
 | **Orçamento Finalizado** | A OS concluiu o orçamento e passou para `AGUARDANDO_APROVACAO`; as peças da OS devem ser reservadas (RF-17, RF-18). | `OrcamentoFinalizadoEvent` (`orcamento_finalizado_event.py`) |
 | **OS Cancelada** | A OS passou para `CANCELADA` pela rejeição do orçamento ou pelo cancelamento do Gerente; as reservas devem ser estornadas (RF-18, RF-23, RF-26). | `OSCanceladaEvent` (`os_cancelada_event.py`) |
 | **Execução Iniciada** | A OS passou para `EM_EXECUCAO`; as peças reservadas devem receber baixa (RF-20). | `ExecucaoIniciadaEvent` (`execucao_iniciada_event.py`) |
-| **Saldo da Peça Atualizado** | O saldo disponível de uma peça aumentou por reposição ou estorno; o saldo deve ser alocado às OS com pendência, da mais antiga para a mais nova (RF-12, RF-19). | `SaldoPecaAtualizadoEvent` (`saldo_peca_atualizado_event.py`) |
+| **Saldo da Peça Atualizado** | O saldo disponível de uma peça aumentou por reposição, estorno ou ajuste para cima da quantidade física; o saldo deve ser alocado às OS com pendência, da mais antiga para a mais nova (RF-12, RF-19). | `SaldoPecaAtualizadoEvent` (`saldo_peca_atualizado_event.py`) |

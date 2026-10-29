@@ -78,6 +78,7 @@ Toda dependência externa segue o mesmo padrão:
 | :--- | :--- |
 | `domain/repositories/ordem_servico_repository.py` | `infrastructure/repositories/postgres_ordem_servico_repository.py` |
 | `domain/repositories/usuario_repository.py` | `infrastructure/repositories/postgres_usuario_repository.py` |
+| `domain/repositories/cliente_repository.py` | `infrastructure/repositories/postgres_cliente_repository.py` |
 | `domain/repositories/estoque_repository.py` | `infrastructure/repositories/postgres_estoque_repository.py` |
 | `application/ports/token_service.py` | `infrastructure/security/jwt_token_service.py` |
 | `application/ports/password_hasher.py` | `infrastructure/security/bcrypt_password_hasher.py` |
@@ -186,23 +187,43 @@ Entidades têm identidade e **protegem as próprias regras**. Quem altera o esta
 # src/domain/entities/ordem_servico.py (trecho ilustrativo)
 from collections.abc import Collection
 from datetime import UTC, datetime
+from uuid import UUID
 
+from domain.entities.historico_status_os import HistoricoStatusOS
 from domain.exceptions import TransicaoDeStatusInvalida
+from domain.value_objects.origem_transicao import OrigemTransicao
 from domain.value_objects.status_os import StatusOS
 
 
 class OrdemServico:
-    def concluir_manutencao(self) -> None:
-        self._mudar_status(StatusOS.FINALIZADA, de={StatusOS.EM_EXECUCAO})
-        self.data_finalizacao = datetime.now(UTC)
+    def concluir_manutencao(self, usuario_id: UUID) -> None:
+        self.data_finalizacao = self._mudar_status(
+            StatusOS.FINALIZADA,
+            de={StatusOS.EM_EXECUCAO},
+            origem=OrigemTransicao.USUARIO,
+            usuario_id=usuario_id,
+        )
 
-    def _mudar_status(self, destino: StatusOS, *, de: Collection[StatusOS]) -> None:
+    def _mudar_status(
+        self,
+        destino: StatusOS,
+        *,
+        de: Collection[StatusOS],
+        origem: OrigemTransicao,
+        usuario_id: UUID | None = None,
+        motivo: str | None = None,
+    ) -> datetime:
         if self.status not in de:
             raise TransicaoDeStatusInvalida(self.status, destino)
+        momento = datetime.now(UTC)
+        self._acrescentar_ao_historico(
+            HistoricoStatusOS(self.status, destino, momento, origem, usuario_id, motivo)
+        )
         self.status = destino
+        return momento
 ```
 
-Cada transição declara de quais status parte, e só `_mudar_status` altera o `status`: o histórico (RF-24) e os eventos de domínio se encaixam nesse ponto único.
+Cada transição declara de quais status parte, e só `_mudar_status` altera o `status` e grava o registro no histórico (RF-24); os eventos de domínio se encaixam nesse mesmo ponto. A origem do registro (`USUARIO`, `CLIENTE` ou `SISTEMA`) vem de quem executa a transição, conforme a Linguagem Ubíqua §5. O `historico` da OS é uma tupla somente leitura (RF-24: os registros não podem ser alterados nem removidos), e o registro de abertura nasce em `OrdemServico.abrir`: o construtor só reconstitui uma OS, então o adaptador de persistência precisa carregar o histórico completo e em ordem.
 
 Regras que **ficam obrigatoriamente no domínio**:
 - Máquina de estados da OS e bloqueio de transições inválidas (Linguagem Ubíqua §5, RF-16 a RF-26).
@@ -301,6 +322,7 @@ Nenhuma dessas operações pode deixar o saldo disponível negativo (RF-12).
    ```json
    {"codigo": "VALOR_INVALIDO", "mensagem": "CPF inválido.", "detalhes": []}
    ```
+6. Nas rotas que gravam, declare a dependência do caso de uso com `Depends(obter_<caso_de_uso>, scope="function")`. A unidade de trabalho confirma a transação ao sair da dependência, e o FastAPI, sem esse `scope`, só sai dela depois de enviar a resposta: uma falha no commit chegaria ao cliente como sucesso. Exemplo em `presentation/routers/clientes.py`.
 
 ### 5.6. Proteger uma Rota com JWT
 
@@ -393,6 +415,7 @@ A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Tod
 | ORM | SQLAlchemy 2.0 (RNF-04) |
 | Modo do SQLAlchemy | Assíncrono, com o driver asyncpg (issue #3). São `async def` as portas de repositório, as portas de serviço que bloqueiam (como `PasswordHasher`, que executa o bcrypt com `asyncio.to_thread`), os casos de uso e as rotas. `TokenService` é síncrono, pois não faz I/O. Carregamento preguiçoso proibido: as coleções são carregadas com `selectinload`. Testes com pytest-asyncio (`asyncio_mode = "auto"`) |
 | JWT e hash de senha | PyJWT e bcrypt (RF-01, RF-03) |
+| Gestão de usuários (RF-03) | Rotas `/usuarios`, só para o Gerente (issue #81). A senha tem no mínimo 8 caracteres e no máximo 72 bytes, o limite do bcrypt, e muda só pela rota `PUT /usuarios/{id}/senha`. O Gerente não desativa o próprio acesso nem muda o próprio perfil (`AlteracaoDoProprioAcesso`, `422`), para a oficina não ficar sem Gerente. A listagem e o detalhamento mostram também os usuários desativados, para que possam ser reativados |
 | Gerenciamento de dependências | `uv` com `pyproject.toml` e lockfile `uv.lock`. Comandos: `uv sync` (instala o ambiente), `uv add <pacote>` (adiciona dependência), `uv run pytest` (executa sem ativar o venv) |
 | Imports a partir de `src/` | `PYTHONPATH=src`: `pythonpath = ["src"]` no pytest (`pyproject.toml`), `ENV PYTHONPATH=/app/src` no Dockerfile e `PYTHONPATH=src` no `.env` para a IDE |
 | Lint e formatação | Ruff (`ruff check` e `ruff format`), configurado no `pyproject.toml` |

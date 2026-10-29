@@ -82,6 +82,7 @@ Toda dependência externa segue o mesmo padrão:
 | `domain/repositories/cliente_repository.py` | `infrastructure/repositories/postgres_cliente_repository.py` |
 | `domain/repositories/veiculo_repository.py` | `infrastructure/repositories/postgres_veiculo_repository.py` |
 | `domain/repositories/servico_repository.py` | `infrastructure/repositories/postgres_servico_repository.py` |
+| `domain/repositories/peca_repository.py` | `infrastructure/repositories/postgres_peca_repository.py` |
 | `domain/repositories/estoque_repository.py` | `infrastructure/repositories/postgres_estoque_repository.py` |
 | `application/ports/token_service.py` | `infrastructure/security/jwt_token_service.py` |
 | `application/ports/password_hasher.py` | `infrastructure/security/bcrypt_password_hasher.py` |

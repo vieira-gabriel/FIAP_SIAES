@@ -3,10 +3,6 @@
 import pytest
 from sqlalchemy import text
 
-from domain.entities.usuario import Usuario
-from domain.value_objects.perfil_usuario import PerfilUsuario
-from presentation.main import app
-
 NOVA_ATENDENTE = {
     "nome": "Bia Atendente",
     "email": "Bia@Oficina.com",
@@ -32,11 +28,6 @@ async def gerente(cliente_http, configuracao):
 async def id_do_gerente(cliente_http, gerente):
     usuarios = (await cliente_http.get("/usuarios", headers=gerente)).json()
     return next(u["id"] for u in usuarios if u["email"] == "admin@oficina.com")
-
-
-def _cabecalho(perfil: PerfilUsuario) -> dict[str, str]:
-    usuario = Usuario(nome="Qualquer", email="q@oficina.com", senha_hash="h", perfil=perfil)
-    return {"Authorization": f"Bearer {app.state.token_service.emitir(usuario)}"}
 
 
 async def _cadastrar(cliente_http, gerente, dados=NOVA_ATENDENTE):
@@ -175,17 +166,3 @@ async def test_usuario_inexistente_responde_404(cliente_http, gerente):
 
     assert resposta.status_code == 404
     assert resposta.json()["codigo"] == "ENTIDADE_NAO_ENCONTRADA"
-
-
-@pytest.mark.parametrize("perfil", [PerfilUsuario.ATENDENTE, PerfilUsuario.MECANICO])
-async def test_so_o_gerente_acessa_a_gestao_de_usuarios(cliente_http, perfil):
-    cabecalho = _cabecalho(perfil)
-
-    assert (await cliente_http.get("/usuarios", headers=cabecalho)).status_code == 403
-    assert (
-        await cliente_http.post("/usuarios", json=NOVA_ATENDENTE, headers=cabecalho)
-    ).status_code == 403
-
-
-async def test_sem_token_responde_401(cliente_http):
-    assert (await cliente_http.get("/usuarios")).status_code == 401

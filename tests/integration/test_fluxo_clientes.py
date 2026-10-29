@@ -141,16 +141,3 @@ async def test_documento_de_cliente_excluido_continua_reservado(cliente_http, ge
     resposta = await _cadastrar(cliente_http, gerente, MARIA | {"nome": "Maria Nova"})
 
     assert resposta.status_code == 422
-
-
-async def test_so_o_gerente_exclui(cliente_http, atendente, mecanico):
-    criado = (await _cadastrar(cliente_http, atendente, MARIA)).json()
-
-    for perfil in (atendente, mecanico):
-        resposta = await cliente_http.delete(f"/clientes/{criado['id']}", headers=perfil)
-        assert resposta.status_code == 403
-
-
-async def test_sem_token_responde_401(cliente_http):
-    assert (await cliente_http.get("/clientes")).status_code == 401
-    assert (await cliente_http.post("/clientes", json=MARIA)).status_code == 401

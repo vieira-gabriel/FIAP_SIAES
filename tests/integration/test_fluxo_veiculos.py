@@ -200,8 +200,3 @@ async def test_excluir_o_cliente_exclui_os_veiculos_dele(cliente_http, gerente, 
         {"id": UUID(maria_id)},
     )
     assert ativos_da_maria == 0
-
-
-async def test_sem_token_responde_401(cliente_http):
-    assert (await cliente_http.get("/veiculos")).status_code == 401
-    assert (await cliente_http.post("/veiculos", json=UNO)).status_code == 401

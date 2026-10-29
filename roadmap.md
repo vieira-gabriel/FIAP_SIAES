@@ -285,10 +285,10 @@ Tarefas da fase:
 - [x] Carga inicial do Gerente na subida do container, com `ADMIN_PASSWORD` obrigatória, e dos usuários de demonstração quando `SEED_DEMO=true` (RF-03)
 - [x] Cadastro, atualização e listagem de clientes, com validação de CPF/CNPJ (RF-04, RF-05; issue #82)
 - [x] Exclusão lógica de clientes pelo Gerente (RF-06; issue #82)
-- [ ] Cadastro, atualização e listagem de veículos vinculados ao cliente, com validação de placa (RF-07, RF-08)
-- [ ] Exclusão lógica de veículos por Atendente e Gerente (RF-09)
-- [ ] Listagem do catálogo de serviços (RF-10) e CRUD restrito ao Gerente, com tempo estimado e exclusão lógica (RF-11)
-- [ ] Gestão de peças, com prazo de reposição, exclusão lógica e atualização de saldo com permissões por perfil (RF-12)
+- [x] Cadastro, atualização e listagem de veículos vinculados ao cliente, com validação de placa (RF-07, RF-08; issue #83)
+- [x] Exclusão lógica de veículos por Atendente e Gerente (RF-09; issue #83)
+- [x] Listagem do catálogo de serviços (RF-10) e CRUD restrito ao Gerente, com tempo estimado e exclusão lógica (RF-11; issue #84)
+- [x] Gestão de peças, com prazo de reposição, exclusão lógica (recusada com OS pendente) e atualização de saldo com permissões por perfil (RF-12; issue #85). O adaptador de OS usado na exclusão é provisório até a persistência da OS (issue #88); a alocação do saldo às OS com peça pendente fica com o handler da Fase 5 (RF-19; issue #94)
 - [ ] Testes de integração das rotas, cobrindo acesso sem token (`401`) e com perfil sem permissão (`403`) (RNF-13)
 
 ---
@@ -344,11 +344,11 @@ Tarefas da fase:
 
 - [ ] Cobertura ≥ 80% nos módulos de domínio e aplicação, medida com `pytest-cov` (RNF-14)
 - [ ] Evidência da cobertura salva (relatório ou captura de tela) para uso no README e no vídeo
-- [ ] Análise de vulnerabilidades de dependências, código e imagem Docker, com correção do que for encontrado (RNF-07)
-- [ ] Relatório da análise de vulnerabilidades salvo em `docs/security/` (RNF-07)
+- [x] Análise de vulnerabilidades de dependências, código e imagem Docker, com correção do que for encontrado (RNF-07; issue #111). Refazer no commit final
+- [x] Relatório da análise de vulnerabilidades salvo em `docs/security/` (RNF-07; `docs/security/analise-de-vulnerabilidades.md`)
 - [ ] Revisão das proteções contra SQL Injection, IDOR e XSS (RNF-04) e do rate limiting (RNF-05)
 - [ ] Medição do tempo de resposta (p95 < 500 ms) com evidência registrada (RNF-10)
-- [ ] Revisão do repositório: nenhum segredo, senha ou token no código ou no histórico do git (RNF-06)
+- [x] Revisão do repositório: nenhum segredo, senha ou token no código ou no histórico do git (RNF-06; issue #114, `docs/security/revisao-de-segredos.md`). Repetir no commit final
 - [ ] Revisão do Swagger: schemas de entrada e saída, códigos HTTP e autenticação Bearer (RNF-16)
 
 ---

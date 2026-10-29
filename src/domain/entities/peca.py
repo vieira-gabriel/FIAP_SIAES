@@ -1,7 +1,9 @@
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
-from domain.exceptions import PecaInvalida
+from domain.exceptions import PecaComPendencia, PecaInvalida
+from domain.value_objects.numero_os import NumeroOS
 from domain.value_objects.valor import Valor
 
 
@@ -40,8 +42,14 @@ class Peca:
     ) -> None:
         self._aplicar_dados(codigo_referencia, nome, preco_unitario, prazo_reposicao_dias)
 
-    def excluir(self) -> None:
-        """Exclusão lógica: as reservas e as OS existentes continuam íntegras (RF-12)."""
+    def excluir(self, numeros_das_os_pendentes: Collection[NumeroOS]) -> None:
+        """Exclusão lógica: as reservas e as OS existentes continuam íntegras (RF-12).
+
+        Uma OS com quantidade pendente da peça depende da reposição dela, então a peça só pode
+        ser excluída depois que nenhuma OS a espera.
+        """
+        if numeros_das_os_pendentes:
+            raise PecaComPendencia(self.nome, [numero.valor for numero in numeros_das_os_pendentes])
         self.ativo = False
 
     def pode_ser_incluida_em_os(self) -> bool:
@@ -54,7 +62,8 @@ class Peca:
         preco_unitario: Valor,
         prazo_reposicao_dias: int,
     ) -> None:
-        codigo_referencia, nome = codigo_referencia.strip(), nome.strip()
+        # Em maiúsculas para "flt-001" e "FLT-001" não virarem duas peças (RF-12).
+        codigo_referencia, nome = codigo_referencia.strip().upper(), nome.strip()
         if not codigo_referencia:
             raise PecaInvalida("o código de referência é obrigatório")
         if not nome:

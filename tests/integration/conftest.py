@@ -26,6 +26,8 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, async_sessionmaker
 
+from domain.entities.usuario import Usuario
+from domain.value_objects.perfil_usuario import PerfilUsuario
 from infrastructure.config import Configuracao, ConfiguracaoInvalida, carregar_configuracao
 from infrastructure.database.engine import criar_engine
 from presentation.main import app
@@ -127,6 +129,32 @@ async def cliente_http(
         transporte = ASGITransport(app=app)
         async with AsyncClient(transport=transporte, base_url="http://teste") as cliente:
             yield cliente
+
+
+def _cabecalho(perfil: PerfilUsuario) -> dict[str, str]:
+    usuario = Usuario(
+        nome=perfil.value.title(),
+        email=f"{perfil.value.lower()}@oficina.com",
+        senha_hash="hash-qualquer",
+        perfil=perfil,
+    )
+    return {"Authorization": f"Bearer {app.state.token_service.emitir(usuario)}"}
+
+
+@pytest.fixture
+def gerente(cliente_http: AsyncClient) -> dict[str, str]:
+    """Depende de `cliente_http` porque o serviço de token só existe depois da subida da app."""
+    return _cabecalho(PerfilUsuario.GERENTE)
+
+
+@pytest.fixture
+def atendente(cliente_http: AsyncClient) -> dict[str, str]:
+    return _cabecalho(PerfilUsuario.ATENDENTE)
+
+
+@pytest.fixture
+def mecanico(cliente_http: AsyncClient) -> dict[str, str]:
+    return _cabecalho(PerfilUsuario.MECANICO)
 
 
 @pytest.fixture

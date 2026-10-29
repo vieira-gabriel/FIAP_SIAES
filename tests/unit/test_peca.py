@@ -1,7 +1,8 @@
 import pytest
 
 from domain.entities.peca import Peca
-from domain.exceptions import PecaInvalida, ValorInvalido
+from domain.exceptions import PecaComPendencia, PecaInvalida, ValorInvalido
+from domain.value_objects.numero_os import NumeroOS
 from domain.value_objects.valor import Valor
 
 
@@ -91,7 +92,7 @@ def test_alteracao_invalida_nao_altera_nenhum_dado():
 def test_peca_excluida_nao_pode_ser_incluida_em_os():
     peca = criar_peca()
 
-    peca.excluir()
+    peca.excluir([])
 
     assert not peca.ativo
     assert not peca.pode_ser_incluida_em_os()
@@ -104,3 +105,22 @@ def test_igualdade_pela_identidade():
     assert peca != criar_peca()
     assert peca == criar_peca(id=peca.id, nome="Outro nome")
     assert len({peca, criar_peca()}) == 2
+
+
+def test_peca_pendente_em_alguma_os_nao_pode_ser_excluida():
+    peca = criar_peca()
+
+    with pytest.raises(PecaComPendencia) as erro:
+        peca.excluir([NumeroOS("529-7F3A9C2B"), NumeroOS("123-00000001")])
+
+    assert erro.value.numeros_das_os == ["529-7F3A9C2B", "123-00000001"]
+    assert peca.ativo
+
+
+def test_codigo_de_referencia_fica_em_maiusculas():
+    peca = criar_peca(codigo_referencia=" flt-001 ")
+
+    peca.atualizar_dados("vel-002", "Vela", Valor("20.00"), 2)
+
+    assert criar_peca(codigo_referencia="fo-1234").codigo_referencia == "FO-1234"
+    assert peca.codigo_referencia == "VEL-002"

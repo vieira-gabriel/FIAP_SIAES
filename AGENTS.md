@@ -2,6 +2,38 @@
 
 Antes de criar ou alterar qualquer arquivo neste repositório, leia `docs/guia-de-desenvolvimento.md`. Ele define onde cada parte do código fica, a regra de dependência entre camadas e as convenções do projeto. A seção 9 do guia contém as regras específicas para assistentes de IA.
 
+## Princípios de Desenvolvimento
+
+Adaptados das diretrizes de [andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills/blob/main/CLAUDE.md). Elas trocam velocidade por cuidado; em tarefas triviais, aplique-as com bom senso.
+
+### Pensar antes de codificar
+
+- Declare as premissas antes de implementar. Se não tiver certeza, pergunte.
+- Quando o pedido admitir mais de uma interpretação, apresente as interpretações em vez de escolher uma sem avisar.
+- Se existir um caminho mais simples que o pedido, diga, com o ganho e o custo de cada caminho.
+- Se algo não estiver claro, pare, diga o que não está claro e pergunte.
+
+### Simplicidade primeiro
+
+- Escreva o mínimo de código que resolve o problema pedido.
+- Não acrescente funcionalidade, configuração ou flexibilidade que ninguém pediu.
+- Não crie abstração para um único uso.
+- Não trate cenários que não podem ocorrer.
+- Se a solução ficou muito maior do que o problema exige, reescreva-a menor.
+
+### Mudanças cirúrgicas
+
+- Altere só o que a tarefa exige; cada linha alterada deve ser rastreável até o pedido.
+- Não melhore, refatore nem reformate código, comentário ou formatação vizinhos que não fazem parte da tarefa.
+- Siga o estilo do código existente, mesmo que você escrevesse de outro jeito.
+- Remova apenas os imports, variáveis e funções que a sua mudança deixou sem uso. Código morto que já existia é informado ao usuário, e não removido.
+
+### Execução orientada a metas
+
+- Transforme cada tarefa em um critério verificável. Exemplos: "corrigir o bug" vira "escrever um teste que reproduz o bug e fazê-lo passar"; "validar a entrada" vira "escrever testes para as entradas inválidas e fazê-los passar".
+- Em tarefas com várias etapas, escreva um plano curto em que cada etapa tem a sua verificação.
+- Só considere a tarefa concluída depois que a verificação passar.
+
 ## Clean Code
 
 Toda implementação segue os princípios do Clean Code (Robert C. Martin): nomes que revelam a intenção, com os termos da Linguagem Ubíqua; funções pequenas, com uma única responsabilidade; e nenhuma duplicação.
@@ -14,3 +46,21 @@ Toda implementação segue os princípios do Clean Code (Robert C. Martin): nome
 - Escreva docstring apenas quando ela acrescenta informação que a assinatura não mostra.
 - Ao alterar o código, atualize ou remova o comentário que deixou de ser verdadeiro.
 - As regras valem também para os testes.
+
+## Fluxo de Trabalho
+
+### Issues e PRs
+
+- Ao iniciar a implementação de uma issue, atribua a issue ao usuário que pediu a implementação (`gh issue edit <número> --add-assignee @me`).
+- Ao abrir um PR, atribua o PR ao mesmo usuário (`gh pr create --assignee @me`) e associe a issue escrevendo `Closes #<número>` na descrição.
+
+### Revisão da Documentação
+
+- Ao final de toda implementação, antes de abrir o PR, revise as fontes da verdade (guia, seção 1) contra o código implementado.
+- Se houver divergência, decida entre alterar a implementação ou a documentação, dando preferência a alterar a implementação. Registre a divergência, a escolha e o motivo na descrição do PR.
+
+### Registro de Mudanças na Documentação
+
+- Toda alteração de documentação registra o motivo na descrição do PR.
+- Alterações estruturais ou arquiteturais do que está documentado (camadas, pastas, portas e adaptadores, decisões técnicas da seção 8 do guia e regras de processo) também entram em `docs/CHANGELOG.md`, com a data, o PR, o que mudou e o motivo.
+- Mudanças de regra de negócio, de requisito ou de redação não entram no `docs/CHANGELOG.md`; o motivo delas fica no PR.

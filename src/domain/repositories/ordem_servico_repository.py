@@ -20,5 +20,8 @@ class OrdemServicoRepository(ABC):
     async def listar_pendentes_da_peca(self, peca_id: UUID) -> list[OrdemServico]:
         """As OS com quantidade pendente da peça, da abertura mais antiga à mais nova (RF-19).
 
-        Não filtra por status: a rejeição e o cancelamento já descartam as pendências.
+        Não filtra por status: a rejeição e o cancelamento já descartam as pendências. Não
+        bloqueia as OS: quem chama bloqueia antes o estoque da peça, e quem for alterar uma OS da
+        lista a relê com `buscar_por_id`, que a bloqueia. Bloquear as OS aqui, depois do estoque,
+        inverteria a ordem do cancelamento (OS e depois estoque) e causaria impasse.
         """

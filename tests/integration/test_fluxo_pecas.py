@@ -1,9 +1,26 @@
 """Peças e estoque pelas rotas HTTP, com PostgreSQL real (RF-12, RNF-13)."""
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import text
+
+from domain.entities.cliente import Cliente
+from domain.entities.ordem_servico import OrdemServico
+from domain.entities.usuario import Usuario
+from domain.entities.veiculo import Veiculo
+from domain.value_objects.cpf import CPF
+from domain.value_objects.numero_os import NumeroOS
+from domain.value_objects.perfil_usuario import PerfilUsuario
+from domain.value_objects.placa import Placa
+from infrastructure.database.unidade_de_trabalho import UnidadeDeTrabalhoSqlAlchemy
+from infrastructure.repositories.postgres_cliente_repository import PostgresClienteRepository
+from infrastructure.repositories.postgres_ordem_servico_repository import (
+    PostgresOrdemServicoRepository,
+)
+from infrastructure.repositories.postgres_peca_repository import PostgresPecaRepository
+from infrastructure.repositories.postgres_usuario_repository import PostgresUsuarioRepository
+from infrastructure.repositories.postgres_veiculo_repository import PostgresVeiculoRepository
 
 FILTRO = {
     "codigo_referencia": "FLT-001",
@@ -197,3 +214,45 @@ async def test_corpo_sem_campo_obrigatorio_responde_422(cliente_http, gerente):
 
     assert resposta.status_code == 422
     assert resposta.json()["codigo"] == "ENTRADA_INVALIDA"
+
+
+async def _abrir_os_com_a_peca_pendente(fabrica_de_sessoes, peca_id):
+    atendente = Usuario(
+        nome="Ana", email="ana@oficina.com", senha_hash="h", perfil=PerfilUsuario.ATENDENTE
+    )
+    cliente = Cliente(
+        nome="Carla", documento=CPF("529.982.247-25"), email="c@email.com", telefone="1199999"
+    )
+    veiculo = Veiculo(
+        cliente_id=cliente.id, placa=Placa("ABC1D23"), marca="Fiat", modelo="Uno", ano=2020
+    )
+    async with UnidadeDeTrabalhoSqlAlchemy(fabrica_de_sessoes) as unidade:
+        sessao = unidade.sessao
+        await PostgresUsuarioRepository(sessao).salvar(atendente)
+        await PostgresClienteRepository(sessao).salvar(cliente)
+        await sessao.flush()
+        await PostgresVeiculoRepository(sessao).salvar(veiculo)
+        await sessao.flush()
+        peca = await PostgresPecaRepository(sessao).buscar_por_id(peca_id)
+        os = OrdemServico.abrir(
+            numero=NumeroOS("529-7F3A9C2B"),
+            cliente_id=cliente.id,
+            veiculo_id=veiculo.id,
+            atendente_id=atendente.id,
+        )
+        os.atribuir_mecanico(atendente.id)
+        os.incluir_peca(peca, quantidade=1)
+        os.finalizar_orcamento(atendente.id, [], [peca])
+        await PostgresOrdemServicoRepository(sessao).salvar(os)
+
+
+async def test_peca_pendente_em_alguma_os_nao_e_excluida(cliente_http, gerente, fabrica_de_sessoes):
+    criada = (await _cadastrar(cliente_http, gerente)).json()
+    await _abrir_os_com_a_peca_pendente(fabrica_de_sessoes, UUID(criada["id"]))
+
+    resposta = await cliente_http.delete(f"/pecas/{criada['id']}", headers=gerente)
+
+    assert resposta.status_code == 422
+    assert resposta.json()["codigo"] == "REGRA_DE_NEGOCIO_VIOLADA"
+    assert "529-7F3A9C2B" in resposta.json()["mensagem"]
+    assert (await cliente_http.get(f"/pecas/{criada['id']}", headers=gerente)).status_code == 200

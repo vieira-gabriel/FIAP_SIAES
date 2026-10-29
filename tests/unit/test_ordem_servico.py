@@ -321,6 +321,36 @@ def test_congelar_sem_o_valor_vigente_de_algum_item_nao_altera_nenhum():
     assert os.orcamento is None
 
 
+@pytest.mark.parametrize("excluido", ["servico", "peca"])
+def test_congelar_com_item_excluido_do_catalogo_nao_altera_nenhum(excluido):
+    servico, peca = criar_servico(valor_base=Valor("120.00")), criar_peca()
+    os = criar_os()
+    os.incluir_servico(servico)
+    os.incluir_peca(peca, quantidade=1)
+    reajustar_servico(servico, "150.00")
+    if excluido == "servico":
+        servico.excluir()
+    else:
+        peca.excluir([])
+
+    with pytest.raises(ItemIndisponivel):
+        os.congelar_valores([servico], [peca])
+
+    assert os.servicos[0].preco_congelado == Valor("120.00")
+    assert os.orcamento is None
+
+
+def test_congelar_ignora_item_excluido_que_nao_esta_na_os():
+    servico, sem_uso = criar_servico(), criar_servico(codigo="SRV-002")
+    sem_uso.excluir()
+    os = criar_os()
+    os.incluir_servico(servico)
+
+    os.congelar_valores([servico, sem_uso], [])
+
+    assert os.orcamento.total == Valor("120.00")
+
+
 @pytest.mark.parametrize(
     "alteracao",
     [
@@ -475,6 +505,19 @@ def test_finalizar_orcamento_sem_valor_vigente_mantem_o_diagnostico():
 
     assert os.status is StatusOS.EM_DIAGNOSTICO
     assert os.orcamento is None
+
+
+def test_finalizar_orcamento_com_peca_excluida_mantem_o_diagnostico_sem_pendencia():
+    peca = criar_peca()
+    os = criar_os()
+    os.incluir_peca(peca, quantidade=1)
+    peca.excluir([])
+
+    with pytest.raises(ItemIndisponivel):
+        os.finalizar_orcamento(USUARIO_ID, [], [peca])
+
+    assert os.status is StatusOS.EM_DIAGNOSTICO
+    assert os.pecas[0].quantidade_pendente == 0
 
 
 def criar_usuario(perfil: PerfilUsuario, ativo: bool = True) -> Usuario:

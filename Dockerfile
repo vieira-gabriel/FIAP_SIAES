@@ -16,7 +16,10 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app/src" \
     PYTHONUNBUFFERED=1
 
-RUN useradd --system --uid 10001 --no-create-home siaes
+# A aplicação roda pelo .venv, que não tem pip; o pip da imagem base só acrescentaria
+# vulnerabilidades à imagem final (RNF-07).
+RUN python -m pip uninstall --yes --root-user-action=ignore pip \
+    && useradd --system --uid 10001 --no-create-home siaes
 
 WORKDIR /app
 

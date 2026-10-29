@@ -342,8 +342,8 @@ Tarefas da fase:
 
 - [ ] Cobertura ≥ 80% nos módulos de domínio e aplicação, medida com `pytest-cov` (RNF-14)
 - [ ] Evidência da cobertura salva (relatório ou captura de tela) para uso no README e no vídeo
-- [ ] Análise de vulnerabilidades de dependências, código e imagem Docker, com correção do que for encontrado (RNF-07)
-- [ ] Relatório da análise de vulnerabilidades salvo em `docs/security/` (RNF-07)
+- [x] Análise de vulnerabilidades de dependências, código e imagem Docker, com correção do que for encontrado (RNF-07; issue #111). Refazer no commit final
+- [x] Relatório da análise de vulnerabilidades salvo em `docs/security/` (RNF-07; `docs/security/analise-de-vulnerabilidades.md`)
 - [ ] Revisão das proteções contra SQL Injection, IDOR e XSS (RNF-04) e do rate limiting (RNF-05)
 - [ ] Medição do tempo de resposta (p95 < 500 ms) com evidência registrada (RNF-10)
 - [x] Revisão do repositório: nenhum segredo, senha ou token no código ou no histórico do git (RNF-06; issue #114, `docs/security/revisao-de-segredos.md`). Repetir no commit final

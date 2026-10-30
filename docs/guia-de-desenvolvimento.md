@@ -392,6 +392,8 @@ class OrdemServicoRepositoryEmMemoria(OrdemServicoRepository):
         return self.dados.get(id)
 ```
 
+Os repositórios em memória de todas as portas de repositório já existem em `tests/unit/conftest.py`, cada um com a sua fixture (`clientes`, `veiculos`, `usuarios`, `servicos`, `pecas`, `estoques` e `ordens`), junto com o `password_hasher` falso. Use-os nos testes de casos de uso em vez de criar uma cópia no arquivo do teste.
+
 A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Todo código novo em `domain/` e `application/` deve vir acompanhado de testes.
 
 ---

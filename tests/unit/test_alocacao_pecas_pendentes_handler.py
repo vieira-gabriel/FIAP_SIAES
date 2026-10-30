@@ -188,9 +188,7 @@ async def test_sem_os_pendente_o_estoque_fica_como_esta(alocar, ordens, estoques
 async def test_os_cancelada_nao_recebe_saldo(alocar, ordens, estoques):
     peca_id = uuid4()
     estoque = await _estoque(estoques, peca_id, fisica=5)
-    cancelada = await _os(
-        ordens, [_item(peca_id, 2, reservada=1)], status=StatusOS.CANCELADA
-    )
+    cancelada = await _os(ordens, [_item(peca_id, 2, reservada=1)], status=StatusOS.CANCELADA)
     cancelada.pecas[0].descartar_pendencia()
     await ordens.salvar(cancelada)
 

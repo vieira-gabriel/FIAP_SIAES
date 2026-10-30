@@ -193,10 +193,10 @@ async def test_no_empate_de_data_de_abertura_a_os_que_ja_esperava_a_peca_vem_ant
 ):
     peca_id = uuid4()
     await _estoque(estoques, peca_id, fisica=2)
+    nova = await _os(ordens, [_item(peca_id, 2)], abertura=ABERTURA)
     esperando = await _os(
         ordens, [_item(peca_id, 2, pendente=2)], status=StatusOS.AGUARDANDO_PECA, abertura=ABERTURA
     )
-    nova = await _os(ordens, [_item(peca_id, 2)], abertura=ABERTURA)
 
     await reservar.tratar(_evento(nova))
 

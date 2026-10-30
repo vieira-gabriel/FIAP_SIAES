@@ -22,6 +22,7 @@ from application.use_cases.cadastrar_servico import CadastrarServico
 from application.use_cases.cadastrar_usuario import CadastrarUsuario
 from application.use_cases.cadastrar_veiculo import CadastrarVeiculo
 from application.use_cases.criar_carga_inicial import CriarCargaInicial, SenhasDaCargaInicial
+from application.use_cases.criar_os import CriarOS
 from application.use_cases.desativar_usuario import DesativarUsuario
 from application.use_cases.detalhar_cliente import DetalharCliente
 from application.use_cases.detalhar_peca import DetalharPeca
@@ -227,6 +228,21 @@ obter_listar_veiculos = _com_repositorio_de_veiculos(ListarVeiculos)
 obter_detalhar_veiculo = _com_repositorio_de_veiculos(DetalharVeiculo)
 obter_excluir_veiculo = _com_repositorio_de_veiculos(ExcluirVeiculo)
 
+
+def _com_abertura_de_os[T](
+    caso_de_uso: Callable[..., T],
+) -> Callable[[Request], AsyncIterator[T]]:
+    """Cliente, veículo e OS na mesma sessão: a abertura grava tudo ou nada (RNF-08)."""
+    return _por_requisicao(
+        lambda sessao, _: caso_de_uso(
+            PostgresClienteRepository(sessao),
+            PostgresVeiculoRepository(sessao),
+            PostgresOrdemServicoRepository(sessao),
+        )
+    )
+
+
+obter_criar_os = _com_abertura_de_os(CriarOS)
 obter_cadastrar_servico = _com_repositorio_de_servicos(CadastrarServico)
 obter_atualizar_servico = _com_repositorio_de_servicos(AtualizarServico)
 obter_listar_servicos = _com_repositorio_de_servicos(ListarServicos)

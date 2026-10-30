@@ -22,7 +22,7 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 | CI | `.github/workflows/ci.yml` em cada PR e em cada push na `main`: lint, testes com PostgreSQL, cobertura mínima de 80%, Bandit, pip-audit e `docker build` (issue #29) |
 | Docker | `Dockerfile` em Python 3.12, multi-stage com `uv`, usuário não-root e sem o `pip` da imagem base, e `docker-compose.yml` com `app` e `db` (PostgreSQL 16); as migrations rodam antes do Uvicorn |
 | Segurança | Revisão de segredos no código e no histórico (issue #114, `docs/security/revisao-de-segredos.md`) e análise de vulnerabilidades das dependências, do código e da imagem (issue #111, `docs/security/analise-de-vulnerabilidades.md`), ambas sem achado crítico e a repetir no commit final. Medição de desempenho, revisão de SQL Injection, IDOR e XSS e revisão do Swagger seguem pendentes (Fase 7) |
-| Pendências do domínio | `OrdemServico.alocar_peca` (issue #43, parte 2). Os eventos de domínio estão prontos (issue #45), e os handlers que reagem a eles entram com a Fase 5. O `criar_os.py` segue vazio. A persistência da OS e o caso de uso `FinalizarOrcamento` estão prontos (issue #88), ainda sem rota e sem o despacho dos eventos (issue #89) |
+| Pendências do domínio | `OrdemServico.alocar_peca` (issue #43, parte 2). Os eventos de domínio estão prontos (issue #45), e os handlers que reagem a eles entram com a Fase 5. A persistência da OS e o caso de uso `FinalizarOrcamento` estão prontos (issue #88), ainda sem rota e sem o despacho dos eventos (issue #89). A abertura da OS (`CriarOS`, rota `POST /ordens-servico`) também está pronta (issue #90) |
 | README | Objetivo, solução, arquitetura, tecnologias e banco de dados (issue #116), pré-requisitos, execução, testes, Swagger e usuários de demonstração (issue #117); faltam a estrutura de diretórios, o link para a documentação DDD e o link do vídeo (issue #121) |
 
 ---
@@ -298,7 +298,7 @@ Tarefas da fase:
 
 ### Frente da Loja
 
-- [ ] Abertura da OS com status `RECEBIDA` e número `DDD-XXXXXXXX`, carregando cliente e veículo existentes ou cadastrando-os no mesmo fluxo (RF-13, RF-04, RF-07)
+- [x] Abertura da OS com status `RECEBIDA` e número `DDD-XXXXXXXX`, carregando cliente e veículo existentes ou cadastrando-os no mesmo fluxo (RF-13, RF-04, RF-07; issue #90)
 - [ ] Atribuição do mecânico com transição para `EM_DIAGNOSTICO` (RF-16)
 - [ ] Inclusão de serviços e peças e conclusão do orçamento, com transição para `AGUARDANDO_APROVACAO` (RF-17)
 - [ ] Reserva das peças com registro de pendências e prioridade pela OS mais antiga (RF-18)

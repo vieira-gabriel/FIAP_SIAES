@@ -10,7 +10,16 @@ from presentation.container import (
     montar_dependencias,
 )
 from presentation.middlewares.tratamento_de_erros import registrar_tratamento_de_erros
-from presentation.routers import autenticacao, clientes, pecas, saude, servicos, usuarios, veiculos
+from presentation.routers import (
+    autenticacao,
+    clientes,
+    ordens_servico,
+    pecas,
+    saude,
+    servicos,
+    usuarios,
+    veiculos,
+)
 
 # Mesma versão do pyproject.toml; o pacote não é instalado na imagem, então não há metadados.
 VERSAO_DA_API = "0.1.0"
@@ -45,6 +54,7 @@ app.include_router(usuarios.router)
 app.include_router(servicos.router)
 app.include_router(pecas.router)
 app.include_router(veiculos.router)
+app.include_router(ordens_servico.router)
 
 
 def _openapi_com_esquema_bearer() -> dict[str, Any]:

@@ -298,7 +298,7 @@ Tarefas da fase:
 
 ### Frente da Loja
 
-- [ ] Abertura da OS com status `RECEBIDA` e número `DDD-XXXXXXXX`, carregando cliente e veículo existentes ou cadastrando-os no mesmo fluxo (RF-13, RF-04, RF-07)
+- [x] Abertura da OS com status `RECEBIDA` e número `DDD-XXXXXXXX`, carregando cliente e veículo existentes ou cadastrando-os no mesmo fluxo (RF-13, RF-04, RF-07; issue #90)
 - [ ] Atribuição do mecânico com transição para `EM_DIAGNOSTICO` (RF-16)
 - [ ] Inclusão de serviços e peças e conclusão do orçamento, com transição para `AGUARDANDO_APROVACAO` (RF-17)
 - [ ] Reserva das peças com registro de pendências e prioridade pela OS mais antiga (RF-18)

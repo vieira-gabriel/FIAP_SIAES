@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-30 — PR da issue #93 (reserva de peças)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Reserva das peças na conclusão do orçamento (RF-18)": o `ReservaPecasHandler` trata o `OrcamentoFinalizadoEvent` na transação da conclusão, aloca o saldo pela OS mais antiga e aplica cada alocação com `OrdemServico.alocar_peca`. A lista `app.state.fabricas_de_handlers`, que nascia vazia, passou a trazer esse handler, registrado em `_fabricas_de_handlers` no `container.py`.
+
+**Motivo:** o RF-18 manda reservar as peças na conclusão do orçamento e deixar o resto pendente, e o RF-19 manda dar a prioridade à OS mais antiga. O handler reaproveita o `alocar_pendencias` da #43, para a OS nova só usar o que sobra depois das OS que já esperam a mesma peça, e roda na transação da conclusão (RNF-08), com os estoques já bloqueados pelo `FinalizarOrcamento` (RNF-09). A releitura de uma OS mais antiga, quando ela recebe saldo, herda o impasse registrado na decisão em aberto "Ordem dos bloqueios entre alocação e cancelamento" (seção 8.2).
+
 ## 2026-10-30 — PR da issue #92 (itens e conclusão do orçamento)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Itens e conclusão do orçamento (RF-17)": rotas para incluir e remover serviços e peças da OS e para concluir o orçamento, com os códigos de resposta de cada caso. O `FinalizarOrcamento` passou a receber o `EventDispatcher` e a despachar o `OrcamentoFinalizadoEvent` depois de salvar a OS, na mesma unidade de trabalho.

@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from uuid import UUID
 
-from sqlalchemy import Select, exists, select
+from sqlalchemy import ColumnElement, Select, exists, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -12,6 +12,7 @@ from domain.entities.item_servico import ItemServico
 from domain.entities.ordem_servico import OrdemServico
 from domain.exceptions import NumeroOSJaCadastrado
 from domain.repositories.ordem_servico_repository import OrdemServicoRepository
+from domain.value_objects.filtro_ordens_servico import FiltroOrdensServico
 from domain.value_objects.numero_os import NumeroOS
 from domain.value_objects.orcamento import Orcamento
 from domain.value_objects.valor import Valor
@@ -60,6 +61,14 @@ class PostgresOrdemServicoRepository(OrdemServicoRepository):
         modelo = await self._sessao.scalar(consulta)
         return _para_entidade(modelo) if modelo else None
 
+    async def listar(self, filtro: FiltroOrdensServico) -> list[OrdemServico]:
+        consulta = (
+            _consulta()
+            .where(*_condicoes(filtro))
+            .order_by(OrdemServicoModel.data_abertura.desc(), OrdemServicoModel.id)
+        )
+        return [_para_entidade(modelo) for modelo in await self._sessao.scalars(consulta)]
+
     async def listar_pendentes_da_peca(self, peca_id: UUID) -> list[OrdemServico]:
         com_pendencia = exists().where(
             ItemPecaModel.os_id == OrdemServicoModel.id,
@@ -102,6 +111,23 @@ def _consulta() -> Select[tuple[OrdemServicoModel]]:
 def _consulta_com_bloqueio() -> Select[tuple[OrdemServicoModel]]:
     # Só a linha da OS é bloqueada; os itens e o histórico só mudam junto com ela.
     return _consulta().with_for_update(of=OrdemServicoModel)
+
+
+def _condicoes(filtro: FiltroOrdensServico) -> list[ColumnElement[bool]]:
+    condicoes: list[ColumnElement[bool]] = []
+    if filtro.status is not None:
+        condicoes.append(OrdemServicoModel.status == filtro.status)
+    if filtro.mecanico_id is not None:
+        condicoes.append(OrdemServicoModel.mecanico_id == filtro.mecanico_id)
+    if filtro.cliente_id is not None:
+        condicoes.append(OrdemServicoModel.cliente_id == filtro.cliente_id)
+    if filtro.veiculos_ids is not None:
+        condicoes.append(OrdemServicoModel.veiculo_id.in_(filtro.veiculos_ids))
+    if filtro.abertura_de is not None:
+        condicoes.append(OrdemServicoModel.data_abertura >= filtro.abertura_de)
+    if filtro.abertura_ate is not None:
+        condicoes.append(OrdemServicoModel.data_abertura <= filtro.abertura_ate)
+    return condicoes
 
 
 def _para_modelo(os: OrdemServico) -> OrdemServicoModel:

@@ -35,6 +35,7 @@ from application.use_cases.excluir_peca import ExcluirPeca
 from application.use_cases.excluir_servico import ExcluirServico
 from application.use_cases.excluir_veiculo import ExcluirVeiculo
 from application.use_cases.listar_clientes import ListarClientes
+from application.use_cases.listar_ordens_servico import ListarOrdensServico
 from application.use_cases.listar_pecas import ListarPecas
 from application.use_cases.listar_servicos import ListarServicos
 from application.use_cases.listar_usuarios import ListarUsuarios
@@ -255,6 +256,14 @@ obter_detalhar_ordem_servico = _por_requisicao(
         PostgresOrdemServicoRepository(sessao),
         PostgresClienteRepository(sessao),
         PostgresVeiculoRepository(sessao),
+    )
+)
+obter_listar_ordens_servico = _por_requisicao(
+    lambda sessao, _: ListarOrdensServico(
+        PostgresOrdemServicoRepository(sessao),
+        PostgresClienteRepository(sessao),
+        PostgresVeiculoRepository(sessao),
+        PostgresUsuarioRepository(sessao),
     )
 )
 obter_cadastrar_servico = _com_repositorio_de_servicos(CadastrarServico)

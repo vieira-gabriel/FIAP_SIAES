@@ -11,13 +11,24 @@ from application.use_cases.criar_os import (
     DadosDoNovoVeiculo,
 )
 from application.use_cases.detalhar_ordem_servico import DetalharOrdemServico
+from application.use_cases.listar_ordens_servico import CriteriosDaListagem, ListarOrdensServico
 from domain.value_objects.documento import Documento
 from domain.value_objects.perfil_usuario import PerfilUsuario
 from domain.value_objects.placa import Placa
-from presentation.container import obter_criar_os, obter_detalhar_ordem_servico
+from domain.value_objects.status_os import StatusOS
+from presentation.container import (
+    obter_criar_os,
+    obter_detalhar_ordem_servico,
+    obter_listar_ordens_servico,
+)
 from presentation.middlewares.dependencies import exigir_perfis
 from presentation.schemas.erro import ErroResponse
-from presentation.schemas.ordem_servico import AbrirOSRequest, OSDetalheResponse, OSResponse
+from presentation.schemas.ordem_servico import (
+    AbrirOSRequest,
+    OSDetalheResponse,
+    OSResponse,
+    OSResumoResponse,
+)
 
 router = APIRouter(
     prefix="/ordens-servico",
@@ -75,6 +86,32 @@ async def abrir_os(
         ),
     )
     return OSResponse.de_entidade(os)
+
+
+@router.get("")
+async def listar_os(
+    _usuario: Annotated[UsuarioAutenticado, Depends(_CONSULTA)],
+    listar: Annotated[ListarOrdensServico, Depends(obter_listar_ordens_servico)],
+    documento: str | None = None,
+    placa: str | None = None,
+    status: StatusOS | None = None,
+    mecanico_id: UUID | None = None,
+    abertura_de: datetime | None = None,
+    abertura_ate: datetime | None = None,
+) -> list[OSResumoResponse]:
+    """As OS que atendem a todos os filtros informados, das mais recentes às mais antigas
+    (RF-14). Sem filtros, lista todas."""
+    resumos = await listar.executar(
+        CriteriosDaListagem(
+            documento=Documento.de_texto(documento) if documento else None,
+            placa=Placa(placa) if placa else None,
+            status=status,
+            mecanico_id=mecanico_id,
+            abertura_de=abertura_de,
+            abertura_ate=abertura_ate,
+        )
+    )
+    return [OSResumoResponse.de_resumo(resumo) for resumo in resumos]
 
 
 @router.get(

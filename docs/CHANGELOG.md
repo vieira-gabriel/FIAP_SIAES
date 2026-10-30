@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-30 — PR #142 (listagem de OS)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Listagem de OS (RF-14)": `GET /ordens-servico` para os três perfis, com os filtros combináveis `documento`, `placa`, `status`, `mecanico_id` e período de abertura, resposta da mais recente para a mais antiga e sem paginação. A porta `VeiculoRepository` ganhou `listar_por_placa`, que devolve também os veículos excluídos.
+
+**Motivo:** o RF-14 não define a forma dos filtros nem da resposta. A busca por placa precisa incluir os veículos excluídos, porque as OS deles continuam no histórico (RF-09); com a busca só de veículos ativos, a listagem esconderia as OS de um veículo excluído e, com a placa reaproveitada, as do veículo antigo.
+
 ## 2026-10-30 — PR #141 (detalhamento da OS)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Detalhamento da OS (RF-15)": `GET /ordens-servico/{id}` para os três perfis, com cliente e veículo (mesmo excluídos), itens com as quantidades reservada e pendente, orçamento, histórico e a estimativa de entrega calculada na consulta. A seção 8.2 ganhou a decisão em aberto "Prazo de reposição sem limite máximo".

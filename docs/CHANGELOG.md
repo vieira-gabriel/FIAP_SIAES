@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-30 — PR da issue #92 (itens e conclusão do orçamento)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Itens e conclusão do orçamento (RF-17)": rotas para incluir e remover serviços e peças da OS e para concluir o orçamento, com os códigos de resposta de cada caso. O `FinalizarOrcamento` passou a receber o `EventDispatcher` e a despachar o `OrcamentoFinalizadoEvent` depois de salvar a OS, na mesma unidade de trabalho.
+
+**Motivo:** o RF-17 define as regras dos itens e do congelamento, mas não a forma das rotas. O despacho dentro da transação é o que permite à reserva das peças (RF-18, issue #93) gravar junto com a conclusão e desfazer tudo se falhar, como pede o RF-17 (RNF-08). A decisão de deixar qualquer Mecânico ou Gerente alterar os itens, e não só o mecânico atribuído, segue o texto do RF-17, que lista só os perfis.
+
 ## 2026-10-30 — PR da issue #91 (atribuição do mecânico)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Atribuição do mecânico (RF-16)": `POST /ordens-servico/{id}/mecanico` para Mecânico e Gerente, com o `mecanico_id` opcional no corpo (o Mecânico omite, o Gerente informa). `OrdemServico.atribuir_mecanico` passou a receber o mecânico e o responsável como `Usuario`, como o `iniciar_execucao`, e concentra as regras de quem pode atribuir. O diagrama de classes e a descrição das transições do C4 acompanham a nova assinatura.

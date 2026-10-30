@@ -74,9 +74,7 @@ async def test_inclui_o_servico_do_catalogo_e_salva_a_os(incluir_servico, ordens
     assert salva.servicos[0].preco_congelado == Valor("120.00")
 
 
-async def test_inclui_a_peca_do_catalogo_com_a_quantidade_e_salva_a_os(
-    incluir_peca, ordens, pecas
-):
+async def test_inclui_a_peca_do_catalogo_com_a_quantidade_e_salva_a_os(incluir_peca, ordens, pecas):
     peca = _peca()
     await pecas.salvar(peca)
     os = await _os(ordens)

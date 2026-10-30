@@ -112,7 +112,9 @@ async def os_em_diagnostico(cliente_http, mecanico, os_recebida) -> dict:
 
 async def _incluir_servico(cliente_http, quem, os_id, servico_id):
     return await cliente_http.post(
-        f"/ordens-servico/{os_id}/servicos", json={"servico_id": servico_id}, headers=_cabecalho(quem)
+        f"/ordens-servico/{os_id}/servicos",
+        json={"servico_id": servico_id},
+        headers=_cabecalho(quem),
     )
 
 
@@ -129,13 +131,13 @@ async def _concluir(cliente_http, quem, os_id):
 
 
 async def _detalhe(cliente_http, quem, os_id) -> dict:
-    return (
-        await cliente_http.get(f"/ordens-servico/{os_id}", headers=_cabecalho(quem))
-    ).json()
+    return (await cliente_http.get(f"/ordens-servico/{os_id}", headers=_cabecalho(quem))).json()
 
 
 async def _os_com_itens(cliente_http, mecanico, os, servico, peca) -> None:
-    assert (await _incluir_servico(cliente_http, mecanico, os["id"], servico["id"])).status_code == 201
+    assert (
+        await _incluir_servico(cliente_http, mecanico, os["id"], servico["id"])
+    ).status_code == 201
     assert (await _incluir_peca(cliente_http, mecanico, os["id"], peca["id"])).status_code == 201
 
 
@@ -328,13 +330,16 @@ async def test_remove_servico_e_peca(cliente_http, mecanico, os_em_diagnostico, 
     assert (detalhe["servicos"], detalhe["pecas"]) == ([], [])
 
 
-@pytest.mark.parametrize(("quantidade", "status", "codigo"), [
-    (0, 400, "VALOR_INVALIDO"),
-    (-1, 400, "VALOR_INVALIDO"),
-    (1.5, 422, "ENTRADA_INVALIDA"),
-    ("duas", 422, "ENTRADA_INVALIDA"),
-    (MAIOR_INTEIRO + 1, 422, "ENTRADA_INVALIDA"),
-])
+@pytest.mark.parametrize(
+    ("quantidade", "status", "codigo"),
+    [
+        (0, 400, "VALOR_INVALIDO"),
+        (-1, 400, "VALOR_INVALIDO"),
+        (1.5, 422, "ENTRADA_INVALIDA"),
+        ("duas", 422, "ENTRADA_INVALIDA"),
+        (MAIOR_INTEIRO + 1, 422, "ENTRADA_INVALIDA"),
+    ],
+)
 async def test_quantidade_invalida_da_peca(
     cliente_http, mecanico, os_em_diagnostico, peca, quantidade, status, codigo
 ):
@@ -371,7 +376,9 @@ async def test_ids_inexistentes_respondem_404(
 async def test_atendente_nao_altera_itens_nem_conclui(
     cliente_http, atendente, os_em_diagnostico, servico
 ):
-    inclusao = await _incluir_servico(cliente_http, atendente, os_em_diagnostico["id"], servico["id"])
+    inclusao = await _incluir_servico(
+        cliente_http, atendente, os_em_diagnostico["id"], servico["id"]
+    )
     conclusao = await _concluir(cliente_http, atendente, os_em_diagnostico["id"])
 
     assert (inclusao.status_code, conclusao.status_code) == (403, 403)
@@ -406,7 +413,13 @@ async def tabela_do_handler(conexao):
 
 
 async def test_o_evento_e_tratado_na_mesma_transacao_da_conclusao(
-    cliente_http, mecanico, os_em_diagnostico, servico, peca, conexao, tabela_do_handler,
+    cliente_http,
+    mecanico,
+    os_em_diagnostico,
+    servico,
+    peca,
+    conexao,
+    tabela_do_handler,
     monkeypatch,
 ):
     await _os_com_itens(cliente_http, mecanico, os_em_diagnostico, servico, peca)
@@ -429,7 +442,13 @@ async def test_o_evento_e_tratado_na_mesma_transacao_da_conclusao(
 
 
 async def test_falha_do_handler_desfaz_a_conclusao_inteira(
-    cliente_http, mecanico, os_em_diagnostico, servico, peca, conexao, tabela_do_handler,
+    cliente_http,
+    mecanico,
+    os_em_diagnostico,
+    servico,
+    peca,
+    conexao,
+    tabela_do_handler,
     monkeypatch,
 ):
     await _os_com_itens(cliente_http, mecanico, os_em_diagnostico, servico, peca)

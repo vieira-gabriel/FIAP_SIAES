@@ -144,10 +144,13 @@ async def test_despacha_o_orcamento_finalizado_depois_de_salvar_a_os(
     assert (await ordens.buscar_por_id(os.id)).collect_domain_events() == []
 
 
-async def test_conclusao_recusada_nao_despacha_evento(finalizar, ordens, orcamentos_finalizados):
+async def test_conclusao_recusada_nao_despacha_evento(
+    finalizar, ordens, pecas, orcamentos_finalizados
+):
     peca = _peca("FLT-001")
     os = await _os_em_diagnostico(ordens, pecas_da_os=[peca])
     peca.excluir([])
+    await pecas.salvar(peca)
 
     with pytest.raises(ItemIndisponivel):
         await finalizar.executar(os.id, USUARIO_ID)

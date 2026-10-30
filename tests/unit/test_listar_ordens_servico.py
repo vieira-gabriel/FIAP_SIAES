@@ -133,9 +133,7 @@ async def test_placa_reaproveitada_lista_as_os_do_veiculo_antigo_e_do_novo(
     cenario["veiculo_jose"].excluir()
     await veiculos.salvar(cenario["veiculo_jose"])
     maria = await clientes.buscar_por_documento(Documento.de_texto(CPF_MARIA))
-    novo = Veiculo(
-        cliente_id=maria.id, placa=Placa("DEF2G34"), marca="VW", modelo="Gol", ano=2020
-    )
+    novo = Veiculo(cliente_id=maria.id, placa=Placa("DEF2G34"), marca="VW", modelo="Gol", ano=2020)
     await veiculos.salvar(novo)
     os_do_novo = await _os(ordens, "529-0B1C2D3E", maria, novo)
 

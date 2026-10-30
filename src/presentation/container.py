@@ -207,7 +207,9 @@ def _com_repositorios_de_pecas_e_eventos[T](
     )
 
 
-def _fabricas_de_handlers() -> list[tuple[type[DomainEvent], Callable[[AsyncSession], EventHandler]]]:
+def _fabricas_de_handlers() -> list[
+    tuple[type[DomainEvent], Callable[[AsyncSession], EventHandler]]
+]:
     """Os handlers da aplicação: cada um nasce por requisição, sobre a sessão dela."""
     return [
         (

@@ -188,6 +188,22 @@ async def test_a_os_nova_nao_usa_o_saldo_que_a_os_mais_antiga_ainda_espera(
     assert estoque.saldo_disponivel() == 0
 
 
+async def test_no_empate_de_data_de_abertura_a_os_que_ja_esperava_a_peca_vem_antes(
+    reservar, ordens, estoques
+):
+    peca_id = uuid4()
+    await _estoque(estoques, peca_id, fisica=2)
+    esperando = await _os(
+        ordens, [_item(peca_id, 2, pendente=2)], status=StatusOS.AGUARDANDO_PECA, abertura=ABERTURA
+    )
+    nova = await _os(ordens, [_item(peca_id, 2)], abertura=ABERTURA)
+
+    await reservar.tratar(_evento(nova))
+
+    assert await _reservada_e_pendente(ordens, esperando.id, peca_id) == (2, 0)
+    assert await _reservada_e_pendente(ordens, nova.id, peca_id) == (0, 2)
+
+
 async def test_os_mais_nova_que_espera_a_peca_nao_passa_na_frente_da_nova(
     reservar, ordens, estoques
 ):

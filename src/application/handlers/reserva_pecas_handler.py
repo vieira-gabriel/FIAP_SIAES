@@ -41,7 +41,9 @@ class ReservaPecasHandler(EventHandler[OrcamentoFinalizadoEvent]):
             return
         await self._estoques.salvar(estoque)
         for alocacao in alocacoes:
-            dona = os if alocacao.os_id == os.id else await self._ordens.buscar_por_id(alocacao.os_id)
+            dona = (
+                os if alocacao.os_id == os.id else await self._ordens.buscar_por_id(alocacao.os_id)
+            )
             dona.alocar_peca(peca_id, alocacao.quantidade_reservada)
             await self._ordens.salvar(dona)
 

@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from application.use_cases.detalhar_ordem_servico import DetalheDaOrdemServico
+from application.use_cases.listar_ordens_servico import ResumoDaOrdemServico
 from domain.entities.ordem_servico import OrdemServico
 
 
@@ -52,6 +53,31 @@ class OSResponse(BaseModel):
             atendente_id=os.atendente_id,
             mecanico_id=os.mecanico_id,
             data_abertura=os.data_abertura,
+        )
+
+
+class OSResumoResponse(BaseModel):
+    id: UUID
+    numero: str = Field(examples=["529-7F3A9C2B"])
+    status: str = Field(examples=["RECEBIDA"])
+    cliente_nome: str
+    placa: str
+    mecanico_nome: str | None
+    data_abertura: datetime
+    valor_total: Decimal | None
+
+    @classmethod
+    def de_resumo(cls, resumo: ResumoDaOrdemServico) -> "OSResumoResponse":
+        os = resumo.os
+        return cls(
+            id=os.id,
+            numero=os.numero.valor,
+            status=os.status.value,
+            cliente_nome=resumo.cliente.nome,
+            placa=resumo.veiculo.placa.valor,
+            mecanico_nome=resumo.mecanico.nome if resumo.mecanico else None,
+            data_abertura=os.data_abertura,
+            valor_total=os.orcamento.total.valor if os.orcamento else None,
         )
 
 

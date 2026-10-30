@@ -176,6 +176,10 @@ class OrdemServicoRepositoryEmMemoria(OrdemServicoRepository):
     async def buscar_por_numero(self, numero):
         return next((os for os in self.dados.values() if os.numero == numero), None)
 
+    async def listar(self, filtro):
+        selecionadas = (os for os in self.dados.values() if _atende(os, filtro))
+        return sorted(selecionadas, key=lambda os: os.data_abertura, reverse=True)
+
     async def listar_pendentes_da_peca(self, peca_id):
         pendentes = [
             os
@@ -183,6 +187,17 @@ class OrdemServicoRepositoryEmMemoria(OrdemServicoRepository):
             if any(i.peca_id == peca_id and i.quantidade_pendente > 0 for i in os.pecas)
         ]
         return sorted(pendentes, key=lambda os: os.data_abertura)
+
+
+def _atende(os, filtro):
+    return (
+        (filtro.status is None or os.status == filtro.status)
+        and (filtro.mecanico_id is None or os.mecanico_id == filtro.mecanico_id)
+        and (filtro.cliente_id is None or os.cliente_id == filtro.cliente_id)
+        and (filtro.veiculo_id is None or os.veiculo_id == filtro.veiculo_id)
+        and (filtro.abertura_de is None or os.data_abertura >= filtro.abertura_de)
+        and (filtro.abertura_ate is None or os.data_abertura <= filtro.abertura_ate)
+    )
 
 
 @pytest.fixture

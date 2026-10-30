@@ -330,7 +330,7 @@ Tarefas da fase:
 
 **Objetivo:** fornecer as visões administrativas sobre as Ordens de Serviço.
 
-- [ ] Listagem de OS com filtros por status, mecânico, CPF/CNPJ ou placa e período de abertura (RF-14)
+- [x] Listagem de OS com filtros por status, mecânico, CPF/CNPJ ou placa e período de abertura (RF-14; issue #107)
 - [x] Detalhamento da OS com histórico, cliente, veículo, itens, pendências, valores e estimativa de entrega (RF-15)
 - [ ] Relatório de tempos médios restrito ao Gerente: execução por período e por mecânico, espera por peça e tempo total da OS (RF-27)
 - [ ] Testes de integração das rotas (RNF-13)

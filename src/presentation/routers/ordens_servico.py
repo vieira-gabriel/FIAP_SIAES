@@ -1,4 +1,6 @@
+from datetime import UTC, datetime
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
@@ -8,13 +10,14 @@ from application.use_cases.criar_os import (
     DadosDoNovoCliente,
     DadosDoNovoVeiculo,
 )
+from application.use_cases.detalhar_ordem_servico import DetalharOrdemServico
 from domain.value_objects.documento import Documento
 from domain.value_objects.perfil_usuario import PerfilUsuario
 from domain.value_objects.placa import Placa
-from presentation.container import obter_criar_os
+from presentation.container import obter_criar_os, obter_detalhar_ordem_servico
 from presentation.middlewares.dependencies import exigir_perfis
 from presentation.schemas.erro import ErroResponse
-from presentation.schemas.ordem_servico import AbrirOSRequest, OSResponse
+from presentation.schemas.ordem_servico import AbrirOSRequest, OSDetalheResponse, OSResponse
 
 router = APIRouter(
     prefix="/ordens-servico",
@@ -27,6 +30,8 @@ router = APIRouter(
 
 # RF-13: a abertura é do Atendente e do Gerente.
 _ABERTURA = exigir_perfis(PerfilUsuario.ATENDENTE, PerfilUsuario.GERENTE)
+# RF-14, RF-15: a consulta é de todos os perfis.
+_CONSULTA = exigir_perfis(PerfilUsuario.ATENDENTE, PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
 
 _NAO_ENCONTRADO = {
     status.HTTP_404_NOT_FOUND: {
@@ -70,3 +75,20 @@ async def abrir_os(
         ),
     )
     return OSResponse.de_entidade(os)
+
+
+@router.get(
+    "/{id}",
+    responses={
+        status.HTTP_404_NOT_FOUND: {"model": ErroResponse, "description": "OS não encontrada."}
+    },
+)
+async def detalhar_os(
+    id: UUID,
+    _usuario: Annotated[UsuarioAutenticado, Depends(_CONSULTA)],
+    detalhar: Annotated[DetalharOrdemServico, Depends(obter_detalhar_ordem_servico)],
+) -> OSDetalheResponse:
+    """Todos os dados da OS, com itens, quantidades reservadas e pendentes, histórico e a
+    estimativa de entrega do momento da consulta (RF-15, RF-25)."""
+    detalhe = await detalhar.executar(id, datetime.now(UTC))
+    return OSDetalheResponse.de_detalhe(detalhe)

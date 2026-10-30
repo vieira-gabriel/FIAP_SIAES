@@ -25,6 +25,7 @@ from application.use_cases.criar_carga_inicial import CriarCargaInicial, SenhasD
 from application.use_cases.criar_os import CriarOS
 from application.use_cases.desativar_usuario import DesativarUsuario
 from application.use_cases.detalhar_cliente import DetalharCliente
+from application.use_cases.detalhar_ordem_servico import DetalharOrdemServico
 from application.use_cases.detalhar_peca import DetalharPeca
 from application.use_cases.detalhar_servico import DetalharServico
 from application.use_cases.detalhar_usuario import DetalharUsuario
@@ -243,6 +244,13 @@ def _com_abertura_de_os[T](
 
 
 obter_criar_os = _com_abertura_de_os(CriarOS)
+obter_detalhar_ordem_servico = _por_requisicao(
+    lambda sessao, _: DetalharOrdemServico(
+        PostgresOrdemServicoRepository(sessao),
+        PostgresClienteRepository(sessao),
+        PostgresVeiculoRepository(sessao),
+    )
+)
 obter_cadastrar_servico = _com_repositorio_de_servicos(CadastrarServico)
 obter_atualizar_servico = _com_repositorio_de_servicos(AtualizarServico)
 obter_listar_servicos = _com_repositorio_de_servicos(ListarServicos)

@@ -1,8 +1,10 @@
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from application.use_cases.detalhar_ordem_servico import DetalheDaOrdemServico
 from domain.entities.ordem_servico import OrdemServico
 
 
@@ -50,4 +52,130 @@ class OSResponse(BaseModel):
             atendente_id=os.atendente_id,
             mecanico_id=os.mecanico_id,
             data_abertura=os.data_abertura,
+        )
+
+
+class ClienteResumo(BaseModel):
+    id: UUID
+    nome: str
+
+
+class VeiculoResumo(BaseModel):
+    id: UUID
+    placa: str
+    marca: str
+    modelo: str
+
+
+class ItemServicoResponse(BaseModel):
+    servico_id: UUID
+    nome: str
+    preco_congelado: Decimal
+    tempo_estimado_minutos: int
+
+
+class ItemPecaResponse(BaseModel):
+    peca_id: UUID
+    nome: str
+    quantidade: int
+    preco_unitario_congelado: Decimal
+    prazo_reposicao_dias: int
+    quantidade_reservada: int
+    quantidade_pendente: int
+
+
+class OrcamentoResponse(BaseModel):
+    subtotal_servicos: Decimal
+    subtotal_pecas: Decimal
+    total: Decimal
+
+
+class RegistroHistoricoResponse(BaseModel):
+    status_anterior: str | None
+    status_novo: str
+    data_hora: datetime
+    origem: str
+    usuario_id: UUID | None
+    motivo: str | None
+
+
+class OSDetalheResponse(BaseModel):
+    id: UUID
+    numero: str
+    status: str
+    data_abertura: datetime
+    data_inicio_execucao: datetime | None
+    data_finalizacao: datetime | None
+    cliente: ClienteResumo
+    veiculo: VeiculoResumo
+    atendente_id: UUID
+    mecanico_id: UUID | None
+    servicos: list[ItemServicoResponse]
+    pecas: list[ItemPecaResponse]
+    orcamento: OrcamentoResponse | None
+    estimativa_entrega: datetime | None
+    historico: list[RegistroHistoricoResponse]
+
+    @classmethod
+    def de_detalhe(cls, detalhe: DetalheDaOrdemServico) -> "OSDetalheResponse":
+        os = detalhe.os
+        orcamento = os.orcamento
+        return cls(
+            id=os.id,
+            numero=os.numero.valor,
+            status=os.status.value,
+            data_abertura=os.data_abertura,
+            data_inicio_execucao=os.data_inicio_execucao,
+            data_finalizacao=os.data_finalizacao,
+            cliente=ClienteResumo(id=detalhe.cliente.id, nome=detalhe.cliente.nome),
+            veiculo=VeiculoResumo(
+                id=detalhe.veiculo.id,
+                placa=detalhe.veiculo.placa.valor,
+                marca=detalhe.veiculo.marca,
+                modelo=detalhe.veiculo.modelo,
+            ),
+            atendente_id=os.atendente_id,
+            mecanico_id=os.mecanico_id,
+            servicos=[
+                ItemServicoResponse(
+                    servico_id=item.servico_id,
+                    nome=item.nome,
+                    preco_congelado=item.preco_congelado.valor,
+                    tempo_estimado_minutos=item.tempo_estimado_minutos,
+                )
+                for item in os.servicos
+            ],
+            pecas=[
+                ItemPecaResponse(
+                    peca_id=item.peca_id,
+                    nome=item.nome,
+                    quantidade=item.quantidade,
+                    preco_unitario_congelado=item.preco_unitario_congelado.valor,
+                    prazo_reposicao_dias=item.prazo_reposicao_dias,
+                    quantidade_reservada=item.quantidade_reservada,
+                    quantidade_pendente=item.quantidade_pendente,
+                )
+                for item in os.pecas
+            ],
+            orcamento=(
+                OrcamentoResponse(
+                    subtotal_servicos=orcamento.subtotal_servicos.valor,
+                    subtotal_pecas=orcamento.subtotal_pecas.valor,
+                    total=orcamento.total.valor,
+                )
+                if orcamento
+                else None
+            ),
+            estimativa_entrega=detalhe.estimativa_entrega,
+            historico=[
+                RegistroHistoricoResponse(
+                    status_anterior=r.status_anterior.value if r.status_anterior else None,
+                    status_novo=r.status_novo.value,
+                    data_hora=r.data_hora,
+                    origem=r.origem.value,
+                    usuario_id=r.usuario_id,
+                    motivo=r.motivo,
+                )
+                for r in os.historico
+            ],
         )

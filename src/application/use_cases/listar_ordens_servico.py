@@ -40,7 +40,8 @@ class ResumoDaOrdemServico:
 class ListarOrdensServico:
     """OS filtradas por status, mecânico, cliente, veículo e período de abertura (RF-14).
 
-    Documento ou placa sem cadastro não têm OS, então a listagem volta vazia, e não com 404.
+    Documento ou placa sem cadastro não têm OS, então a listagem volta vazia, e não com 404. A
+    placa vale para todos os veículos que a tiveram, inclusive os excluídos (RF-09).
     """
 
     def __init__(
@@ -68,10 +69,12 @@ class ListarOrdensServico:
                 return []
             filtro = replace(filtro, cliente_id=cliente.id)
         if criterios.placa is not None:
-            veiculo = await self._veiculos.buscar_por_placa(criterios.placa)
-            if veiculo is None:
+            veiculos_da_placa = await self._veiculos.listar_por_placa(criterios.placa)
+            if not veiculos_da_placa:
                 return []
-            filtro = replace(filtro, veiculo_id=veiculo.id)
+            filtro = replace(
+                filtro, veiculos_ids=frozenset(veiculo.id for veiculo in veiculos_da_placa)
+            )
 
         ordens = await self._ordens.listar(filtro)
         clientes = await _buscar_todos(

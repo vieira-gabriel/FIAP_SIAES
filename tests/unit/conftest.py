@@ -43,6 +43,9 @@ class VeiculoRepositoryEmMemoria(VeiculoRepository):
     async def buscar_por_placa(self, placa):
         return next((v for v in self.dados.values() if v.ativo and v.placa == placa), None)
 
+    async def listar_por_placa(self, placa):
+        return [v for v in self.dados.values() if v.placa == placa]
+
     async def listar(self, cliente_id=None):
         selecionados = (
             v
@@ -194,7 +197,7 @@ def _atende(os, filtro):
         (filtro.status is None or os.status == filtro.status)
         and (filtro.mecanico_id is None or os.mecanico_id == filtro.mecanico_id)
         and (filtro.cliente_id is None or os.cliente_id == filtro.cliente_id)
-        and (filtro.veiculo_id is None or os.veiculo_id == filtro.veiculo_id)
+        and (filtro.veiculos_ids is None or os.veiculo_id in filtro.veiculos_ids)
         and (filtro.abertura_de is None or os.data_abertura >= filtro.abertura_de)
         and (filtro.abertura_ate is None or os.data_abertura <= filtro.abertura_ate)
     )

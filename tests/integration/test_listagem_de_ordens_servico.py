@@ -166,6 +166,33 @@ async def test_filtra_pelo_periodo_de_abertura(cliente_http, atendente, cenario)
     assert antes.json() == []
 
 
+async def test_a_placa_de_veiculo_excluido_continua_listando_as_os_dele(
+    cliente_http, atendente, cenario
+):
+    jose = cenario["em_diagnostico"]
+    excluido = await cliente_http.delete(
+        f"/veiculos/{jose['veiculo_id']}", headers=_cabecalho(atendente)
+    )
+
+    resposta = await _listar(cliente_http, atendente, placa="DEF2G34")
+
+    assert excluido.status_code == 204
+    assert [os["id"] for os in resposta.json()] == [jose["id"]]
+
+
+async def test_placa_reaproveitada_lista_as_os_do_veiculo_antigo_e_do_novo(
+    cliente_http, atendente, cenario
+):
+    cabecalho = _cabecalho(atendente)
+    jose = cenario["em_diagnostico"]
+    await cliente_http.delete(f"/veiculos/{jose['veiculo_id']}", headers=cabecalho)
+    nova = await _abrir(cliente_http, cabecalho, CPF_MARIA, "DEF2G34", "Maria")
+
+    resposta = await _listar(cliente_http, atendente, placa="DEF2G34")
+
+    assert {os["id"] for os in resposta.json()} == {jose["id"], nova["id"]}
+
+
 async def test_combina_os_filtros(cliente_http, atendente, cenario):
     resposta = await _listar(cliente_http, atendente, documento=CPF_JOSE, status="RECEBIDA")
 

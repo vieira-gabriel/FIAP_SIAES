@@ -13,7 +13,7 @@ class FiltroOrdensServico:
     status: StatusOS | None = None
     mecanico_id: UUID | None = None
     cliente_id: UUID | None = None
-    veiculo_id: UUID | None = None
+    veiculos_ids: frozenset[UUID] | None = None
     abertura_de: datetime | None = None
     abertura_ate: datetime | None = None
 

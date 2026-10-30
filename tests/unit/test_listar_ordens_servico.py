@@ -116,6 +116,34 @@ async def test_filtra_pela_placa_do_veiculo(clientes, veiculos, ordens, usuarios
     assert [r.os.id for r in resumos] == [cenario["em_diagnostico"].id]
 
 
+async def test_a_placa_de_veiculo_excluido_continua_listando_as_os_dele(
+    clientes, veiculos, ordens, usuarios, cenario
+):
+    cenario["veiculo_jose"].excluir()
+    await veiculos.salvar(cenario["veiculo_jose"])
+
+    resumos = await _listar(clientes, veiculos, ordens, usuarios, placa=Placa("DEF2G34"))
+
+    assert [r.os.id for r in resumos] == [cenario["em_diagnostico"].id]
+
+
+async def test_placa_reaproveitada_lista_as_os_do_veiculo_antigo_e_do_novo(
+    clientes, veiculos, ordens, usuarios, cenario
+):
+    cenario["veiculo_jose"].excluir()
+    await veiculos.salvar(cenario["veiculo_jose"])
+    maria = await clientes.buscar_por_documento(Documento.de_texto(CPF_MARIA))
+    novo = Veiculo(
+        cliente_id=maria.id, placa=Placa("DEF2G34"), marca="VW", modelo="Gol", ano=2020
+    )
+    await veiculos.salvar(novo)
+    os_do_novo = await _os(ordens, "529-0B1C2D3E", maria, novo)
+
+    resumos = await _listar(clientes, veiculos, ordens, usuarios, placa=Placa("DEF2G34"))
+
+    assert {r.os.id for r in resumos} == {cenario["em_diagnostico"].id, os_do_novo.id}
+
+
 async def test_documento_sem_cliente_cadastrado_devolve_lista_vazia(
     clientes, veiculos, ordens, usuarios, cenario
 ):

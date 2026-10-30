@@ -121,8 +121,8 @@ def _condicoes(filtro: FiltroOrdensServico) -> list[ColumnElement[bool]]:
         condicoes.append(OrdemServicoModel.mecanico_id == filtro.mecanico_id)
     if filtro.cliente_id is not None:
         condicoes.append(OrdemServicoModel.cliente_id == filtro.cliente_id)
-    if filtro.veiculo_id is not None:
-        condicoes.append(OrdemServicoModel.veiculo_id == filtro.veiculo_id)
+    if filtro.veiculos_ids is not None:
+        condicoes.append(OrdemServicoModel.veiculo_id.in_(filtro.veiculos_ids))
     if filtro.abertura_de is not None:
         condicoes.append(OrdemServicoModel.data_abertura >= filtro.abertura_de)
     if filtro.abertura_ate is not None:

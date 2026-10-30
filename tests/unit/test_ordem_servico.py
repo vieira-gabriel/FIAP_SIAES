@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 
+from domain.entities.estoque_peca import EstoquePeca
 from domain.entities.historico_status_os import HistoricoStatusOS
 from domain.entities.item_peca import ItemPeca
 from domain.entities.ordem_servico import OrdemServico
@@ -29,6 +30,7 @@ from domain.exceptions import (
 from domain.value_objects.numero_os import NumeroOS
 from domain.value_objects.orcamento import Orcamento
 from domain.value_objects.origem_transicao import OrigemTransicao
+from domain.value_objects.pendencia_peca import PendenciaPeca
 from domain.value_objects.perfil_usuario import PerfilUsuario
 from domain.value_objects.quantidade_peca import QuantidadePeca
 from domain.value_objects.status_os import StatusOS
@@ -1637,3 +1639,122 @@ def test_collect_domain_events_devolve_na_ordem_e_esvazia_a_lista():
 
     assert [type(evento) for evento in eventos] == [ExecucaoIniciadaEvent, OSCanceladaEvent]
     assert os.collect_domain_events() == []
+
+
+def os_aguardando_peca(*itens: ItemPeca, **alteracoes) -> OrdemServico:
+    return criar_os(status=StatusOS.AGUARDANDO_PECA, pecas=list(itens), **alteracoes)
+
+
+def test_alocar_peca_converte_a_pendente_em_reservada_e_mantem_a_os_aguardando_peca():
+    item, outro = item_peca_reservado(3, 1, pendente=2), item_peca_reservado(1, 0, pendente=1)
+    os = os_aguardando_peca(item, outro)
+
+    os.alocar_peca(item.peca_id, 1)
+
+    assert (item.quantidade_reservada, item.quantidade_pendente) == (2, 1)
+    assert (outro.quantidade_reservada, outro.quantidade_pendente) == (0, 1)
+    assert os.status is StatusOS.AGUARDANDO_PECA
+
+
+def test_alocar_peca_libera_a_os_em_aguardando_peca_quando_nao_resta_pendencia():
+    item = item_peca_reservado(3, 1, pendente=2)
+    os = os_aguardando_peca(item)
+
+    os.alocar_peca(item.peca_id, 2)
+
+    assert (item.quantidade_reservada, item.quantidade_pendente) == (3, 0)
+    assert os.status is StatusOS.AGUARDANDO_EXECUCAO
+    registro = os.historico[-1]
+    assert (registro.status_anterior, registro.status_novo) == (
+        StatusOS.AGUARDANDO_PECA,
+        StatusOS.AGUARDANDO_EXECUCAO,
+    )
+    assert registro.origem is OrigemTransicao.SISTEMA
+    assert registro.usuario_id is None
+
+
+def test_alocar_peca_so_libera_a_os_quando_a_ultima_peca_pendente_e_alocada():
+    primeira, segunda = item_peca_reservado(2, 0, pendente=2), item_peca_reservado(1, 0, pendente=1)
+    os = os_aguardando_peca(primeira, segunda)
+
+    os.alocar_peca(primeira.peca_id, 2)
+    assert os.status is StatusOS.AGUARDANDO_PECA
+
+    os.alocar_peca(segunda.peca_id, 1)
+    assert os.status is StatusOS.AGUARDANDO_EXECUCAO
+
+
+def test_alocar_peca_em_aguardando_aprovacao_reserva_sem_mudar_o_status():
+    peca = criar_peca()
+    os = criar_os()
+    os.incluir_peca(peca, quantidade=2)
+    os.finalizar_orcamento(USUARIO_ID, [], [peca])
+
+    os.alocar_peca(peca.id, 2)
+
+    assert os.status is StatusOS.AGUARDANDO_APROVACAO
+    assert (os.pecas[0].quantidade_reservada, os.pecas[0].quantidade_pendente) == (2, 0)
+    os.aprovar_orcamento()
+    assert os.status is StatusOS.AGUARDANDO_EXECUCAO
+
+
+def test_alocar_peca_nao_acumula_evento_de_dominio():
+    item = item_peca_reservado(1, 0, pendente=1)
+    os = os_aguardando_peca(item)
+
+    os.alocar_peca(item.peca_id, 1)
+
+    assert os.collect_domain_events() == []
+
+
+def test_alocar_peca_que_nao_esta_na_os_nao_altera_nada():
+    item = item_peca_reservado(1, 0, pendente=1)
+    os = os_aguardando_peca(item)
+
+    with pytest.raises(EntidadeNaoEncontrada):
+        os.alocar_peca(uuid4(), 1)
+
+    assert (item.quantidade_reservada, item.quantidade_pendente) == (0, 1)
+    assert os.status is StatusOS.AGUARDANDO_PECA
+
+
+@pytest.mark.parametrize("quantidade", [0, -1, 3, True, 1.5, None])
+def test_alocar_peca_com_quantidade_invalida_ou_acima_da_pendente_nao_altera_nada(quantidade):
+    item = item_peca_reservado(3, 1, pendente=2)
+    os = os_aguardando_peca(item)
+
+    with pytest.raises(OrdemServicoInvalida):
+        os.alocar_peca(item.peca_id, quantidade)
+
+    assert (item.quantidade_reservada, item.quantidade_pendente) == (1, 2)
+    assert os.status is StatusOS.AGUARDANDO_PECA
+    assert os.historico == ()
+
+
+def test_reposicao_insuficiente_libera_so_a_os_mais_antiga_e_a_mais_nova_segue_aguardando():
+    peca = criar_peca()
+    abertura = datetime(2026, 10, 27, 9, 0, tzinfo=UTC)
+
+    def os_aguardando(data_abertura: datetime) -> OrdemServico:
+        item = ItemPeca.a_partir_de(peca, quantidade=3)
+        item.marcar_como_pendente()
+        return os_aguardando_peca(item, data_abertura=data_abertura)
+
+    antiga, nova = os_aguardando(abertura), os_aguardando(abertura + timedelta(hours=2))
+    estoque = EstoquePeca(peca_id=peca.id, quantidade_fisica=4)
+    ordens = {antiga.id: antiga, nova.id: nova}
+
+    alocacoes = estoque.alocar_pendencias(
+        [
+            PendenciaPeca(nova.id, nova.data_abertura, nova.pecas[0].quantidade_pendente),
+            PendenciaPeca(antiga.id, antiga.data_abertura, antiga.pecas[0].quantidade_pendente),
+        ]
+    )
+    for alocacao in alocacoes:
+        ordens[alocacao.os_id].alocar_peca(peca.id, alocacao.quantidade_reservada)
+
+    assert [(a.os_id, a.quantidade_reservada) for a in alocacoes] == [(antiga.id, 3), (nova.id, 1)]
+    assert antiga.status is StatusOS.AGUARDANDO_EXECUCAO
+    assert nova.status is StatusOS.AGUARDANDO_PECA
+    assert (nova.pecas[0].quantidade_reservada, nova.pecas[0].quantidade_pendente) == (1, 2)
+    assert estoque.saldo_disponivel() == 0

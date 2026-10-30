@@ -22,7 +22,7 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 | CI | `.github/workflows/ci.yml` em cada PR e em cada push na `main`: lint, testes com PostgreSQL, cobertura mínima de 80%, Bandit, pip-audit e `docker build` (issue #29) |
 | Docker | `Dockerfile` em Python 3.12, multi-stage com `uv`, usuário não-root e sem o `pip` da imagem base, e `docker-compose.yml` com `app` e `db` (PostgreSQL 16); as migrations rodam antes do Uvicorn |
 | Segurança | Revisão de segredos no código e no histórico (issue #114, `docs/security/revisao-de-segredos.md`) e análise de vulnerabilidades das dependências, do código e da imagem (issue #111, `docs/security/analise-de-vulnerabilidades.md`), ambas sem achado crítico e a repetir no commit final. Medição de desempenho, revisão de SQL Injection, IDOR e XSS e revisão do Swagger seguem pendentes (Fase 7) |
-| Pendências do domínio | `OrdemServico.alocar_peca` (issue #43, parte 2). Os eventos de domínio estão prontos (issue #45), e os handlers que reagem a eles entram com a Fase 5. A persistência da OS e o caso de uso `FinalizarOrcamento` estão prontos (issue #88), ainda sem rota; o despacho dos eventos na transação está ligado, com os handlers da Fase 5 entrando por `app.state.fabricas_de_handlers` (issue #89). A abertura da OS (`CriarOS`, rota `POST /ordens-servico`) também está pronta (issue #90) |
+| Pendências do domínio | Nenhuma regra de domínio: `OrdemServico.alocar_peca` (issue #43) e os eventos de domínio (issue #45) estão prontos. A persistência da OS (issue #88), a abertura da OS (issue #90) e a conclusão do orçamento, com o despacho do evento na transação (issues #89 e #92), estão prontas, e os handlers que reagem aos eventos entram por `app.state.fabricas_de_handlers` com a Fase 5 |
 | README | Objetivo, solução, arquitetura, tecnologias e banco de dados (issue #116), pré-requisitos, execução, testes, Swagger e usuários de demonstração (issue #117); faltam a estrutura de diretórios, o link para a documentação DDD e o link do vídeo (issue #121) |
 
 ---
@@ -47,7 +47,7 @@ flowchart LR
 | **0** | Fundação | - | Decisões fechadas, documentos alinhados entre si e ao enunciado, repositório configurado | Em andamento |
 | **1** | Modelagem DDD | 0 | Event Storming completo e legível, diagramas e linguagem ubíqua consistentes entre si | Em andamento |
 | **2** | Infraestrutura base | 0 | `docker compose up --build` sobe API + PostgreSQL com Swagger em `/docs` | Concluída |
-| **3** | Domínio | 1 | Entidades, objetos de valor, eventos e regras de negócio com testes unitários | Quase concluída (falta a issue #43 parte 2) |
+| **3** | Domínio | 1 | Entidades, objetos de valor, eventos e regras de negócio com testes unitários | Concluída |
 | **4** | Autenticação e cadastros | 2, 3 | Login JWT, RBAC, gestão de usuários e cadastros administrativos | Concluída (login, RBAC, carga inicial, usuários, clientes, veículos, serviços e peças) |
 | **5** | Fluxo da OS | 4 | Abertura, orçamento, reserva e pendência de peças, aprovação, execução e consulta pública | Não iniciada |
 | **6** | Gestão e métricas | 5 | Listagem, detalhamento e relatório de tempos médios | Não iniciada |
@@ -261,14 +261,14 @@ Tarefas da fase:
 - [x] Bloqueio de alteração de itens após `FINALIZADA` (RF-21; issue #40): os itens só mudam em `EM_DIAGNOSTICO`
 - [x] Histórico de status com origem, usuário e motivo obrigatório no cancelamento (RF-24, RF-23; issue #41): `HistoricoStatusOS` imutável, histórico da OS somente leitura, registro de abertura criado por `OrdemServico.abrir` e um registro por transição, gravado pelo `_mudar_status`
 - [x] Agregado `EstoquePeca` com quantidade física, reserva, pendência, baixa e estorno, sem permitir saldo negativo (RF-12, RF-18, RF-20; issue #42): `reservar` devolve (reservada, pendente), `SaldoPecaAtualizadoEvent` acumulado quando o saldo aumenta, e porta `EstoqueRepository`; a alocação por prioridade (`alocar_pendencias`) fica na #43
-- [ ] Regra de prioridade pela OS mais antiga na reserva e na alocação de peças repostas (RF-18, RF-19; issue #43): `PendenciaPeca`, `AlocacaoPeca` e `EstoquePeca.alocar_pendencias` prontos (parte 1); falta `OrdemServico.alocar_peca` (parte 2)
+- [x] Regra de prioridade pela OS mais antiga na reserva e na alocação de peças repostas (RF-18, RF-19; issue #43): `PendenciaPeca`, `AlocacaoPeca` e `EstoquePeca.alocar_pendencias` (parte 1) e `OrdemServico.alocar_peca`, que converte a quantidade pendente do item em reservada e libera a OS de `AGUARDANDO_PECA` para `AGUARDANDO_EXECUCAO` quando não resta pendência (parte 2)
 - [x] Cálculo da estimativa de entrega por status (RF-25; issue #44): `OrdemServico.estimar_entrega(momento_consulta)` com os valores congelados nos itens e uma linha de teste para cada status da tabela
 - [x] Eventos de domínio acumulados nos agregados (`collect_domain_events`; issue #45): `DomainEvent` e os quatro eventos do catálogo (`OrcamentoFinalizadoEvent`, `OSCanceladaEvent`, `ExecucaoIniciadaEvent` e `SaldoPecaAtualizadoEvent`), acumulados pela `OrdemServico` e pelo `EstoquePeca`, e o objeto de valor `QuantidadePeca` das listas de estornos e de baixas. A unificação da validação da quantidade de peça segue em aberto (guia, seção 8.2)
 - [x] Interfaces (portas) dos repositórios (issue #46): `ClienteRepository`, `VeiculoRepository`, `UsuarioRepository`, `ServicoRepository`, `PecaRepository`, `EstoqueRepository` e `OrdemServicoRepository`, esta com a consulta das OS que têm a peça pendente, na ordem da abertura
 
 ### Testes
 
-- [x] Testes unitários dos objetos de valor, da máquina de estados, do cálculo do orçamento, da estimativa de entrega e das regras de estoque, usando repositórios em memória (RNF-12); os testes da alocação às OS (`alocar_peca`) entram com a issue #43
+- [x] Testes unitários dos objetos de valor, da máquina de estados, do cálculo do orçamento, da estimativa de entrega e das regras de estoque, usando repositórios em memória (RNF-12)
 
 ---
 

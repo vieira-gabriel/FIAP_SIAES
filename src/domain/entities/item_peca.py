@@ -24,8 +24,7 @@ class ItemPeca:
     quantidade_pendente: int = 0
 
     def __post_init__(self):
-        if type(self.quantidade) is not int or self.quantidade <= 0:
-            raise OrdemServicoInvalida("a quantidade deve ser um número inteiro maior que zero")
+        _exigir_quantidade_positiva(self.quantidade)
         for quantidade in (self.quantidade_reservada, self.quantidade_pendente):
             if type(quantidade) is not int or quantidade < 0:
                 raise OrdemServicoInvalida("reservada e pendente não podem ser negativas")
@@ -60,9 +59,22 @@ class ItemPeca:
         """Na rejeição e no cancelamento as pendências da OS somem (RF-18)."""
         self.quantidade_pendente = 0
 
+    def alocar(self, quantidade: int) -> None:
+        """Converte quantidade pendente em reservada, depois que o estoque a reservou (RF-19)."""
+        _exigir_quantidade_positiva(quantidade)
+        if quantidade > self.quantidade_pendente:
+            raise OrdemServicoInvalida("a quantidade alocada não pode passar da pendente")
+        self.quantidade_pendente -= quantidade
+        self.quantidade_reservada += quantidade
+
     def congelar(self, peca: Peca) -> None:
         if peca.id != self.peca_id:
             raise OrdemServicoInvalida("a peça informada não é a do item")
         self.nome = peca.nome
         self.preco_unitario_congelado = peca.preco_unitario
         self.prazo_reposicao_dias = peca.prazo_reposicao_dias
+
+
+def _exigir_quantidade_positiva(quantidade: object) -> None:
+    if type(quantidade) is not int or quantidade <= 0:
+        raise OrdemServicoInvalida("a quantidade deve ser um número inteiro maior que zero")

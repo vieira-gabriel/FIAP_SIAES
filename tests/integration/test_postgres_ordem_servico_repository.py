@@ -137,9 +137,7 @@ async def test_salva_e_recarrega_a_os_com_itens_historico_e_valores_congelados(
     fabrica_de_sessoes, cadastros
 ):
     os = _orcada(cadastros)
-    # Atribuição direta até `OrdemServico.alocar_peca` existir (issue #43): a ida e volta precisa
-    # de reservada e pendente diferentes de zero.
-    os.pecas[0].quantidade_reservada, os.pecas[0].quantidade_pendente = 1, 1
+    os.alocar_peca(os.pecas[0].peca_id, 1)
     await _salvar(fabrica_de_sessoes, os)
 
     async with UnidadeDeTrabalhoSqlAlchemy(fabrica_de_sessoes) as unidade:

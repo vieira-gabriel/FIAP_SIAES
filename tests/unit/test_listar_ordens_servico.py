@@ -40,7 +40,7 @@ async def _os(ordens, numero: str, cliente, veiculo, mecanico: Usuario | None = 
         atendente_id=uuid4(),
     )
     if mecanico is not None:
-        os.atribuir_mecanico(mecanico.id)
+        os.atribuir_mecanico(mecanico, mecanico)
     await ordens.salvar(os)
     return os
 

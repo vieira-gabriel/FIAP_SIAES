@@ -69,7 +69,7 @@ async def _atribuir_mecanico(fabrica_de_sessoes, os_id: str, mecanico: Usuario) 
     async with UnidadeDeTrabalhoSqlAlchemy(fabrica_de_sessoes) as unidade:
         ordens = PostgresOrdemServicoRepository(unidade.sessao)
         os = await ordens.buscar_por_id(os_id)
-        os.atribuir_mecanico(mecanico.id)
+        os.atribuir_mecanico(mecanico, mecanico)
         await ordens.salvar(os)
 
 

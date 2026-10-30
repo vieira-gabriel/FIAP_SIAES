@@ -19,6 +19,7 @@ from domain.exceptions import (
     ItemIndisponivel,
     ItemJaIncluido,
     ItensBloqueados,
+    MecanicoIndisponivel,
     MotivoObrigatorio,
     OrdemServicoInvalida,
     PecasPendentes,
@@ -442,22 +443,48 @@ def fora_de(*permitidos: StatusOS) -> list[StatusOS]:
     return [status for status in StatusOS if status not in permitidos]
 
 
-def test_atribuir_mecanico_leva_a_os_para_em_diagnostico():
-    mecanico_id = uuid4()
+def _recusada_sem_alterar(os: OrdemServico) -> None:
+    assert os.status is StatusOS.RECEBIDA
+    assert os.mecanico_id is None
+    assert os.historico == ()
+
+
+def test_mecanico_atribui_a_os_a_si_mesmo_e_ela_vai_para_em_diagnostico():
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
     os = criar_os(status=StatusOS.RECEBIDA)
 
-    os.atribuir_mecanico(mecanico_id)
+    os.atribuir_mecanico(mecanico, mecanico)
 
     assert os.status is StatusOS.EM_DIAGNOSTICO
-    assert os.mecanico_id == mecanico_id
+    assert os.mecanico_id == mecanico.id
+    registro = os.historico[-1]
+    assert (registro.status_anterior, registro.status_novo) == (
+        StatusOS.RECEBIDA,
+        StatusOS.EM_DIAGNOSTICO,
+    )
+    assert registro.origem is OrigemTransicao.USUARIO
+    assert registro.usuario_id == mecanico.id
+
+
+def test_gerente_atribui_a_os_a_um_mecanico_e_o_historico_grava_o_gerente():
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
+    gerente = criar_usuario(PerfilUsuario.GERENTE)
+    os = criar_os(status=StatusOS.RECEBIDA)
+
+    os.atribuir_mecanico(mecanico, gerente)
+
+    assert os.status is StatusOS.EM_DIAGNOSTICO
+    assert os.mecanico_id == mecanico.id
+    assert os.historico[-1].usuario_id == gerente.id
 
 
 @pytest.mark.parametrize("status", fora_de(StatusOS.RECEBIDA))
 def test_atribuir_mecanico_so_a_partir_de_recebida(status):
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
     os = criar_os(status=status)
 
     with pytest.raises(TransicaoDeStatusInvalida) as erro:
-        os.atribuir_mecanico(uuid4())
+        os.atribuir_mecanico(mecanico, mecanico)
 
     assert erro.value.status_atual is status
     assert erro.value.status_pretendido is StatusOS.EM_DIAGNOSTICO
@@ -465,15 +492,68 @@ def test_atribuir_mecanico_so_a_partir_de_recebida(status):
     assert os.mecanico_id is None
 
 
-@pytest.mark.parametrize("mecanico_id", ["nao-e-uuid", None, 123])
-def test_atribuir_mecanico_recusa_id_invalido_sem_mudar_o_status(mecanico_id):
+def test_mecanico_nao_atribui_a_os_a_outro_mecanico():
+    os = criar_os(status=StatusOS.RECEBIDA)
+
+    with pytest.raises(AcessoNegado):
+        os.atribuir_mecanico(
+            criar_usuario(PerfilUsuario.MECANICO), criar_usuario(PerfilUsuario.MECANICO)
+        )
+
+    _recusada_sem_alterar(os)
+
+
+def test_atendente_nao_atribui_mecanico():
+    os = criar_os(status=StatusOS.RECEBIDA)
+
+    with pytest.raises(AcessoNegado):
+        os.atribuir_mecanico(
+            criar_usuario(PerfilUsuario.MECANICO), criar_usuario(PerfilUsuario.ATENDENTE)
+        )
+
+    _recusada_sem_alterar(os)
+
+
+@pytest.mark.parametrize("perfil", [PerfilUsuario.GERENTE, PerfilUsuario.MECANICO])
+def test_responsavel_desativado_nao_atribui_mecanico(perfil):
+    responsavel = criar_usuario(perfil, ativo=False)
+    mecanico = responsavel if perfil is PerfilUsuario.MECANICO else criar_usuario(perfil)
+    os = criar_os(status=StatusOS.RECEBIDA)
+
+    with pytest.raises(AcessoNegado, match="desativado"):
+        os.atribuir_mecanico(mecanico, responsavel)
+
+    _recusada_sem_alterar(os)
+
+
+@pytest.mark.parametrize(
+    ("perfil", "ativo"),
+    [
+        (PerfilUsuario.GERENTE, True),
+        (PerfilUsuario.ATENDENTE, True),
+        (PerfilUsuario.MECANICO, False),
+    ],
+)
+def test_gerente_so_atribui_a_os_a_mecanico_ativo(perfil, ativo):
+    os = criar_os(status=StatusOS.RECEBIDA)
+
+    with pytest.raises(MecanicoIndisponivel):
+        os.atribuir_mecanico(criar_usuario(perfil, ativo), criar_usuario(PerfilUsuario.GERENTE))
+
+    _recusada_sem_alterar(os)
+
+
+@pytest.mark.parametrize("invalido", ["nao-e-usuario", None, 123, uuid4()])
+def test_atribuir_mecanico_recusa_mecanico_ou_responsavel_invalido(invalido):
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
     os = criar_os(status=StatusOS.RECEBIDA)
 
     with pytest.raises(OrdemServicoInvalida):
-        os.atribuir_mecanico(mecanico_id)
+        os.atribuir_mecanico(invalido, mecanico)
+    with pytest.raises(OrdemServicoInvalida):
+        os.atribuir_mecanico(mecanico, invalido)
 
-    assert os.status is StatusOS.RECEBIDA
-    assert os.mecanico_id is None
+    _recusada_sem_alterar(os)
 
 
 def test_finalizar_orcamento_congela_os_valores_vigentes_e_aguarda_a_aprovacao():
@@ -793,7 +873,7 @@ def test_fluxo_completo_sem_pecas_pendentes():
     servico = criar_servico()
     os = criar_os(status=StatusOS.RECEBIDA)
 
-    os.atribuir_mecanico(mecanico.id)
+    os.atribuir_mecanico(mecanico, mecanico)
     os.incluir_servico(servico)
     os.finalizar_orcamento(USUARIO_ID, [servico], [])
     os.aprovar_orcamento()
@@ -1029,11 +1109,11 @@ def test_o_historico_da_os_e_somente_leitura():
 
 
 def test_o_historico_so_cresce_pelas_transicoes():
-    mecanico_id = uuid4()
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
     os = abrir_os()
     antes = os.historico
 
-    os.atribuir_mecanico(mecanico_id)
+    os.atribuir_mecanico(mecanico, mecanico)
 
     assert os.historico[:1] == antes
     assert len(os.historico) == 2
@@ -1051,7 +1131,7 @@ def test_fluxo_completo_registra_a_sequencia_de_transicoes():
     servico = criar_servico()
     os = abrir_os(atendente_id=atendente_id)
 
-    os.atribuir_mecanico(mecanico.id)
+    os.atribuir_mecanico(mecanico, mecanico)
     os.incluir_servico(servico)
     os.finalizar_orcamento(mecanico.id, [servico], [])
     os.aprovar_orcamento()
@@ -1329,7 +1409,7 @@ def test_a_estimativa_acompanha_o_fluxo_real_da_os():
     os = criar_os(status=StatusOS.RECEBIDA, mecanico_id=None)
     assert os.estimar_entrega(MOMENTO_DA_CONSULTA) is None
 
-    os.atribuir_mecanico(mecanico.id)
+    os.atribuir_mecanico(mecanico, mecanico)
     os.incluir_servico(servico)
     os.incluir_peca(peca, quantidade=1)
     assert os.estimar_entrega(MOMENTO_DA_CONSULTA) is None
@@ -1528,8 +1608,9 @@ def test_iniciar_execucao_recusada_nao_acumula_evento():
 
 
 def test_transicoes_sem_reacao_no_estoque_nao_acumulam_evento():
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
     os = criar_os(status=StatusOS.RECEBIDA)
-    os.atribuir_mecanico(uuid4())
+    os.atribuir_mecanico(mecanico, mecanico)
     aguardando_peca = os_aguardando_aprovacao_com_peca_pendente()
     aguardando_peca.collect_domain_events()
 

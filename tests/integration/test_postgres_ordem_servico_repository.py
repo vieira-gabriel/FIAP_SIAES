@@ -112,7 +112,7 @@ def _abrir(cadastros: Cadastros, numero: str = "529-7F3A9C2B") -> OrdemServico:
 def _orcada(cadastros: Cadastros, numero: str = "529-7F3A9C2B") -> OrdemServico:
     """Em `AGUARDANDO_APROVACAO`, com o filtro e a vela pendentes."""
     os = _abrir(cadastros, numero)
-    os.atribuir_mecanico(cadastros.mecanico.id)
+    os.atribuir_mecanico(cadastros.mecanico, cadastros.mecanico)
     os.incluir_servico(cadastros.servico)
     os.incluir_peca(cadastros.filtro, quantidade=2)
     os.incluir_peca(cadastros.vela, quantidade=4)
@@ -187,7 +187,7 @@ async def test_salvar_de_novo_insere_so_o_registro_novo_e_remove_o_item_retirado
     fabrica_de_sessoes, cadastros
 ):
     os = _abrir(cadastros)
-    os.atribuir_mecanico(cadastros.mecanico.id)
+    os.atribuir_mecanico(cadastros.mecanico, cadastros.mecanico)
     os.incluir_peca(cadastros.filtro, quantidade=1)
     os.incluir_peca(cadastros.vela, quantidade=1)
     await _salvar(fabrica_de_sessoes, os)
@@ -211,7 +211,7 @@ async def test_salvar_de_novo_insere_so_o_registro_novo_e_remove_o_item_retirado
 
 async def test_itens_voltam_em_ordem_de_nome(fabrica_de_sessoes, cadastros):
     os = _abrir(cadastros)
-    os.atribuir_mecanico(cadastros.mecanico.id)
+    os.atribuir_mecanico(cadastros.mecanico, cadastros.mecanico)
     os.incluir_peca(cadastros.vela, quantidade=1)
     os.incluir_peca(cadastros.filtro, quantidade=1)
     await _salvar(fabrica_de_sessoes, os)
@@ -330,7 +330,7 @@ async def test_finalizar_orcamento_recusa_peca_excluida_depois_de_incluida(
     fabrica_de_sessoes, cadastros
 ):
     os = _abrir(cadastros)
-    os.atribuir_mecanico(cadastros.mecanico.id)
+    os.atribuir_mecanico(cadastros.mecanico, cadastros.mecanico)
     os.incluir_peca(cadastros.filtro, quantidade=1)
     await _salvar(fabrica_de_sessoes, os)
     cadastros.filtro.excluir([])
@@ -356,7 +356,7 @@ async def test_finalizar_orcamento_espera_a_exclusao_da_peca_em_andamento(
     """A exclusão bloqueia o estoque, e a conclusão espera o bloqueio antes de ler o catálogo
     (RF-12)."""
     os = _abrir(cadastros)
-    os.atribuir_mecanico(cadastros.mecanico.id)
+    os.atribuir_mecanico(cadastros.mecanico, cadastros.mecanico)
     os.incluir_peca(cadastros.filtro, quantidade=1)
     await _salvar(fabrica_de_sessoes, os)
 

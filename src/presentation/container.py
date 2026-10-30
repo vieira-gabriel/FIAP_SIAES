@@ -10,6 +10,7 @@ from application.ports.token_service import TokenService
 from application.ports.verificador_do_banco import VerificadorDoBanco
 from application.use_cases.ajustar_quantidade_fisica_da_peca import AjustarQuantidadeFisicaDaPeca
 from application.use_cases.alterar_senha_do_usuario import AlterarSenhaDoUsuario
+from application.use_cases.atribuir_mecanico import AtribuirMecanico
 from application.use_cases.atualizar_cliente import AtualizarCliente
 from application.use_cases.atualizar_peca import AtualizarPeca
 from application.use_cases.atualizar_servico import AtualizarServico
@@ -251,6 +252,11 @@ def _com_abertura_de_os[T](
 
 
 obter_criar_os = _com_abertura_de_os(CriarOS)
+obter_atribuir_mecanico = _por_requisicao(
+    lambda sessao, _: AtribuirMecanico(
+        PostgresOrdemServicoRepository(sessao), PostgresUsuarioRepository(sessao)
+    )
+)
 obter_detalhar_ordem_servico = _por_requisicao(
     lambda sessao, _: DetalharOrdemServico(
         PostgresOrdemServicoRepository(sessao),

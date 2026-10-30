@@ -16,6 +16,7 @@ from domain.exceptions import (
     ItensBloqueados,
     MotivoObrigatorio,
     NumeroOSInvalido,
+    NumeroOSJaCadastrado,
     OrdemServicoInvalida,
     PecaComPendencia,
     PecasPendentes,
@@ -62,6 +63,7 @@ def test_bases_herdam_de_erro_de_dominio(base):
         (CodigoDePecaJaCadastrado("FLT-001"), RegraDeNegocioViolada),
         (PecaComPendencia("Filtro de óleo", ["529-7F3A9C2B"]), RegraDeNegocioViolada),
         (PlacaJaCadastrada(), RegraDeNegocioViolada),
+        (NumeroOSJaCadastrado("529-7F3A9C2B"), RegraDeNegocioViolada),
     ],
 )
 def test_especificas_herdam_da_base_correta(excecao, base):
@@ -134,6 +136,13 @@ def test_placa_invalida_informa_a_placa():
 
     assert excecao.placa == "ABC-1234"
     assert "ABC-1234" in str(excecao)
+
+
+def test_numero_os_ja_cadastrado_informa_o_numero():
+    excecao = NumeroOSJaCadastrado("529-7F3A9C2B")
+
+    assert excecao.numero == "529-7F3A9C2B"
+    assert str(excecao) == "Já existe uma OS com o número 529-7F3A9C2B."
 
 
 @pytest.mark.parametrize(

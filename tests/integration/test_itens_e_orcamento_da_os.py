@@ -1,7 +1,7 @@
-"""Itens da OS e conclusão do orçamento pela rota HTTP, com PostgreSQL real (RF-17, RNF-08, RNF-11,
-RNF-13)."""
+"""Itens da OS, conclusão do orçamento, reserva e alocação das peças pelas rotas HTTP, com
+PostgreSQL real (RF-17, RF-18, RF-19, RNF-08, RNF-11, RNF-13)."""
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import text
@@ -9,7 +9,12 @@ from sqlalchemy import text
 from application.events.event_dispatcher import EventHandler
 from domain.entities.usuario import Usuario
 from domain.events.orcamento_finalizado_event import OrcamentoFinalizadoEvent
+from domain.events.saldo_peca_atualizado_event import SaldoPecaAtualizadoEvent
 from domain.value_objects.perfil_usuario import PerfilUsuario
+from infrastructure.database.unidade_de_trabalho import UnidadeDeTrabalhoSqlAlchemy
+from infrastructure.repositories.postgres_ordem_servico_repository import (
+    PostgresOrdemServicoRepository,
+)
 from presentation.main import app
 
 ABERTURA = {
@@ -586,3 +591,136 @@ async def test_falha_de_um_handler_depois_da_reserva_desfaz_a_reserva(
     assert await _estoque(cliente_http, mecanico, peca["id"]) == (5, 0, 5)
     detalhe = await _detalhe(cliente_http, mecanico, os_id)
     assert (detalhe["status"], detalhe["pecas"][0]["quantidade_pendente"]) == ("EM_DIAGNOSTICO", 0)
+
+
+async def _aprovar(fabrica_de_sessoes, os_id: str) -> None:
+    """A rota de aprovação do cliente é a issue #100; aqui a aprovação usa o domínio."""
+    async with UnidadeDeTrabalhoSqlAlchemy(fabrica_de_sessoes) as unidade:
+        ordens = PostgresOrdemServicoRepository(unidade.sessao)
+        os = await ordens.buscar_por_id(UUID(os_id))
+        os.aprovar_orcamento()
+        await ordens.salvar(os)
+
+
+async def _repor(cliente_http, quem, peca_id: str, quantidade: int):
+    return await cliente_http.post(
+        f"/pecas/{peca_id}/reposicao", json={"quantidade": quantidade}, headers=_cabecalho(quem)
+    )
+
+
+async def _situacao(cliente_http, quem, os_id: str) -> tuple[str, int, int]:
+    detalhe = await _detalhe(cliente_http, quem, os_id)
+    (peca,) = detalhe["pecas"]
+    return detalhe["status"], peca["quantidade_reservada"], peca["quantidade_pendente"]
+
+
+async def test_reposicao_libera_a_os_em_aguardando_peca_para_a_execucao(
+    cliente_http, atendente, mecanico, peca, fabrica_de_sessoes
+):
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    await _aprovar(fabrica_de_sessoes, os_id)
+    assert await _situacao(cliente_http, mecanico, os_id) == ("AGUARDANDO_PECA", 0, 2)
+
+    resposta = await _repor(cliente_http, mecanico, peca["id"], 2)
+
+    assert resposta.status_code == 200
+    assert await _situacao(cliente_http, mecanico, os_id) == ("AGUARDANDO_EXECUCAO", 2, 0)
+    registro = (await _detalhe(cliente_http, mecanico, os_id))["historico"][-1]
+    assert (registro["status_anterior"], registro["status_novo"]) == (
+        "AGUARDANDO_PECA",
+        "AGUARDANDO_EXECUCAO",
+    )
+    assert (registro["origem"], registro["usuario_id"]) == ("SISTEMA", None)
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (2, 2, 0)
+
+
+async def test_reposicao_para_uma_so_das_duas_os_pendentes_atende_a_mais_antiga(
+    cliente_http, atendente, mecanico, peca, fabrica_de_sessoes
+):
+    mais_antiga = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    mais_nova = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    await _aprovar(fabrica_de_sessoes, mais_antiga)
+    await _aprovar(fabrica_de_sessoes, mais_nova)
+
+    await _repor(cliente_http, mecanico, peca["id"], 2)
+
+    assert await _situacao(cliente_http, mecanico, mais_antiga) == ("AGUARDANDO_EXECUCAO", 2, 0)
+    assert await _situacao(cliente_http, mecanico, mais_nova) == ("AGUARDANDO_PECA", 0, 2)
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (2, 2, 0)
+
+
+async def test_reposicao_maior_atende_a_mais_antiga_e_parte_da_seguinte(
+    cliente_http, atendente, mecanico, peca, fabrica_de_sessoes
+):
+    mais_antiga = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    mais_nova = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    await _aprovar(fabrica_de_sessoes, mais_antiga)
+    await _aprovar(fabrica_de_sessoes, mais_nova)
+
+    await _repor(cliente_http, mecanico, peca["id"], 3)
+
+    assert await _situacao(cliente_http, mecanico, mais_antiga) == ("AGUARDANDO_EXECUCAO", 2, 0)
+    assert await _situacao(cliente_http, mecanico, mais_nova) == ("AGUARDANDO_PECA", 1, 1)
+
+
+async def test_reposicao_reserva_para_a_os_que_ainda_aguarda_a_aprovacao(
+    cliente_http, atendente, mecanico, peca
+):
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+
+    await _repor(cliente_http, mecanico, peca["id"], 2)
+
+    assert await _situacao(cliente_http, mecanico, os_id) == ("AGUARDANDO_APROVACAO", 2, 0)
+
+
+async def test_ajuste_da_quantidade_fisica_para_cima_tambem_aloca(
+    cliente_http, atendente, mecanico, peca, fabrica_de_sessoes
+):
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    await _aprovar(fabrica_de_sessoes, os_id)
+
+    resposta = await cliente_http.put(
+        f"/pecas/{peca['id']}/quantidade-fisica",
+        json={"quantidade_fisica": 5},
+        headers=_cabecalho(mecanico),
+    )
+
+    assert resposta.status_code == 200
+    assert await _situacao(cliente_http, mecanico, os_id) == ("AGUARDANDO_EXECUCAO", 2, 0)
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (5, 2, 3)
+
+
+async def test_reposicao_sem_os_pendente_so_soma_ao_estoque(cliente_http, mecanico, peca):
+    resposta = await _repor(cliente_http, mecanico, peca["id"], 4)
+
+    assert resposta.status_code == 200
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (4, 0, 4)
+
+
+class FalhaDeTeste(EventHandler):
+    async def tratar(self, evento):
+        raise RuntimeError("falha simulada depois da alocação")
+
+
+async def test_falha_de_um_handler_depois_da_alocacao_desfaz_a_reposicao(
+    cliente_http, atendente, mecanico, peca, fabrica_de_sessoes, monkeypatch
+):
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    await _aprovar(fabrica_de_sessoes, os_id)
+    monkeypatch.setattr(
+        app.state,
+        "fabricas_de_handlers",
+        [
+            *app.state.fabricas_de_handlers,
+            (
+                SaldoPecaAtualizadoEvent,
+                lambda sessao: FalhaDeTeste(),
+            ),
+        ],
+    )
+
+    with pytest.raises(RuntimeError, match="falha simulada depois da alocação"):
+        await _repor(cliente_http, mecanico, peca["id"], 2)
+
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (0, 0, 0)
+    assert await _situacao(cliente_http, mecanico, os_id) == ("AGUARDANDO_PECA", 0, 2)

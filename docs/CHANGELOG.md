@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-30 — PR #141 (detalhamento da OS)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Detalhamento da OS (RF-15)": `GET /ordens-servico/{id}` para os três perfis, com cliente e veículo (mesmo excluídos), itens com as quantidades reservada e pendente, orçamento, histórico e a estimativa de entrega calculada na consulta. A seção 8.2 ganhou a decisão em aberto "Prazo de reposição sem limite máximo".
+
+**Motivo:** o RF-15 pede todos os dados da OS numa consulta, mas não define a forma da resposta. O detalhamento é a primeira rota de leitura da OS e mostrou que um prazo de reposição acima de cerca de 2,9 milhões de dias, aceito hoje no cadastro de peças, impede a estimativa e deixa a OS ilegível; a escolha entre limitar o cadastro e tolerar o estouro na consulta é do grupo.
+
 ## 2026-10-30 — PR #140 (despacho dos eventos na transação)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Despacho dos eventos na transação (RNF-08)": cada requisição monta o `EventDispatcher` com os handlers criados sobre a sessão da unidade de trabalho, e os handlers entram em `app.state.fabricas_de_handlers`, uma lista de pares `(tipo_do_evento, fabrica)`. A linha "Ponto de entrada e montagem" deixou de dizer que os handlers são registrados direto em `_eventos_da_requisicao`.

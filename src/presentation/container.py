@@ -85,6 +85,7 @@ def montar_dependencias(app: FastAPI) -> None:
     app.state.password_hasher = BcryptPasswordHasher()
     app.state.verificador_do_banco = VerificadorDoBancoSqlAlchemy(engine)
     app.state.senhas_da_carga_inicial = _senhas_da_carga_inicial(configuracao)
+    app.state.fabricas_de_handlers = []
 
 
 async def executar_carga_inicial(app: FastAPI) -> None:
@@ -189,21 +190,26 @@ def _com_repositorios_de_pecas_e_eventos[T](
     caso_de_uso: Callable[[PecaRepository, EstoqueRepository, EventDispatcher], T],
 ) -> Callable[[Request], AsyncIterator[T]]:
     return _por_requisicao(
-        lambda sessao, _: caso_de_uso(
+        lambda sessao, estado: caso_de_uso(
             PostgresPecaRepository(sessao),
             PostgresEstoqueRepository(sessao),
-            _eventos_da_requisicao(sessao),
+            _eventos_da_requisicao(sessao, estado),
         )
     )
 
 
-def _eventos_da_requisicao(sessao: AsyncSession) -> EventDispatcher:
-    """Um despacho por requisição: os handlers usam os repositórios da mesma sessão, para a
-    reação ao evento gravar na mesma transação da operação (RF-12, RNF-08).
+def _eventos_da_requisicao(sessao: AsyncSession, estado: State) -> EventDispatcher:
+    """Um despacho por requisição, com os handlers presos à sessão da unidade de trabalho: a
+    reação ao evento grava na mesma transação da operação, e uma falha desfaz as duas (RNF-08).
 
-    Ainda sem handler; o de alocação às OS com peça pendente é registrado aqui (RF-19, #94).
+    Os handlers vêm de `app.state.fabricas_de_handlers`, uma lista de pares
+    `(tipo_do_evento, fabrica)`; a fabrica recebe a sessão e devolve o handler. A alocação às OS
+    com peça pendente (RF-19, #94) entra por essa lista.
     """
-    return EventDispatcher()
+    despachador = EventDispatcher()
+    for tipo_do_evento, fabrica in estado.fabricas_de_handlers:
+        despachador.registrar(tipo_do_evento, fabrica(sessao))
+    return despachador
 
 
 def _com_repositorios_de_pecas_e_ordens[T](

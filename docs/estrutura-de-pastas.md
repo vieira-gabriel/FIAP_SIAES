@@ -124,7 +124,6 @@ A pasta `migrations/` do Alembic (guia, seção 8.1) fica na raiz do projeto, ju
 
 A autenticação JWT (seção 5), a configuração do PostgreSQL (RNF-08) e o `Dockerfile` com o `docker-compose.yml` (RNF-15) já estão implementados. Permanecem pendentes, por dependerem de implementação:
 
-* o caso de uso `criar_os.py`, que existe vazio (Fase 5);
 * os handlers de `application/handlers/` que reagem aos eventos de domínio (Fase 5);
 * a evidência da medição de cobertura (RNF-14), que a Fase 7 registra.
 

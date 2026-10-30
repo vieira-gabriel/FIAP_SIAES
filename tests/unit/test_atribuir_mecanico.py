@@ -104,9 +104,7 @@ async def test_sem_mecanico_informado_e_recusado(atribuir, ordens, usuarios, os_
     assert (await ordens.buscar_por_id(os_recebida.id)).status is StatusOS.RECEBIDA
 
 
-async def test_mecanico_nao_atribui_a_os_a_outro_mecanico(
-    atribuir, ordens, usuarios, os_recebida
-):
+async def test_mecanico_nao_atribui_a_os_a_outro_mecanico(atribuir, ordens, usuarios, os_recebida):
     quem_pede = await _usuario(usuarios, PerfilUsuario.MECANICO)
     outro = await _usuario(usuarios, PerfilUsuario.MECANICO)
 

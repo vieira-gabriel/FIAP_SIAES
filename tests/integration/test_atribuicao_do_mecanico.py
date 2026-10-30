@@ -152,7 +152,9 @@ async def test_mecanico_nao_atribui_a_os_a_outro_mecanico(
 ):
     outro = await _inserir_usuario(conexao, PerfilUsuario.MECANICO)
 
-    resposta = await _atribuir(cliente_http, mecanico, os_recebida["id"], {"mecanico_id": str(outro.id)})
+    resposta = await _atribuir(
+        cliente_http, mecanico, os_recebida["id"], {"mecanico_id": str(outro.id)}
+    )
 
     assert resposta.status_code == 403
     assert resposta.json()["codigo"] == "SEM_PERMISSAO"
@@ -160,7 +162,11 @@ async def test_mecanico_nao_atribui_a_os_a_outro_mecanico(
 
 @pytest.mark.parametrize(
     ("perfil", "ativo"),
-    [(PerfilUsuario.ATENDENTE, True), (PerfilUsuario.GERENTE, True), (PerfilUsuario.MECANICO, False)],
+    [
+        (PerfilUsuario.ATENDENTE, True),
+        (PerfilUsuario.GERENTE, True),
+        (PerfilUsuario.MECANICO, False),
+    ],
 )
 async def test_gerente_so_atribui_a_mecanico_ativo(
     cliente_http, conexao, gerente, os_recebida, perfil, ativo
@@ -206,7 +212,8 @@ async def test_os_fora_de_recebida_responde_422_e_nao_muda(
     )
     assert mecanico_da_os == mecanico.id
     total = await conexao.scalar(
-        text("SELECT count(*) FROM historico_status_os WHERE os_id = :id"), {"id": os_recebida["id"]}
+        text("SELECT count(*) FROM historico_status_os WHERE os_id = :id"),
+        {"id": os_recebida["id"]},
     )
     assert total == 2
 

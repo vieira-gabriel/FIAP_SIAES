@@ -223,6 +223,11 @@ def saldos_atualizados() -> HandlerEspiao:
 
 
 @pytest.fixture
+def orcamentos_finalizados() -> HandlerEspiao:
+    return HandlerEspiao()
+
+
+@pytest.fixture
 def eventos(saldos_atualizados) -> EventDispatcher:
     dispatcher = EventDispatcher()
     dispatcher.registrar(SaldoPecaAtualizadoEvent, saldos_atualizados)

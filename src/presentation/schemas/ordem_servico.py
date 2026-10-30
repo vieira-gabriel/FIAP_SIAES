@@ -8,6 +8,8 @@ from application.use_cases.detalhar_ordem_servico import DetalheDaOrdemServico
 from application.use_cases.listar_ordens_servico import ResumoDaOrdemServico
 from domain.entities.ordem_servico import OrdemServico
 
+_MAIOR_INTEIRO = 2_147_483_647
+
 
 class ClienteNovoRequest(BaseModel):
     """Dados para cadastrar o cliente no mesmo fluxo, quando o documento ainda não existe."""
@@ -151,7 +153,6 @@ class OSDetalheResponse(BaseModel):
     @classmethod
     def de_detalhe(cls, detalhe: DetalheDaOrdemServico) -> "OSDetalheResponse":
         os = detalhe.os
-        orcamento = os.orcamento
         return cls(
             id=os.id,
             numero=os.numero.valor,
@@ -168,36 +169,9 @@ class OSDetalheResponse(BaseModel):
             ),
             atendente_id=os.atendente_id,
             mecanico_id=os.mecanico_id,
-            servicos=[
-                ItemServicoResponse(
-                    servico_id=item.servico_id,
-                    nome=item.nome,
-                    preco_congelado=item.preco_congelado.valor,
-                    tempo_estimado_minutos=item.tempo_estimado_minutos,
-                )
-                for item in os.servicos
-            ],
-            pecas=[
-                ItemPecaResponse(
-                    peca_id=item.peca_id,
-                    nome=item.nome,
-                    quantidade=item.quantidade,
-                    preco_unitario_congelado=item.preco_unitario_congelado.valor,
-                    prazo_reposicao_dias=item.prazo_reposicao_dias,
-                    quantidade_reservada=item.quantidade_reservada,
-                    quantidade_pendente=item.quantidade_pendente,
-                )
-                for item in os.pecas
-            ],
-            orcamento=(
-                OrcamentoResponse(
-                    subtotal_servicos=orcamento.subtotal_servicos.valor,
-                    subtotal_pecas=orcamento.subtotal_pecas.valor,
-                    total=orcamento.total.valor,
-                )
-                if orcamento
-                else None
-            ),
+            servicos=_servicos_da_os(os),
+            pecas=_pecas_da_os(os),
+            orcamento=_orcamento_da_os(os),
             estimativa_entrega=detalhe.estimativa_entrega,
             historico=[
                 RegistroHistoricoResponse(
@@ -211,3 +185,72 @@ class OSDetalheResponse(BaseModel):
                 for r in os.historico
             ],
         )
+
+
+class IncluirServicoRequest(BaseModel):
+    servico_id: UUID
+
+
+class IncluirPecaRequest(BaseModel):
+    peca_id: UUID
+    quantidade: int = Field(le=_MAIOR_INTEIRO, examples=[2])
+
+
+class OSItensResponse(BaseModel):
+    """A OS depois de uma mudança nos itens ou na conclusão do orçamento: o status, os itens e o
+    orçamento (nulo enquanto os valores não foram congelados)."""
+
+    id: UUID
+    numero: str = Field(examples=["529-7F3A9C2B"])
+    status: str = Field(examples=["EM_DIAGNOSTICO"])
+    servicos: list[ItemServicoResponse]
+    pecas: list[ItemPecaResponse]
+    orcamento: OrcamentoResponse | None
+
+    @classmethod
+    def de_entidade(cls, os: OrdemServico) -> "OSItensResponse":
+        return cls(
+            id=os.id,
+            numero=os.numero.valor,
+            status=os.status.value,
+            servicos=_servicos_da_os(os),
+            pecas=_pecas_da_os(os),
+            orcamento=_orcamento_da_os(os),
+        )
+
+
+def _servicos_da_os(os: OrdemServico) -> list[ItemServicoResponse]:
+    return [
+        ItemServicoResponse(
+            servico_id=item.servico_id,
+            nome=item.nome,
+            preco_congelado=item.preco_congelado.valor,
+            tempo_estimado_minutos=item.tempo_estimado_minutos,
+        )
+        for item in os.servicos
+    ]
+
+
+def _pecas_da_os(os: OrdemServico) -> list[ItemPecaResponse]:
+    return [
+        ItemPecaResponse(
+            peca_id=item.peca_id,
+            nome=item.nome,
+            quantidade=item.quantidade,
+            preco_unitario_congelado=item.preco_unitario_congelado.valor,
+            prazo_reposicao_dias=item.prazo_reposicao_dias,
+            quantidade_reservada=item.quantidade_reservada,
+            quantidade_pendente=item.quantidade_pendente,
+        )
+        for item in os.pecas
+    ]
+
+
+def _orcamento_da_os(os: OrdemServico) -> OrcamentoResponse | None:
+    if os.orcamento is None:
+        return None
+    return OrcamentoResponse(
+        subtotal_servicos=os.orcamento.subtotal_servicos.valor,
+        subtotal_pecas=os.orcamento.subtotal_pecas.valor,
+        total=os.orcamento.total.valor,
+    )

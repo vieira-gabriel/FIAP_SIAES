@@ -35,6 +35,9 @@ from application.use_cases.excluir_cliente import ExcluirCliente
 from application.use_cases.excluir_peca import ExcluirPeca
 from application.use_cases.excluir_servico import ExcluirServico
 from application.use_cases.excluir_veiculo import ExcluirVeiculo
+from application.use_cases.finalizar_orcamento import FinalizarOrcamento
+from application.use_cases.incluir_peca_na_os import IncluirPecaNaOS
+from application.use_cases.incluir_servico_na_os import IncluirServicoNaOS
 from application.use_cases.listar_clientes import ListarClientes
 from application.use_cases.listar_ordens_servico import ListarOrdensServico
 from application.use_cases.listar_pecas import ListarPecas
@@ -42,6 +45,8 @@ from application.use_cases.listar_servicos import ListarServicos
 from application.use_cases.listar_usuarios import ListarUsuarios
 from application.use_cases.listar_veiculos import ListarVeiculos
 from application.use_cases.reativar_usuario import ReativarUsuario
+from application.use_cases.remover_peca_da_os import RemoverPecaDaOS
+from application.use_cases.remover_servico_da_os import RemoverServicoDaOS
 from application.use_cases.repor_peca import ReporPeca
 from domain.repositories.cliente_repository import ClienteRepository
 from domain.repositories.estoque_repository import EstoqueRepository
@@ -255,6 +260,31 @@ obter_criar_os = _com_abertura_de_os(CriarOS)
 obter_atribuir_mecanico = _por_requisicao(
     lambda sessao, _: AtribuirMecanico(
         PostgresOrdemServicoRepository(sessao), PostgresUsuarioRepository(sessao)
+    )
+)
+obter_incluir_servico_na_os = _por_requisicao(
+    lambda sessao, _: IncluirServicoNaOS(
+        PostgresOrdemServicoRepository(sessao), PostgresServicoRepository(sessao)
+    )
+)
+obter_incluir_peca_na_os = _por_requisicao(
+    lambda sessao, _: IncluirPecaNaOS(
+        PostgresOrdemServicoRepository(sessao), PostgresPecaRepository(sessao)
+    )
+)
+obter_remover_servico_da_os = _por_requisicao(
+    lambda sessao, _: RemoverServicoDaOS(PostgresOrdemServicoRepository(sessao))
+)
+obter_remover_peca_da_os = _por_requisicao(
+    lambda sessao, _: RemoverPecaDaOS(PostgresOrdemServicoRepository(sessao))
+)
+obter_finalizar_orcamento = _por_requisicao(
+    lambda sessao, estado: FinalizarOrcamento(
+        PostgresOrdemServicoRepository(sessao),
+        PostgresEstoqueRepository(sessao),
+        PostgresServicoRepository(sessao),
+        PostgresPecaRepository(sessao),
+        _eventos_da_requisicao(sessao, estado),
     )
 )
 obter_detalhar_ordem_servico = _por_requisicao(

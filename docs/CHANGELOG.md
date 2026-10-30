@@ -4,6 +4,18 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-30 — PR #140 (despacho dos eventos na transação)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Despacho dos eventos na transação (RNF-08)": cada requisição monta o `EventDispatcher` com os handlers criados sobre a sessão da unidade de trabalho, e os handlers entram em `app.state.fabricas_de_handlers`, uma lista de pares `(tipo_do_evento, fabrica)`. A linha "Ponto de entrada e montagem" deixou de dizer que os handlers são registrados direto em `_eventos_da_requisicao`.
+
+**Motivo:** a issue #89 liga o `EventDispatcher` à unidade de trabalho para que a reação a um evento grave na mesma transação da operação e uma falha desfaça as duas. Os requisitos não definem como os handlers são registrados; a lista em `app.state` mantém o registro em um só lugar e permite trocá-la nos testes, em vez de editar o container a cada handler da Fase 5.
+
+## 2026-10-30 — PR #139 (abertura da OS)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Abertura da OS (RF-13)": `POST /ordens-servico`, para Atendente e Gerente, com o documento e a placa no corpo e os objetos opcionais `cliente` e `veiculo`, usados só para cadastrar o que ainda não existe; sem eles, um cliente ou veículo inexistente responde `404`, e a placa de um veículo de outro cliente responde `422` (`OSDeOutroCliente`). O número é refeito com outro UUID até 5 vezes quando já existe (`NumeroOSIndisponivel`). Cliente, veículo e OS são gravados na mesma unidade de trabalho. Em `docs/estrutura-de-pastas.md`, o caso de uso `criar_os.py` deixou de constar como pendente.
+
+**Motivo:** os requisitos RF-04, RF-07 e RF-13 pedem o cadastro de cliente e veículo no mesmo fluxo da abertura, mas não definem a forma do corpo da requisição. A escolha de objetos opcionais fica restrita ao schema e ao router, e vale para os próximos casos de uso da Fase 5.
+
 ## 2026-10-29 — PR da issue #88 (persistência da OS)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Persistência da OS" (quatro tabelas com os modelos em `infrastructure/database/ordem_servico_model.py`, número único com `NumeroOSJaCadastrado`, chaves estrangeiras, orçamento gravado como os dois subtotais, CHECKs nas quantidades de `itens_peca`, triggers que recusam UPDATE, DELETE e TRUNCATE no histórico, ordem dos itens e do histórico, bloqueio `SELECT ... FOR UPDATE` nas buscas de uma OS, lista de pendências sem bloqueio e ordem dos bloqueios entre OS e estoque) e a linha de Migrations passou a citar a `0007` e o teste do trigger. O item "Item excluído do catálogo antes do congelamento" saiu da seção 8.2 para a 8.1. Em `docs/estrutura-de-pastas.md` e na Linguagem Ubíqua, o adaptador da OS deixou de constar como provisório.

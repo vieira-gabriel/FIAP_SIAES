@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-30 — PR da issue #94 (alocação das peças repostas)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Alocação das peças repostas (RF-19)": o `AlocacaoPecasPendentesHandler` trata o `SaldoPecaAtualizadoEvent` (reposição e ajuste para cima) na transação da operação, aloca o saldo atual às OS pendentes da mais antiga para a mais nova e libera as OS de `AGUARDANDO_PECA` que ficam sem pendência. O `ReservaPecasHandler` passou a delegar a repartição do saldo ao mesmo `alocar_saldo`, e a lista de handlers do `container.py` ganhou o novo handler.
+
+**Motivo:** o RF-19 manda alocar o saldo às OS pendentes quando ele aumenta, na mesma transação (RNF-08). A reserva da conclusão do orçamento (RF-18) e a alocação da reposição repartem o saldo do mesmo jeito, então o núcleo fica em um lugar só. O handler usa o saldo atual do estoque, e não o do evento, porque duas operações na mesma transação geram dois eventos e o primeiro chega com um saldo antigo. A releitura de cada OS depois do estoque segue a ordem descrita na decisão em aberto "Ordem dos bloqueios entre alocação e cancelamento" (seção 8.2), que continua em aberto.
+
 ## 2026-10-30 — PR da issue #93 (reserva de peças)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Reserva das peças na conclusão do orçamento (RF-18)": o `ReservaPecasHandler` trata o `OrcamentoFinalizadoEvent` na transação da conclusão, aloca o saldo pela OS mais antiga e aplica cada alocação com `OrdemServico.alocar_peca`. A lista `app.state.fabricas_de_handlers`, que nascia vazia, passou a trazer esse handler, registrado em `_fabricas_de_handlers` no `container.py`.

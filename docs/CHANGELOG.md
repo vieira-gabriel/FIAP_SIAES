@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-30 — PR da issue #97 (rate limiting das rotas públicas)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Rate limiting (RNF-05)" no lugar da linha "Rate limiting" (o `limite_publico` do SlowAPI em `presentation/middlewares/rate_limit.py`, o limite de `RATE_LIMIT_PUBLICO` lido pelo container, a contagem por IP e o que conta para o limite), e a tabela de erros da seção 5.5 passou a listar o `429` (`LIMITE_DE_REQUISICOES_EXCEDIDO`, com `Retry-After`). A linha "Consulta pública da OS" deixou de dizer que a rota não tinha limite.
+
+**Motivo:** a RNF-05 manda limitar as rotas públicas, mas não define onde o limite é lido, o que conta para ele nem o formato do estouro. O `429` não constava na tabela do guia, e o card da issue pedia a atualização. O corpo fora do DTO não conta porque o FastAPI o recusa antes da rota, e ele não consulta nenhum dado; o limite não confia em `X-Forwarded-For` porque a instância única do MVP não fica atrás de proxy, e confiar no cabeçalho deixaria o cliente escolher o próprio IP.
+
 ## 2026-10-30 — PR da issue #96 (consulta pública da OS)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Consulta pública da OS (RF-25)": `POST /acompanhamento`, sem JWT, com o número e o documento no corpo, a mesma resposta `404` para número inexistente, número ou documento malformado e documento de outro titular, e uma resposta sem dados do cliente. No C4, o caso de uso `ConsultarStatusPublico` passou a se chamar `ConsultarOSPublica`.

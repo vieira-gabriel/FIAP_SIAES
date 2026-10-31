@@ -27,6 +27,7 @@ from application.use_cases.cadastrar_servico import CadastrarServico
 from application.use_cases.cadastrar_usuario import CadastrarUsuario
 from application.use_cases.cadastrar_veiculo import CadastrarVeiculo
 from application.use_cases.cancelar_os import CancelarOS
+from application.use_cases.concluir_manutencao import ConcluirManutencao
 from application.use_cases.criar_carga_inicial import CriarCargaInicial, SenhasDaCargaInicial
 from application.use_cases.criar_os import CriarOS
 from application.use_cases.desativar_usuario import DesativarUsuario
@@ -347,6 +348,11 @@ obter_iniciar_execucao = _por_requisicao(
             _eventos_da_requisicao(sessao, estado),
         ),
         sessao,
+    )
+)
+obter_concluir_manutencao = _por_requisicao(
+    lambda sessao, _: ConcluirManutencao(
+        PostgresOrdemServicoRepository(sessao), PostgresUsuarioRepository(sessao)
     )
 )
 obter_detalhar_ordem_servico = _por_requisicao(

@@ -112,7 +112,7 @@ Apenas as transições abaixo são permitidas pelo agregado `OrdemServico`; qual
 | `AGUARDANDO_APROVACAO` | `CANCELADA` | `rejeitar_orcamento` | Cliente | RF-26, RF-18 |
 | `AGUARDANDO_PECA` | `AGUARDANDO_EXECUCAO` | `liberar_para_execucao` | Sistema | RF-19 |
 | `AGUARDANDO_EXECUCAO` | `EM_EXECUCAO` | `iniciar_execucao` | Mecânico atribuído, Gerente | RF-20 |
-| `EM_EXECUCAO` | `FINALIZADA` | `concluir_manutencao` | Mecânico, Gerente | RF-21 |
+| `EM_EXECUCAO` | `FINALIZADA` | `concluir_manutencao(usuario)` | Mecânico atribuído, Gerente | RF-21 |
 | `FINALIZADA` | `ENTREGUE` | `entregar_veiculo` | Atendente, Gerente | RF-22 |
 | `RECEBIDA` a `EM_EXECUCAO` | `CANCELADA` | `cancelar(usuario_id, motivo)` | Gerente | RF-23, RF-18 |
 

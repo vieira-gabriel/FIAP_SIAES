@@ -845,7 +845,7 @@ async def _levar_a_entrega(fabrica_de_sessoes, os_id: str, mecanico: Usuario, en
         os = await ordens.buscar_por_id(UUID(os_id))
         os.aprovar_orcamento()
         os.iniciar_execucao(mecanico)
-        os.concluir_manutencao(mecanico.id)
+        os.concluir_manutencao(mecanico)
         if entregar:
             os.entregar_veiculo(mecanico.id)
         await ordens.salvar(os)
@@ -1093,3 +1093,110 @@ async def test_impasse_no_inicio_da_execucao_e_repetido_e_a_resposta_e_200(
     assert resposta.status_code == 200
     assert len(tentativas) == 2
     assert await _estoque(cliente_http, mecanico, peca["id"]) == (3, 0, 3)
+
+
+async def _concluir_manutencao(cliente_http, quem, os_id: str):
+    return await cliente_http.post(f"/ordens-servico/{os_id}/conclusao", headers=_cabecalho(quem))
+
+
+async def _os_em_execucao(cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes):
+    os_id, peca = await _os_aguardando_execucao(
+        cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+    )
+    assert (await _iniciar(cliente_http, mecanico, os_id)).status_code == 200
+    return os_id, peca
+
+
+async def test_conclusao_finaliza_a_os_e_grava_o_momento_e_o_historico(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+):
+    os_id, _ = await _os_em_execucao(cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes)
+
+    resposta = await _concluir_manutencao(cliente_http, mecanico, os_id)
+
+    assert resposta.status_code == 200
+    assert resposta.json()["status"] == "FINALIZADA"
+    detalhe = await _detalhe(cliente_http, mecanico, os_id)
+    assert detalhe["data_finalizacao"] is not None
+    registro = detalhe["historico"][-1]
+    assert (registro["status_anterior"], registro["status_novo"], registro["origem"]) == (
+        "EM_EXECUCAO",
+        "FINALIZADA",
+        "USUARIO",
+    )
+    assert registro["usuario_id"] == str(mecanico.id)
+
+
+async def test_gerente_conclui_a_manutencao_de_qualquer_os(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+):
+    os_id, _ = await _os_em_execucao(cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes)
+
+    resposta = await _concluir_manutencao(cliente_http, gerente, os_id)
+
+    assert resposta.status_code == 200
+
+
+async def test_outro_mecanico_nao_conclui(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes, conexao
+):
+    os_id, _ = await _os_em_execucao(cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes)
+    outro = await _inserir_usuario(conexao, PerfilUsuario.MECANICO)
+
+    resposta = await _concluir_manutencao(cliente_http, outro, os_id)
+
+    assert (resposta.status_code, resposta.json()["codigo"]) == (403, "SEM_PERMISSAO")
+    assert (await _detalhe(cliente_http, mecanico, os_id))["status"] == "EM_EXECUCAO"
+
+
+async def test_conclusao_fora_de_em_execucao_responde_422(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+):
+    os_id, _ = await _os_aguardando_execucao(
+        cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+    )
+
+    resposta = await _concluir_manutencao(cliente_http, mecanico, os_id)
+
+    assert (resposta.status_code, resposta.json()["codigo"]) == (422, "REGRA_DE_NEGOCIO_VIOLADA")
+
+
+async def test_concluir_duas_vezes_responde_422_na_segunda(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+):
+    os_id, _ = await _os_em_execucao(cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes)
+
+    primeira = await _concluir_manutencao(cliente_http, mecanico, os_id)
+    segunda = await _concluir_manutencao(cliente_http, mecanico, os_id)
+
+    assert (primeira.status_code, segunda.status_code) == (200, 422)
+
+
+async def test_conclusao_de_os_inexistente_responde_404(cliente_http, mecanico):
+    assert (await _concluir_manutencao(cliente_http, mecanico, str(uuid4()))).status_code == 404
+
+
+async def test_itens_ficam_bloqueados_depois_da_finalizacao(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes, servico
+):
+    os_id, peca_da_os = await _os_em_execucao(
+        cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+    )
+    outra_peca = await cliente_http.post(
+        "/pecas",
+        json=PECA | {"codigo_referencia": "VLA-002", "nome": "Vela"},
+        headers=_cabecalho(gerente),
+    )
+    await _concluir_manutencao(cliente_http, mecanico, os_id)
+
+    inclusao_servico = await _incluir_servico(cliente_http, mecanico, os_id, servico["id"])
+    inclusao_peca = await _incluir_peca(cliente_http, mecanico, os_id, outra_peca.json()["id"])
+    remocao_peca = await cliente_http.delete(
+        f"/ordens-servico/{os_id}/pecas/{peca_da_os['id']}", headers=_cabecalho(mecanico)
+    )
+
+    for resposta in (inclusao_servico, inclusao_peca, remocao_peca):
+        assert resposta.status_code == 422
+        assert resposta.json()["codigo"] == "REGRA_DE_NEGOCIO_VIOLADA"
+    detalhe = await _detalhe(cliente_http, mecanico, os_id)
+    assert (len(detalhe["servicos"]), len(detalhe["pecas"])) == (0, 1)

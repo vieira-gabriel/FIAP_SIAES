@@ -1,5 +1,5 @@
-"""Itens da OS, conclusão do orçamento, reserva, alocação e estorno das peças pelas rotas HTTP, com
-PostgreSQL real (RF-17, RF-18, RF-19, RF-23, RNF-08, RNF-11, RNF-13)."""
+"""Itens da OS, conclusão do orçamento, reserva, alocação, baixa e estorno das peças pelas rotas
+HTTP, com PostgreSQL real (RF-17, RF-18, RF-19, RF-20, RF-23, RNF-08, RNF-11, RNF-13)."""
 
 from uuid import UUID, uuid4
 
@@ -10,6 +10,7 @@ from sqlalchemy.exc import DBAPIError
 
 from application.events.event_dispatcher import EventHandler
 from domain.entities.usuario import Usuario
+from domain.events.execucao_iniciada_event import ExecucaoIniciadaEvent
 from domain.events.orcamento_finalizado_event import OrcamentoFinalizadoEvent
 from domain.events.saldo_peca_atualizado_event import SaldoPecaAtualizadoEvent
 from domain.value_objects.perfil_usuario import PerfilUsuario
@@ -936,3 +937,159 @@ async def test_impasse_no_cancelamento_e_repetido_e_a_resposta_e_200(
     assert await _estoque(cliente_http, mecanico, peca["id"]) == (5, 0, 5)
     historico = (await _detalhe(cliente_http, gerente, os_id))["historico"]
     assert [r["status_novo"] for r in historico].count("CANCELADA") == 1
+
+
+async def _iniciar(cliente_http, quem, os_id: str):
+    return await cliente_http.post(f"/ordens-servico/{os_id}/execucao", headers=_cabecalho(quem))
+
+
+async def _os_aguardando_execucao(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes, saldo: int = 5
+) -> tuple[str, dict]:
+    peca = await _peca_com_saldo(cliente_http, gerente, saldo=saldo)
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    await _aprovar(fabrica_de_sessoes, os_id)
+    assert (await _detalhe(cliente_http, mecanico, os_id))["status"] == "AGUARDANDO_EXECUCAO"
+    return os_id, peca
+
+
+async def test_inicio_da_execucao_da_baixa_nas_pecas_e_grava_o_inicio(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+):
+    os_id, peca = await _os_aguardando_execucao(
+        cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+    )
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (5, 2, 3)
+
+    resposta = await _iniciar(cliente_http, mecanico, os_id)
+
+    assert resposta.status_code == 200
+    assert resposta.json()["status"] == "EM_EXECUCAO"
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (3, 0, 3)
+    detalhe = await _detalhe(cliente_http, mecanico, os_id)
+    assert detalhe["data_inicio_execucao"] is not None
+    registro = detalhe["historico"][-1]
+    assert (registro["status_anterior"], registro["status_novo"], registro["origem"]) == (
+        "AGUARDANDO_EXECUCAO",
+        "EM_EXECUCAO",
+        "USUARIO",
+    )
+    assert registro["usuario_id"] == str(mecanico.id)
+
+
+async def test_gerente_inicia_a_execucao_de_qualquer_os(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+):
+    os_id, peca = await _os_aguardando_execucao(
+        cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+    )
+
+    resposta = await _iniciar(cliente_http, gerente, os_id)
+
+    assert resposta.status_code == 200
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (3, 0, 3)
+
+
+async def test_outro_mecanico_recebe_403_e_o_estoque_fica_intacto(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes, conexao
+):
+    os_id, peca = await _os_aguardando_execucao(
+        cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+    )
+    outro = await _inserir_usuario(conexao, PerfilUsuario.MECANICO)
+
+    resposta = await _iniciar(cliente_http, outro, os_id)
+
+    assert (resposta.status_code, resposta.json()["codigo"]) == (403, "SEM_PERMISSAO")
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (5, 2, 3)
+    assert (await _detalhe(cliente_http, mecanico, os_id))["status"] == "AGUARDANDO_EXECUCAO"
+
+
+async def test_inicio_fora_de_aguardando_execucao_responde_422(
+    cliente_http, atendente, mecanico, gerente, peca
+):
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+
+    resposta = await _iniciar(cliente_http, mecanico, os_id)
+
+    assert (resposta.status_code, resposta.json()["codigo"]) == (422, "REGRA_DE_NEGOCIO_VIOLADA")
+
+
+async def test_iniciar_duas_vezes_responde_422_e_baixa_uma_vez_so(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+):
+    os_id, peca = await _os_aguardando_execucao(
+        cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+    )
+
+    primeira = await _iniciar(cliente_http, mecanico, os_id)
+    segunda = await _iniciar(cliente_http, mecanico, os_id)
+
+    assert (primeira.status_code, segunda.status_code) == (200, 422)
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (3, 0, 3)
+
+
+async def test_inicio_de_os_inexistente_responde_404(cliente_http, mecanico):
+    resposta = await _iniciar(cliente_http, mecanico, str(uuid4()))
+
+    assert resposta.status_code == 404
+
+
+async def test_cancelamento_depois_do_inicio_nao_devolve_as_pecas_baixadas(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+):
+    os_id, peca = await _os_aguardando_execucao(
+        cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+    )
+    await _iniciar(cliente_http, mecanico, os_id)
+
+    resposta = await _cancelar(cliente_http, gerente, os_id)
+
+    assert resposta.status_code == 200
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (3, 0, 3)
+
+
+async def test_falha_de_um_handler_depois_da_baixa_desfaz_o_inicio(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes, monkeypatch
+):
+    os_id, peca = await _os_aguardando_execucao(
+        cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+    )
+    monkeypatch.setattr(
+        app.state,
+        "fabricas_de_handlers",
+        [
+            *app.state.fabricas_de_handlers,
+            (ExecucaoIniciadaEvent, lambda sessao: FalhaDeTeste()),
+        ],
+    )
+
+    with pytest.raises(RuntimeError, match="falha simulada depois da alocação"):
+        await _iniciar(cliente_http, mecanico, os_id)
+
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (5, 2, 3)
+    assert (await _detalhe(cliente_http, mecanico, os_id))["status"] == "AGUARDANDO_EXECUCAO"
+
+
+async def test_impasse_no_inicio_da_execucao_e_repetido_e_a_resposta_e_200(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes, monkeypatch
+):
+    os_id, peca = await _os_aguardando_execucao(
+        cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+    )
+    salvar_original = PostgresEstoqueRepository.salvar
+    tentativas = []
+
+    async def salvar_com_impasse_na_primeira_vez(self, estoque):
+        tentativas.append(estoque.peca_id)
+        if len(tentativas) == 1:
+            raise DBAPIError("UPDATE estoque_pecas", None, DeadlockDetectedError())
+        await salvar_original(self, estoque)
+
+    monkeypatch.setattr(PostgresEstoqueRepository, "salvar", salvar_com_impasse_na_primeira_vez)
+
+    resposta = await _iniciar(cliente_http, mecanico, os_id)
+
+    assert resposta.status_code == 200
+    assert len(tentativas) == 2
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (3, 0, 3)

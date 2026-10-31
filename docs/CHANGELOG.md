@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-30 — PR da issue #99 (início da execução com baixa das peças)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Início da execução e baixa das peças (RF-20)": `POST /ordens-servico/{id}/execucao`, o caso de uso `IniciarExecucao` e o `BaixaEstoqueHandler` na transação. A decisão "Repetição da transação em impasse" passou a incluir o `IniciarExecucao`.
+
+**Motivo:** o RF-20 manda dar baixa nas peças reservadas no início da execução, na mesma transação da mudança de status (RNF-08), mas não define a rota nem como a permissão do mecânico atribuído é checada. A OS confere o mecânico, e a rota só filtra o perfil, como na atribuição. O `IniciarExecucao` bloqueia a OS e depois o estoque, a mesma ordem do cancelamento, e por isso pode ser a transação abortada num impasse com a alocação da reposição; a repetição da issue #95 o cobre.
+
 ## 2026-10-30 — PR da issue #98 (aprovação do orçamento pelo cliente)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Aprovação do orçamento pelo cliente (RF-26)": `POST /acompanhamento/aprovacao`, sem JWT, com origem `CLIENTE` no histórico. A identificação por número da OS e CPF/CNPJ saiu do `ConsultarOSPublica` para o caso de uso `LocalizarOSDoTitular`, que a consulta e a aprovação compartilham. O rate limiting passou a ter um contador único para todas as rotas públicas. No C4, o `LocalizarOSDoTitular` entrou no diagrama, e a aprovação deixou de ligar ao `EventDispatcher`.

@@ -6,6 +6,7 @@ from starlette.datastructures import State
 
 from application.events.event_dispatcher import EventDispatcher, EventHandler
 from application.handlers.alocacao_pecas_pendentes_handler import AlocacaoPecasPendentesHandler
+from application.handlers.baixa_estoque_handler import BaixaEstoqueHandler
 from application.handlers.estorno_reservas_handler import EstornoReservasHandler
 from application.handlers.reserva_pecas_handler import ReservaPecasHandler
 from application.ports.password_hasher import PasswordHasher
@@ -44,6 +45,7 @@ from application.use_cases.excluir_veiculo import ExcluirVeiculo
 from application.use_cases.finalizar_orcamento import FinalizarOrcamento
 from application.use_cases.incluir_peca_na_os import IncluirPecaNaOS
 from application.use_cases.incluir_servico_na_os import IncluirServicoNaOS
+from application.use_cases.iniciar_execucao import IniciarExecucao
 from application.use_cases.listar_clientes import ListarClientes
 from application.use_cases.listar_ordens_servico import ListarOrdensServico
 from application.use_cases.listar_pecas import ListarPecas
@@ -56,6 +58,7 @@ from application.use_cases.remover_peca_da_os import RemoverPecaDaOS
 from application.use_cases.remover_servico_da_os import RemoverServicoDaOS
 from application.use_cases.repor_peca import ReporPeca
 from domain.events.domain_event import DomainEvent
+from domain.events.execucao_iniciada_event import ExecucaoIniciadaEvent
 from domain.events.orcamento_finalizado_event import OrcamentoFinalizadoEvent
 from domain.events.os_cancelada_event import OSCanceladaEvent
 from domain.events.saldo_peca_atualizado_event import SaldoPecaAtualizadoEvent
@@ -242,6 +245,10 @@ def _fabricas_de_handlers() -> list[
             OSCanceladaEvent,
             lambda sessao: EstornoReservasHandler(PostgresEstoqueRepository(sessao)),
         ),
+        (
+            ExecucaoIniciadaEvent,
+            lambda sessao: BaixaEstoqueHandler(PostgresEstoqueRepository(sessao)),
+        ),
     ]
 
 
@@ -334,6 +341,16 @@ obter_finalizar_orcamento = _por_requisicao(
 obter_cancelar_os = _por_requisicao(
     lambda sessao, estado: com_repeticao_em_impasse(
         CancelarOS(PostgresOrdemServicoRepository(sessao), _eventos_da_requisicao(sessao, estado)),
+        sessao,
+    )
+)
+obter_iniciar_execucao = _por_requisicao(
+    lambda sessao, estado: com_repeticao_em_impasse(
+        IniciarExecucao(
+            PostgresOrdemServicoRepository(sessao),
+            PostgresUsuarioRepository(sessao),
+            _eventos_da_requisicao(sessao, estado),
+        ),
         sessao,
     )
 )

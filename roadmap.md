@@ -311,9 +311,9 @@ Tarefas da fase:
 
 ### Frente do Cliente
 
-- [ ] Consulta pública por número da OS + CPF/CNPJ, com estimativa de entrega e sem expor dados pessoais sensíveis (RF-25, RNF-04)
-- [ ] Rate limiting com SlowAPI nas rotas públicas (10 requisições por minuto por IP) (RNF-05)
-- [ ] Aprovação do orçamento com transição para `AGUARDANDO_EXECUCAO` ou `AGUARDANDO_PECA` (RF-26)
+- [x] Consulta pública por número da OS + CPF/CNPJ, com estimativa de entrega e sem expor dados pessoais sensíveis (RF-25, RNF-04; issue #96): `POST /acompanhamento`, sem JWT, com o mesmo `404` para número inexistente e documento de outro titular; o rate limiting é da issue #97
+- [x] Rate limiting com SlowAPI nas rotas públicas (10 requisições por minuto por IP) (RNF-05; issue #97): `limite_publico` em `presentation/middlewares/rate_limit.py`, com o limite de `RATE_LIMIT_PUBLICO`, aplicado à consulta pública; a aprovação e a rejeição entram nas issues #98 e #102. Estouro responde `429` com `ErroResponse` e `Retry-After`
+- [x] Aprovação do orçamento com transição para `AGUARDANDO_EXECUCAO` ou `AGUARDANDO_PECA` (RF-26; issue #98): `POST /acompanhamento/aprovacao`, sem JWT, com origem `CLIENTE` no histórico e a identificação da consulta pública (`LocalizarOSDoTitular`); `422` fora de `AGUARDANDO_APROVACAO`
 - [ ] Rejeição do orçamento com transição para `CANCELADA` e estorno automático das reservas (RF-26, RF-18)
 - [ ] Garantir que a transição de status e a movimentação de estoque ocorram na mesma transação, inclusive quando disparadas por eventos (RNF-08)
 

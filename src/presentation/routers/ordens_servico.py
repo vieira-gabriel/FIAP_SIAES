@@ -14,6 +14,7 @@ from application.use_cases.criar_os import (
     DadosDoNovoVeiculo,
 )
 from application.use_cases.detalhar_ordem_servico import DetalharOrdemServico
+from application.use_cases.entregar_veiculo import EntregarVeiculo
 from application.use_cases.finalizar_orcamento import FinalizarOrcamento
 from application.use_cases.incluir_peca_na_os import IncluirPecaNaOS
 from application.use_cases.incluir_servico_na_os import IncluirServicoNaOS
@@ -31,6 +32,7 @@ from presentation.container import (
     obter_concluir_manutencao,
     obter_criar_os,
     obter_detalhar_ordem_servico,
+    obter_entregar_veiculo,
     obter_finalizar_orcamento,
     obter_incluir_peca_na_os,
     obter_incluir_servico_na_os,
@@ -74,6 +76,8 @@ _CANCELAMENTO = exigir_perfis(PerfilUsuario.GERENTE)
 _EXECUCAO = exigir_perfis(PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
 # RF-21: a conclusão é do Mecânico atribuído e do Gerente; a OS confere o mecânico.
 _CONCLUSAO = exigir_perfis(PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
+# RF-22: a entrega é da equipe de atendimento; o Mecânico não pode.
+_ENTREGA = exigir_perfis(PerfilUsuario.ATENDENTE, PerfilUsuario.GERENTE)
 # RF-14, RF-15: a consulta é de todos os perfis.
 _CONSULTA = exigir_perfis(PerfilUsuario.ATENDENTE, PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
 
@@ -352,3 +356,23 @@ async def concluir_manutencao(
     """A OS passa de `EM_EXECUCAO` para `FINALIZADA`, o momento da conclusão é gravado e os itens
     deixam de aceitar alterações (RF-21)."""
     return OSItensResponse.de_entidade(await concluir.executar(id, usuario.usuario_id))
+
+
+@router.post(
+    "/{id}/entrega",
+    responses={
+        status.HTTP_404_NOT_FOUND: {"model": ErroResponse, "description": "OS não encontrada."},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": ErroResponse,
+            "description": "A OS não está em `FINALIZADA`.",
+        },
+    },
+)
+async def entregar_veiculo(
+    id: UUID,
+    usuario: Annotated[UsuarioAutenticado, Depends(_ENTREGA)],
+    entregar: Annotated[EntregarVeiculo, Depends(obter_entregar_veiculo, scope="function")],
+) -> OSItensResponse:
+    """A OS passa de `FINALIZADA` para `ENTREGUE`, estado final, só para Atendente e Gerente
+    (RF-22)."""
+    return OSItensResponse.de_entidade(await entregar.executar(id, usuario.usuario_id))

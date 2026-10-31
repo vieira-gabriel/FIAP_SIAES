@@ -39,6 +39,7 @@ from application.use_cases.detalhar_peca import DetalharPeca
 from application.use_cases.detalhar_servico import DetalharServico
 from application.use_cases.detalhar_usuario import DetalharUsuario
 from application.use_cases.detalhar_veiculo import DetalharVeiculo
+from application.use_cases.entregar_veiculo import EntregarVeiculo
 from application.use_cases.excluir_cliente import ExcluirCliente
 from application.use_cases.excluir_peca import ExcluirPeca
 from application.use_cases.excluir_servico import ExcluirServico
@@ -359,6 +360,9 @@ obter_concluir_manutencao = _por_requisicao(
     lambda sessao, _: ConcluirManutencao(
         PostgresOrdemServicoRepository(sessao), PostgresUsuarioRepository(sessao)
     )
+)
+obter_entregar_veiculo = _por_requisicao(
+    lambda sessao, _: EntregarVeiculo(PostgresOrdemServicoRepository(sessao))
 )
 obter_detalhar_ordem_servico = _por_requisicao(
     lambda sessao, _: DetalharOrdemServico(

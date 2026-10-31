@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-31 — PR da issue #101 (entrega do veículo)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Entrega do veículo (RF-22)": `POST /ordens-servico/{id}/entrega`, para Atendente e Gerente, e o caso de uso `EntregarVeiculo`.
+
+**Motivo:** o RF-22 restringe a entrega à equipe de atendimento, mas não define a rota. A conferência do perfil fica na rota, como no cancelamento, porque a entidade não precisa do perfil para decidir a transição, ao contrário do início da execução e da conclusão, que dependem do mecânico atribuído.
+
 ## 2026-10-31 — PR da issue #100 (conclusão da manutenção)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Conclusão da manutenção (RF-21)": `POST /ordens-servico/{id}/conclusao` e o caso de uso `ConcluirManutencao`. O método `OrdemServico.concluir_manutencao` passou a receber o `Usuario`, em vez do id, e a regra de quem pode concluir foi reunida com a do início da execução. A assinatura foi atualizada na receita da seção 5.2 do guia, no diagrama de classes do C4 e na tabela de transições da Linguagem Ubíqua (Mecânico atribuído, Gerente).

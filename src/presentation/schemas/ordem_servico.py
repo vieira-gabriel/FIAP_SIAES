@@ -33,6 +33,10 @@ class AtribuirMecanicoRequest(BaseModel):
     mecanico_id: UUID | None = None
 
 
+class CancelarOSRequest(BaseModel):
+    motivo: str = Field(examples=["Cliente desistiu do serviço"])
+
+
 class AbrirOSRequest(BaseModel):
     documento: str = Field(min_length=1, max_length=20, examples=["529.982.247-25"])
     placa: str = Field(min_length=1, max_length=12, examples=["ABC1D23"])

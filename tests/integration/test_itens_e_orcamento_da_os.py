@@ -1,10 +1,12 @@
-"""Itens da OS, conclusão do orçamento, reserva e alocação das peças pelas rotas HTTP, com
-PostgreSQL real (RF-17, RF-18, RF-19, RNF-08, RNF-11, RNF-13)."""
+"""Itens da OS, conclusão do orçamento, reserva, alocação e estorno das peças pelas rotas HTTP, com
+PostgreSQL real (RF-17, RF-18, RF-19, RF-23, RNF-08, RNF-11, RNF-13)."""
 
 from uuid import UUID, uuid4
 
 import pytest
+from asyncpg.exceptions import DeadlockDetectedError
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 
 from application.events.event_dispatcher import EventHandler
 from domain.entities.usuario import Usuario
@@ -12,6 +14,7 @@ from domain.events.orcamento_finalizado_event import OrcamentoFinalizadoEvent
 from domain.events.saldo_peca_atualizado_event import SaldoPecaAtualizadoEvent
 from domain.value_objects.perfil_usuario import PerfilUsuario
 from infrastructure.database.unidade_de_trabalho import UnidadeDeTrabalhoSqlAlchemy
+from infrastructure.repositories.postgres_estoque_repository import PostgresEstoqueRepository
 from infrastructure.repositories.postgres_ordem_servico_repository import (
     PostgresOrdemServicoRepository,
 )
@@ -724,3 +727,212 @@ async def test_falha_de_um_handler_depois_da_alocacao_desfaz_a_reposicao(
 
     assert await _estoque(cliente_http, mecanico, peca["id"]) == (0, 0, 0)
     assert await _situacao(cliente_http, mecanico, os_id) == ("AGUARDANDO_PECA", 0, 2)
+
+
+async def _cancelar(cliente_http, quem, os_id: str, motivo: str = "Cliente desistiu do serviço"):
+    return await cliente_http.post(
+        f"/ordens-servico/{os_id}/cancelamento", json={"motivo": motivo}, headers=_cabecalho(quem)
+    )
+
+
+async def test_cancelamento_devolve_as_reservas_ao_saldo_disponivel(
+    cliente_http, atendente, mecanico, gerente
+):
+    peca = await _peca_com_saldo(cliente_http, gerente, saldo=5)
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (5, 2, 3)
+
+    resposta = await _cancelar(cliente_http, gerente, os_id)
+
+    assert resposta.status_code == 200
+    assert resposta.json()["status"] == "CANCELADA"
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (5, 0, 5)
+    registro = (await _detalhe(cliente_http, gerente, os_id))["historico"][-1]
+    assert (registro["status_novo"], registro["motivo"], registro["origem"]) == (
+        "CANCELADA",
+        "Cliente desistiu do serviço",
+        "USUARIO",
+    )
+    assert registro["usuario_id"] == str(gerente.id)
+
+
+async def test_cancelamento_remove_a_pendencia_e_a_reposicao_nao_aloca_a_os_cancelada(
+    cliente_http, atendente, mecanico, gerente, peca
+):
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    assert await _situacao(cliente_http, mecanico, os_id) == ("AGUARDANDO_APROVACAO", 0, 2)
+
+    await _cancelar(cliente_http, gerente, os_id)
+    await _repor(cliente_http, mecanico, peca["id"], 2)
+
+    assert await _situacao(cliente_http, mecanico, os_id) == ("CANCELADA", 0, 0)
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (2, 0, 2)
+
+
+async def test_saldo_devolvido_pelo_cancelamento_libera_a_os_que_esperava_a_peca(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes
+):
+    peca = await _peca_com_saldo(cliente_http, gerente, saldo=2)
+    dona = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    esperando = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    await _aprovar(fabrica_de_sessoes, esperando)
+    assert await _situacao(cliente_http, mecanico, esperando) == ("AGUARDANDO_PECA", 0, 2)
+
+    await _cancelar(cliente_http, gerente, dona)
+
+    assert await _situacao(cliente_http, mecanico, esperando) == ("AGUARDANDO_EXECUCAO", 2, 0)
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (2, 2, 0)
+
+
+@pytest.mark.parametrize("motivo", ["", "   "])
+async def test_cancelamento_sem_motivo_responde_422_e_mantem_as_reservas(
+    cliente_http, atendente, mecanico, gerente, motivo
+):
+    peca = await _peca_com_saldo(cliente_http, gerente, saldo=5)
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+
+    resposta = await _cancelar(cliente_http, gerente, os_id, motivo)
+
+    assert resposta.status_code == 422
+    assert resposta.json()["codigo"] == "REGRA_DE_NEGOCIO_VIOLADA"
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (5, 2, 3)
+
+
+async def test_cancelamento_sem_o_campo_motivo_responde_422(
+    cliente_http, atendente, mecanico, gerente, peca
+):
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=1)
+
+    resposta = await cliente_http.post(
+        f"/ordens-servico/{os_id}/cancelamento", json={}, headers=_cabecalho(gerente)
+    )
+
+    assert resposta.status_code == 422
+    assert resposta.json()["codigo"] == "ENTRADA_INVALIDA"
+
+
+async def test_cancelamento_com_marcacao_no_motivo_responde_400_e_nada_muda(
+    cliente_http, atendente, mecanico, gerente
+):
+    peca = await _peca_com_saldo(cliente_http, gerente, saldo=5)
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+
+    resposta = await _cancelar(cliente_http, gerente, os_id, "<script>alert(1)</script>")
+
+    assert resposta.status_code == 400
+    assert resposta.json()["codigo"] == "VALOR_INVALIDO"
+    assert await _situacao(cliente_http, mecanico, os_id) == ("AGUARDANDO_APROVACAO", 2, 0)
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (5, 2, 3)
+
+
+async def test_motivo_com_acentos_e_simbolos_comuns_e_gravado_como_digitado(
+    cliente_http, atendente, mecanico, gerente, peca
+):
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=1)
+    motivo = "Cliente não aprovou: R$ 1.200 & prazo > 10 dias"
+
+    resposta = await _cancelar(cliente_http, gerente, os_id, motivo)
+
+    assert resposta.status_code == 200
+    assert (await _detalhe(cliente_http, gerente, os_id))["historico"][-1]["motivo"] == motivo
+
+
+async def _levar_a_entrega(fabrica_de_sessoes, os_id: str, mecanico: Usuario, entregar: bool):
+    """As rotas de execução, conclusão e entrega são das issues #99 a #101; aqui o domínio."""
+    async with UnidadeDeTrabalhoSqlAlchemy(fabrica_de_sessoes) as unidade:
+        ordens = PostgresOrdemServicoRepository(unidade.sessao)
+        os = await ordens.buscar_por_id(UUID(os_id))
+        os.aprovar_orcamento()
+        os.iniciar_execucao(mecanico)
+        os.concluir_manutencao(mecanico.id)
+        if entregar:
+            os.entregar_veiculo(mecanico.id)
+        await ordens.salvar(os)
+
+
+@pytest.mark.parametrize("entregar", [False, True], ids=["FINALIZADA", "ENTREGUE"])
+async def test_cancelamento_de_os_finalizada_ou_entregue_responde_422(
+    cliente_http, atendente, mecanico, gerente, fabrica_de_sessoes, entregar
+):
+    peca = await _peca_com_saldo(cliente_http, gerente, saldo=5)
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=1)
+    await _levar_a_entrega(fabrica_de_sessoes, os_id, mecanico, entregar)
+
+    resposta = await _cancelar(cliente_http, gerente, os_id)
+
+    assert resposta.status_code == 422
+    assert resposta.json()["codigo"] == "REGRA_DE_NEGOCIO_VIOLADA"
+
+
+async def test_cancelar_duas_vezes_responde_422_na_segunda(
+    cliente_http, atendente, mecanico, gerente, peca
+):
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=1)
+
+    primeira = await _cancelar(cliente_http, gerente, os_id)
+    segunda = await _cancelar(cliente_http, gerente, os_id)
+
+    assert (primeira.status_code, segunda.status_code) == (200, 422)
+
+
+async def test_cancelamento_de_os_inexistente_responde_404(cliente_http, gerente):
+    resposta = await _cancelar(cliente_http, gerente, str(uuid4()))
+
+    assert resposta.status_code == 404
+
+
+@pytest.mark.parametrize("quem", ["atendente", "mecanico"])
+async def test_so_o_gerente_cancela(cliente_http, request, atendente, mecanico, gerente, quem):
+    peca = await _peca_com_saldo(cliente_http, gerente, saldo=5)
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=1)
+
+    resposta = await _cancelar(cliente_http, request.getfixturevalue(quem), os_id)
+
+    assert resposta.status_code == 403
+    assert (await _situacao(cliente_http, gerente, os_id))[0] == "AGUARDANDO_APROVACAO"
+
+
+async def test_falha_de_um_handler_depois_do_estorno_desfaz_o_cancelamento(
+    cliente_http, atendente, mecanico, gerente, monkeypatch
+):
+    peca = await _peca_com_saldo(cliente_http, gerente, saldo=5)
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    monkeypatch.setattr(
+        app.state,
+        "fabricas_de_handlers",
+        [
+            *app.state.fabricas_de_handlers,
+            (SaldoPecaAtualizadoEvent, lambda sessao: FalhaDeTeste()),
+        ],
+    )
+
+    with pytest.raises(RuntimeError, match="falha simulada depois da alocação"):
+        await _cancelar(cliente_http, gerente, os_id)
+
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (5, 2, 3)
+    assert await _situacao(cliente_http, mecanico, os_id) == ("AGUARDANDO_APROVACAO", 2, 0)
+
+
+async def test_impasse_no_cancelamento_e_repetido_e_a_resposta_e_200(
+    cliente_http, atendente, mecanico, gerente, monkeypatch
+):
+    peca = await _peca_com_saldo(cliente_http, gerente, saldo=5)
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    salvar_original = PostgresEstoqueRepository.salvar
+    tentativas = []
+
+    async def salvar_com_impasse_na_primeira_vez(self, estoque):
+        tentativas.append(estoque.peca_id)
+        if len(tentativas) == 1:
+            raise DBAPIError("UPDATE estoque_pecas", None, DeadlockDetectedError())
+        await salvar_original(self, estoque)
+
+    monkeypatch.setattr(PostgresEstoqueRepository, "salvar", salvar_com_impasse_na_primeira_vez)
+
+    resposta = await _cancelar(cliente_http, gerente, os_id)
+
+    assert resposta.status_code == 200
+    assert len(tentativas) == 2
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (5, 0, 5)
+    historico = (await _detalhe(cliente_http, gerente, os_id))["historico"]
+    assert [r["status_novo"] for r in historico].count("CANCELADA") == 1

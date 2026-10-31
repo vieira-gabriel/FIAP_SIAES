@@ -26,6 +26,7 @@ from application.use_cases.cadastrar_servico import CadastrarServico
 from application.use_cases.cadastrar_usuario import CadastrarUsuario
 from application.use_cases.cadastrar_veiculo import CadastrarVeiculo
 from application.use_cases.cancelar_os import CancelarOS
+from application.use_cases.consultar_os_publica import ConsultarOSPublica
 from application.use_cases.criar_carga_inicial import CriarCargaInicial, SenhasDaCargaInicial
 from application.use_cases.criar_os import CriarOS
 from application.use_cases.desativar_usuario import DesativarUsuario
@@ -337,6 +338,11 @@ obter_detalhar_ordem_servico = _por_requisicao(
         PostgresOrdemServicoRepository(sessao),
         PostgresClienteRepository(sessao),
         PostgresVeiculoRepository(sessao),
+    )
+)
+obter_consultar_os_publica = _por_requisicao(
+    lambda sessao, _: ConsultarOSPublica(
+        PostgresOrdemServicoRepository(sessao), PostgresClienteRepository(sessao)
     )
 )
 obter_listar_ordens_servico = _por_requisicao(

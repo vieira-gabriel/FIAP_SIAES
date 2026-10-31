@@ -52,6 +52,7 @@ from application.use_cases.listar_usuarios import ListarUsuarios
 from application.use_cases.listar_veiculos import ListarVeiculos
 from application.use_cases.localizar_os_do_titular import LocalizarOSDoTitular
 from application.use_cases.reativar_usuario import ReativarUsuario
+from application.use_cases.rejeitar_orcamento import RejeitarOrcamento
 from application.use_cases.remover_peca_da_os import RemoverPecaDaOS
 from application.use_cases.remover_servico_da_os import RemoverServicoDaOS
 from application.use_cases.repor_peca import ReporPeca
@@ -358,6 +359,16 @@ obter_consultar_os_publica = _por_requisicao(
 obter_aprovar_orcamento = _por_requisicao(
     lambda sessao, _: AprovarOrcamento(
         _localizar_os_do_titular(sessao), PostgresOrdemServicoRepository(sessao)
+    )
+)
+obter_rejeitar_orcamento = _por_requisicao(
+    lambda sessao, estado: com_repeticao_em_impasse(
+        RejeitarOrcamento(
+            _localizar_os_do_titular(sessao),
+            PostgresOrdemServicoRepository(sessao),
+            _eventos_da_requisicao(sessao, estado),
+        ),
+        sessao,
     )
 )
 obter_listar_ordens_servico = _por_requisicao(

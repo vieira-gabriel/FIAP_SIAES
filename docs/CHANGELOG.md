@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-31 — PR da issue #102 (rejeição do orçamento pelo cliente)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Rejeição do orçamento pelo cliente (RF-26, RF-18)": `POST /acompanhamento/rejeicao`, sem JWT, e o caso de uso `RejeitarOrcamento`, que despacha o `OSCanceladaEvent` para o `EstornoReservasHandler` do cancelamento. A decisão "Repetição da transação em impasse" passou a incluir o `RejeitarOrcamento`. No C4, o `RejeitarOrcamento` entrou no diagrama de componentes.
+
+**Motivo:** o RF-26 manda cancelar a OS rejeitada e estornar as reservas (RF-18), e o evento e o handler do estorno já existiam por causa do cancelamento do Gerente (issue #95); a rejeição só precisa da mesma identificação pública da consulta e da aprovação. O caso de uso bloqueia a OS e depois o estoque, a mesma ordem do cancelamento, e por isso recebe a repetição em impasse da issue #95.
+
 ## 2026-10-30 — PR da issue #98 (aprovação do orçamento pelo cliente)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Aprovação do orçamento pelo cliente (RF-26)": `POST /acompanhamento/aprovacao`, sem JWT, com origem `CLIENTE` no histórico. A identificação por número da OS e CPF/CNPJ saiu do `ConsultarOSPublica` para o caso de uso `LocalizarOSDoTitular`, que a consulta e a aprovação compartilham. O rate limiting passou a ter um contador único para todas as rotas públicas. No C4, o `LocalizarOSDoTitular` entrou no diagrama, e a aprovação deixou de ligar ao `EventDispatcher`.

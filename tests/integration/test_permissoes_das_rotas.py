@@ -67,6 +67,7 @@ ROTAS_PUBLICAS = {
     ("GET", "/health"),
     ("POST", "/acompanhamento"),
     ("POST", "/acompanhamento/aprovacao"),
+    ("POST", "/acompanhamento/rejeicao"),
 }
 
 AUTORIZADOS = [

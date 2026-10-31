@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-31 — PR da issue #102 (rejeição do orçamento pelo cliente)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Rejeição do orçamento pelo cliente (RF-26, RF-18)": `POST /acompanhamento/rejeicao`, sem JWT, e o caso de uso `RejeitarOrcamento`, que despacha o `OSCanceladaEvent` para o `EstornoReservasHandler` do cancelamento. A decisão "Repetição da transação em impasse" passou a incluir o `RejeitarOrcamento`. No C4, o `RejeitarOrcamento` entrou no diagrama de componentes.
+
+**Motivo:** o RF-26 manda cancelar a OS rejeitada e estornar as reservas (RF-18), e o evento e o handler do estorno já existiam por causa do cancelamento do Gerente (issue #95); a rejeição só precisa da mesma identificação pública da consulta e da aprovação. O caso de uso bloqueia a OS e depois o estoque, a mesma ordem do cancelamento, e por isso recebe a repetição em impasse da issue #95.
+
 ## 2026-10-30 — PR da issue #98 (aprovação do orçamento pelo cliente)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Aprovação do orçamento pelo cliente (RF-26)": `POST /acompanhamento/aprovacao`, sem JWT, com origem `CLIENTE` no histórico. A identificação por número da OS e CPF/CNPJ saiu do `ConsultarOSPublica` para o caso de uso `LocalizarOSDoTitular`, que a consulta e a aprovação compartilham. O rate limiting passou a ter um contador único para todas as rotas públicas. No C4, o `LocalizarOSDoTitular` entrou no diagrama, e a aprovação deixou de ligar ao `EventDispatcher`.
@@ -21,6 +27,12 @@ Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recente
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Consulta pública da OS (RF-25)": `POST /acompanhamento`, sem JWT, com o número e o documento no corpo, a mesma resposta `404` para número inexistente, número ou documento malformado e documento de outro titular, e uma resposta sem dados do cliente. No C4, o caso de uso `ConsultarStatusPublico` passou a se chamar `ConsultarOSPublica`.
 
 **Motivo:** o RF-25 pede a consulta pública sem indicar qual dos dois dados está errado, mas não define a forma da requisição. O documento vai no corpo, e não na URL, para não aparecer nos logs de acesso. A validação do formato fica no caso de uso porque o DTO responderia `400` a um documento malformado, o que diferenciaria esse caso do número inexistente. O nome do caso de uso passou a descrever o que ele faz: consulta a OS inteira, e não só o status. O rate limiting da rota (RNF-05) continua na issue #97.
+
+## 2026-10-30 — PR da issue #95 (cancelamento pelo Gerente)
+
+**O que mudou:** a seção 8.1 do guia ganhou as decisões "Cancelamento pelo Gerente (RF-23, RF-18)" (`POST /ordens-servico/{id}/cancelamento`, `CancelarOS` e `EstornoReservasHandler` na transação), "Higienização do motivo contra XSS (RNF-04)" (o motivo com `<` responde `400`) e "Repetição da transação em impasse (RF-19, RF-23)". A decisão em aberto "Ordem dos bloqueios entre alocação e cancelamento" saiu da seção 8.2, e as linhas do guia que a citavam (reserva, alocação, persistência da OS e ponto de montagem) passaram a apontar para a nova decisão. No C4, o handler de estorno passou a se chamar `EstornoReservasHandler` e o caso de uso `CancelarOS` entrou no diagrama.
+
+**Motivo:** a alocação da reposição (issue #94) bloqueia o estoque e depois a OS, e o cancelamento bloqueia a OS e depois o estoque; com as duas se cruzando, o PostgreSQL aborta uma transação. O grupo escolheu, entre as opções A, B e C da seção 8.2, repetir a transação, que mantém a ordem dos bloqueios e a prioridade pela OS mais antiga (RF-19). Para a higienização do motivo, foi escolhida a recusa do texto com `<`, que preserva o texto original no histórico (RF-24), em vez de escapá-lo. O nome `EstornoReservasHandler` substitui o `EstornoPecasHandler` do C4 por descrever o que o handler faz: devolver reservas, e não peças.
 
 ## 2026-10-30 — PR da issue #94 (alocação das peças repostas)
 

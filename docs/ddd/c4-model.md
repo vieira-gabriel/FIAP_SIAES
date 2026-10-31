@@ -121,7 +121,9 @@ flowchart TD
         CriarOS["⚙️ CriarOS"]
         AtribuirMecanico["⚙️ AtribuirMecanico"]
         FinalizarOrcamento["⚙️ FinalizarOrcamento"]
+        CancelarOS["⚙️ CancelarOS"]
         AprovarOrcamento["⚙️ AprovarOrcamento"]
+        RejeitarOrcamento["⚙️ RejeitarOrcamento"]
         IniciarExecucao["⚙️ IniciarExecucao"]
         ConsultarOSPublica["⚙️ ConsultarOSPublica"]
         LocalizarOSDoTitular["⚙️ LocalizarOSDoTitular\nNúmero da OS + CPF/CNPJ do titular."]
@@ -129,7 +131,7 @@ flowchart TD
         Ports["🔌 Portas de Serviço (application/ports/)\nTokenService, PasswordHasher"]
         EventDispatcher["⚡ EventDispatcher (In-Memory)\nBarramento síncrono para eventos de domínio."]
         ReservaHandler["📦 ReservaPecasHandler\nEscuta OrcamentoFinalizadoEvent e reserva as peças da OS."]
-        EstornoHandler["📦 EstornoPecasHandler\nEscuta OSCanceladaEvent e estorna as reservas da OS."]
+        EstornoHandler["📦 EstornoReservasHandler\nEscuta OSCanceladaEvent e estorna as reservas da OS."]
         EstoqueHandler["📦 BaixaEstoqueHandler\nEscuta ExecucaoIniciadaEvent e efetua a baixa das peças reservadas."]
         AlocacaoHandler["📦 AlocacaoPecasPendentesHandler\nEscuta SaldoPecaAtualizadoEvent, aloca o saldo às OS pendentes\ne libera as OS sem pendência."]
     end
@@ -163,6 +165,10 @@ flowchart TD
     RouterOS --> FinalizarOrcamento
     RouterOS --> IniciarExecucao
     RouterAcompanhamento --> AprovarOrcamento
+    RouterAcompanhamento --> RejeitarOrcamento
+    RejeitarOrcamento --> LocalizarOSDoTitular
+    RejeitarOrcamento --> AggOS
+    RejeitarOrcamento --> EventDispatcher
     RouterAcompanhamento --> ConsultarOSPublica
     ConsultarOSPublica --> LocalizarOSDoTitular
     AprovarOrcamento --> LocalizarOSDoTitular
@@ -519,7 +525,7 @@ src/
 │   ├── use_cases/                 # Serviços de Orquestração (CriarOS, AprovarOrcamento, AutenticarUsuario)
 │   ├── ports/                     # Interfaces Abstratas de Serviços (TokenService, PasswordHasher)
 │   ├── events/                    # Event Dispatcher In-Memory
-│   └── handlers/                  # Event Handlers (ReservaPecasHandler, EstornoPecasHandler, BaixaEstoqueHandler, AlocacaoPecasPendentesHandler)
+│   └── handlers/                  # Event Handlers (ReservaPecasHandler, EstornoReservasHandler, BaixaEstoqueHandler, AlocacaoPecasPendentesHandler)
 ├── domain/                        # Nível 4 (Núcleo Puro de Negócio em Python Dataclasses)
 │   ├── entities/                  # Dataclasses de Agregados e Entidades (OrdemServico, EstoquePeca, Cliente, Veiculo, Usuario, Servico, Peca)
 │   ├── value_objects/             # VOs Imutáveis (Documento, CPF, CNPJ, Placa, Valor, NumeroOS, Orcamento, StatusOS, PerfilUsuario, OrigemTransicao, PendenciaPeca, AlocacaoPeca)

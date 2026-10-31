@@ -58,6 +58,7 @@ ROTAS: list[tuple[str, str, frozenset[PerfilUsuario]]] = [
     ("POST", "/ordens-servico/{id}/pecas", frozenset({MECANICO, GERENTE})),
     ("DELETE", "/ordens-servico/{id}/pecas/{peca_id}", frozenset({MECANICO, GERENTE})),
     ("POST", "/ordens-servico/{id}/orcamento", frozenset({MECANICO, GERENTE})),
+    ("POST", "/ordens-servico/{id}/cancelamento", frozenset({GERENTE})),
     ("PUT", "/pecas/{id}/quantidade-fisica", frozenset({MECANICO, GERENTE})),
 ]
 
@@ -66,6 +67,7 @@ ROTAS_PUBLICAS = {
     ("GET", "/health"),
     ("POST", "/acompanhamento"),
     ("POST", "/acompanhamento/aprovacao"),
+    ("POST", "/acompanhamento/rejeicao"),
 }
 
 AUTORIZADOS = [

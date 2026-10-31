@@ -220,6 +220,9 @@ async def _abrir_os_com_a_peca_pendente(fabrica_de_sessoes, peca_id):
     atendente = Usuario(
         nome="Ana", email="ana@oficina.com", senha_hash="h", perfil=PerfilUsuario.ATENDENTE
     )
+    mecanico = Usuario(
+        nome="Pedro", email="pedro@oficina.com", senha_hash="h", perfil=PerfilUsuario.MECANICO
+    )
     cliente = Cliente(
         nome="Carla", documento=CPF("529.982.247-25"), email="c@email.com", telefone="1199999"
     )
@@ -229,6 +232,7 @@ async def _abrir_os_com_a_peca_pendente(fabrica_de_sessoes, peca_id):
     async with UnidadeDeTrabalhoSqlAlchemy(fabrica_de_sessoes) as unidade:
         sessao = unidade.sessao
         await PostgresUsuarioRepository(sessao).salvar(atendente)
+        await PostgresUsuarioRepository(sessao).salvar(mecanico)
         await PostgresClienteRepository(sessao).salvar(cliente)
         await sessao.flush()
         await PostgresVeiculoRepository(sessao).salvar(veiculo)
@@ -240,9 +244,9 @@ async def _abrir_os_com_a_peca_pendente(fabrica_de_sessoes, peca_id):
             veiculo_id=veiculo.id,
             atendente_id=atendente.id,
         )
-        os.atribuir_mecanico(atendente.id)
+        os.atribuir_mecanico(mecanico, mecanico)
         os.incluir_peca(peca, quantidade=1)
-        os.finalizar_orcamento(atendente.id, [], [peca])
+        os.finalizar_orcamento(mecanico.id, [], [peca])
         await PostgresOrdemServicoRepository(sessao).salvar(os)
 
 

@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-30 — PR da issue #91 (atribuição do mecânico)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Atribuição do mecânico (RF-16)": `POST /ordens-servico/{id}/mecanico` para Mecânico e Gerente, com o `mecanico_id` opcional no corpo (o Mecânico omite, o Gerente informa). `OrdemServico.atribuir_mecanico` passou a receber o mecânico e o responsável como `Usuario`, como o `iniciar_execucao`, e concentra as regras de quem pode atribuir. O diagrama de classes e a descrição das transições do C4 acompanham a nova assinatura.
+
+**Motivo:** a tabela de transições da Linguagem Ubíqua diz que o histórico grava o usuário que executa a transição, mas o `atribuir_mecanico(mecanico_id)` gravava o mecânico atribuído, e o histórico não mostraria o Gerente que atribuiu a OS a outro (RF-24). Receber os dois usuários também permite recusar, no domínio, o mecânico que atribui a OS a outro e o indicado que não é um mecânico ativo. As duas escolhas (histórico com o responsável e só mecânico ativo como indicado) foram decididas com o usuário ao implementar a issue.
+
 ## 2026-10-30 — PR #142 (listagem de OS)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Listagem de OS (RF-14)": `GET /ordens-servico` para os três perfis, com os filtros combináveis `documento`, `placa`, `status`, `mecanico_id` e período de abertura, resposta da mais recente para a mais antiga e sem paginação. A porta `VeiculoRepository` ganhou `listar_por_placa`, que devolve também os veículos excluídos.

@@ -225,6 +225,13 @@ class NumeroOSIndisponivel(RegraDeNegocioViolada):
         super().__init__("Não foi possível gerar um número livre para a OS. Tente novamente.")
 
 
+class MecanicoIndisponivel(RegraDeNegocioViolada):
+    """O usuário indicado não tem o perfil Mecânico ou está desativado (RF-16)."""
+
+    def __init__(self):
+        super().__init__("O usuário indicado não é um mecânico ativo.")
+
+
 class OSDeOutroCliente(RegraDeNegocioViolada):
     """A placa informada pertence a um veículo de outro cliente (RF-07, RF-13)."""
 

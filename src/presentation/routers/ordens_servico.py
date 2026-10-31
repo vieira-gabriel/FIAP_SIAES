@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 
 from application.ports.token_service import UsuarioAutenticado
+from application.use_cases.atribuir_mecanico import AtribuirMecanico
 from application.use_cases.criar_os import (
     CriarOS,
     DadosDoNovoCliente,
@@ -17,6 +18,7 @@ from domain.value_objects.perfil_usuario import PerfilUsuario
 from domain.value_objects.placa import Placa
 from domain.value_objects.status_os import StatusOS
 from presentation.container import (
+    obter_atribuir_mecanico,
     obter_criar_os,
     obter_detalhar_ordem_servico,
     obter_listar_ordens_servico,
@@ -25,6 +27,7 @@ from presentation.middlewares.dependencies import exigir_perfis
 from presentation.schemas.erro import ErroResponse
 from presentation.schemas.ordem_servico import (
     AbrirOSRequest,
+    AtribuirMecanicoRequest,
     OSDetalheResponse,
     OSResponse,
     OSResumoResponse,
@@ -41,6 +44,8 @@ router = APIRouter(
 
 # RF-13: a abertura é do Atendente e do Gerente.
 _ABERTURA = exigir_perfis(PerfilUsuario.ATENDENTE, PerfilUsuario.GERENTE)
+# RF-16: a atribuição do mecânico é do Mecânico e do Gerente.
+_ATRIBUICAO = exigir_perfis(PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
 # RF-14, RF-15: a consulta é de todos os perfis.
 _CONSULTA = exigir_perfis(PerfilUsuario.ATENDENTE, PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
 
@@ -129,3 +134,31 @@ async def detalhar_os(
     estimativa de entrega do momento da consulta (RF-15, RF-25)."""
     detalhe = await detalhar.executar(id, datetime.now(UTC))
     return OSDetalheResponse.de_detalhe(detalhe)
+
+
+@router.post(
+    "/{id}/mecanico",
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErroResponse,
+            "description": "OS ou mecânico não encontrado.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": ErroResponse,
+            "description": "OS fora de `RECEBIDA` ou usuário que não é um mecânico ativo.",
+        },
+    },
+)
+async def atribuir_mecanico(
+    id: UUID,
+    usuario: Annotated[UsuarioAutenticado, Depends(_ATRIBUICAO)],
+    atribuir: Annotated[AtribuirMecanico, Depends(obter_atribuir_mecanico, scope="function")],
+    dados: AtribuirMecanicoRequest | None = None,
+) -> OSResponse:
+    """O Mecânico assume a OS, e o Gerente a atribui ao mecânico informado em `mecanico_id`. A OS
+    passa de `RECEBIDA` para `EM_DIAGNOSTICO` (RF-16)."""
+    mecanico_id = dados.mecanico_id if dados else None
+    if mecanico_id is None and usuario.perfil == PerfilUsuario.MECANICO:
+        mecanico_id = usuario.usuario_id
+    os = await atribuir.executar(id, mecanico_id, usuario.usuario_id)
+    return OSResponse.de_entidade(os)

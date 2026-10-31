@@ -19,6 +19,7 @@ from domain.exceptions import (
     ItemIndisponivel,
     ItemJaIncluido,
     ItensBloqueados,
+    MecanicoIndisponivel,
     MotivoObrigatorio,
     OrdemServicoInvalida,
     PecasPendentes,
@@ -194,17 +195,32 @@ class OrdemServico:
             subtotal_pecas=_somar(item.valor_total() for item in self.pecas),
         )
 
-    def atribuir_mecanico(self, mecanico_id: UUID) -> None:
-        """O mecânico assume a OS, que passa a `EM_DIAGNOSTICO` (RF-16)."""
-        if not isinstance(mecanico_id, UUID):
-            raise OrdemServicoInvalida("o mecânico é obrigatório")
+    def atribuir_mecanico(self, mecanico: Usuario, responsavel: Usuario) -> None:
+        """O mecânico assume a OS, que passa a `EM_DIAGNOSTICO` (RF-16).
+
+        O Mecânico só atribui a OS a si mesmo, e o Gerente a qualquer mecânico ativo. O histórico
+        grava o responsável, que é quem executa a transição (RF-24).
+        """
+        for usuario in (mecanico, responsavel):
+            if not isinstance(usuario, Usuario):
+                raise OrdemServicoInvalida("o mecânico e o responsável são obrigatórios")
+        self._validar_transicao(StatusOS.EM_DIAGNOSTICO, de={StatusOS.RECEBIDA})
+        if not responsavel.ativo:
+            raise AcessoNegado("Usuário desativado não pode atribuir o mecânico.")
+        assume_a_propria_os = (
+            responsavel.perfil == PerfilUsuario.MECANICO and responsavel == mecanico
+        )
+        if responsavel.perfil != PerfilUsuario.GERENTE and not assume_a_propria_os:
+            raise AcessoNegado("O mecânico só atribui a OS a si mesmo, e o Gerente a qualquer um.")
+        if not (mecanico.ativo and mecanico.perfil == PerfilUsuario.MECANICO):
+            raise MecanicoIndisponivel()
         self._mudar_status(
             StatusOS.EM_DIAGNOSTICO,
             de={StatusOS.RECEBIDA},
             origem=OrigemTransicao.USUARIO,
-            usuario_id=mecanico_id,
+            usuario_id=responsavel.id,
         )
-        self.mecanico_id = mecanico_id
+        self.mecanico_id = mecanico.id
 
     def finalizar_orcamento(
         self,

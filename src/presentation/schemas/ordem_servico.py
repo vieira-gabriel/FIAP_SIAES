@@ -25,6 +25,12 @@ class VeiculoNovoRequest(BaseModel):
     ano: int = Field(examples=[2015])
 
 
+class AtribuirMecanicoRequest(BaseModel):
+    """O Mecânico omite o campo, porque atribui a OS a si mesmo; o Gerente informa o mecânico."""
+
+    mecanico_id: UUID | None = None
+
+
 class AbrirOSRequest(BaseModel):
     documento: str = Field(min_length=1, max_length=20, examples=["529.982.247-25"])
     placa: str = Field(min_length=1, max_length=12, examples=["ABC1D23"])

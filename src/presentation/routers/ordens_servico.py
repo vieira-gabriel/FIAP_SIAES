@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, status
 from application.ports.token_service import UsuarioAutenticado
 from application.use_cases.atribuir_mecanico import AtribuirMecanico
 from application.use_cases.cancelar_os import CancelarOS
+from application.use_cases.concluir_manutencao import ConcluirManutencao
 from application.use_cases.criar_os import (
     CriarOS,
     DadosDoNovoCliente,
@@ -27,6 +28,7 @@ from domain.value_objects.status_os import StatusOS
 from presentation.container import (
     obter_atribuir_mecanico,
     obter_cancelar_os,
+    obter_concluir_manutencao,
     obter_criar_os,
     obter_detalhar_ordem_servico,
     obter_finalizar_orcamento,
@@ -70,6 +72,8 @@ _DIAGNOSTICO = exigir_perfis(PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
 _CANCELAMENTO = exigir_perfis(PerfilUsuario.GERENTE)
 # RF-20: o início da execução é do Mecânico atribuído e do Gerente; a OS confere o mecânico.
 _EXECUCAO = exigir_perfis(PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
+# RF-21: a conclusão é do Mecânico atribuído e do Gerente; a OS confere o mecânico.
+_CONCLUSAO = exigir_perfis(PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
 # RF-14, RF-15: a consulta é de todos os perfis.
 _CONSULTA = exigir_perfis(PerfilUsuario.ATENDENTE, PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
 
@@ -324,3 +328,27 @@ async def iniciar_execucao(
     """A OS passa de `AGUARDANDO_EXECUCAO` para `EM_EXECUCAO`, o início é gravado e as peças
     reservadas recebem a baixa definitiva no estoque (RF-20)."""
     return OSItensResponse.de_entidade(await iniciar.executar(id, usuario.usuario_id))
+
+
+@router.post(
+    "/{id}/conclusao",
+    responses={
+        status.HTTP_404_NOT_FOUND: {"model": ErroResponse, "description": "OS não encontrada."},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": ErroResponse,
+            "description": "A OS não está em `EM_EXECUCAO`.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErroResponse,
+            "description": "Perfil sem permissão, ou mecânico que não é o atribuído à OS.",
+        },
+    },
+)
+async def concluir_manutencao(
+    id: UUID,
+    usuario: Annotated[UsuarioAutenticado, Depends(_CONCLUSAO)],
+    concluir: Annotated[ConcluirManutencao, Depends(obter_concluir_manutencao, scope="function")],
+) -> OSItensResponse:
+    """A OS passa de `EM_EXECUCAO` para `FINALIZADA`, o momento da conclusão é gravado e os itens
+    deixam de aceitar alterações (RF-21)."""
+    return OSItensResponse.de_entidade(await concluir.executar(id, usuario.usuario_id))

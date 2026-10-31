@@ -14,6 +14,7 @@ from application.ports.token_service import TokenService
 from application.ports.verificador_do_banco import VerificadorDoBanco
 from application.use_cases.ajustar_quantidade_fisica_da_peca import AjustarQuantidadeFisicaDaPeca
 from application.use_cases.alterar_senha_do_usuario import AlterarSenhaDoUsuario
+from application.use_cases.aprovar_orcamento import AprovarOrcamento
 from application.use_cases.atribuir_mecanico import AtribuirMecanico
 from application.use_cases.atualizar_cliente import AtualizarCliente
 from application.use_cases.atualizar_peca import AtualizarPeca
@@ -27,6 +28,7 @@ from application.use_cases.cadastrar_servico import CadastrarServico
 from application.use_cases.cadastrar_usuario import CadastrarUsuario
 from application.use_cases.cadastrar_veiculo import CadastrarVeiculo
 from application.use_cases.cancelar_os import CancelarOS
+from application.use_cases.consultar_os_publica import ConsultarOSPublica
 from application.use_cases.criar_carga_inicial import CriarCargaInicial, SenhasDaCargaInicial
 from application.use_cases.criar_os import CriarOS
 from application.use_cases.desativar_usuario import DesativarUsuario
@@ -50,6 +52,7 @@ from application.use_cases.listar_pecas import ListarPecas
 from application.use_cases.listar_servicos import ListarServicos
 from application.use_cases.listar_usuarios import ListarUsuarios
 from application.use_cases.listar_veiculos import ListarVeiculos
+from application.use_cases.localizar_os_do_titular import LocalizarOSDoTitular
 from application.use_cases.reativar_usuario import ReativarUsuario
 from application.use_cases.remover_peca_da_os import RemoverPecaDaOS
 from application.use_cases.remover_servico_da_os import RemoverServicoDaOS
@@ -82,6 +85,7 @@ from infrastructure.repositories.postgres_usuario_repository import PostgresUsua
 from infrastructure.repositories.postgres_veiculo_repository import PostgresVeiculoRepository
 from infrastructure.security.bcrypt_password_hasher import BcryptPasswordHasher
 from infrastructure.security.jwt_token_service import JwtTokenService
+from presentation.middlewares.rate_limit import configurar_limite_publico
 
 
 def montar_dependencias(app: FastAPI) -> None:
@@ -104,6 +108,7 @@ def montar_dependencias(app: FastAPI) -> None:
     app.state.verificador_do_banco = VerificadorDoBancoSqlAlchemy(engine)
     app.state.senhas_da_carga_inicial = _senhas_da_carga_inicial(configuracao)
     app.state.fabricas_de_handlers = _fabricas_de_handlers()
+    configurar_limite_publico(configuracao.rate_limit_publico)
 
 
 async def executar_carga_inicial(app: FastAPI) -> None:
@@ -354,6 +359,22 @@ obter_detalhar_ordem_servico = _por_requisicao(
         PostgresOrdemServicoRepository(sessao),
         PostgresClienteRepository(sessao),
         PostgresVeiculoRepository(sessao),
+    )
+)
+
+
+def _localizar_os_do_titular(sessao: AsyncSession) -> LocalizarOSDoTitular:
+    return LocalizarOSDoTitular(
+        PostgresOrdemServicoRepository(sessao), PostgresClienteRepository(sessao)
+    )
+
+
+obter_consultar_os_publica = _por_requisicao(
+    lambda sessao, _: ConsultarOSPublica(_localizar_os_do_titular(sessao))
+)
+obter_aprovar_orcamento = _por_requisicao(
+    lambda sessao, _: AprovarOrcamento(
+        _localizar_os_do_titular(sessao), PostgresOrdemServicoRepository(sessao)
     )
 )
 obter_listar_ordens_servico = _por_requisicao(

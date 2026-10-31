@@ -19,6 +19,7 @@ from domain.exceptions import (
     ItemIndisponivel,
     ItemJaIncluido,
     ItensBloqueados,
+    MecanicoIndisponivel,
     MotivoObrigatorio,
     OrdemServicoInvalida,
     PecasPendentes,
@@ -154,11 +155,18 @@ class OrdemServico:
 
     def remover_peca(self, peca_id: UUID) -> None:
         self._exigir_itens_editaveis()
-        item = next((item for item in self.pecas if item.peca_id == peca_id), None)
-        if item is None:
-            raise EntidadeNaoEncontrada("Item de peça", peca_id)
-        self.pecas.remove(item)
+        self.pecas.remove(self._item_da_peca(peca_id))
         self.orcamento = None
+
+    def alocar_peca(self, peca_id: UUID, quantidade: int) -> None:
+        """Converte a quantidade pendente da peça em reservada e libera a OS sem pendências.
+
+        Só a OS em `AGUARDANDO_PECA` é liberada. Em `AGUARDANDO_APROVACAO` a reserva não muda o
+        status, e o cliente ainda decide sobre o orçamento (RF-18, RF-19).
+        """
+        self._item_da_peca(peca_id).alocar(quantidade)
+        if self.status is StatusOS.AGUARDANDO_PECA and not self._nomes_das_pecas_pendentes():
+            self.liberar_para_execucao()
 
     def congelar_valores(
         self, servicos_vigentes: Iterable[Servico], pecas_vigentes: Iterable[Peca]
@@ -194,17 +202,32 @@ class OrdemServico:
             subtotal_pecas=_somar(item.valor_total() for item in self.pecas),
         )
 
-    def atribuir_mecanico(self, mecanico_id: UUID) -> None:
-        """O mecânico assume a OS, que passa a `EM_DIAGNOSTICO` (RF-16)."""
-        if not isinstance(mecanico_id, UUID):
-            raise OrdemServicoInvalida("o mecânico é obrigatório")
+    def atribuir_mecanico(self, mecanico: Usuario, responsavel: Usuario) -> None:
+        """O mecânico assume a OS, que passa a `EM_DIAGNOSTICO` (RF-16).
+
+        O Mecânico só atribui a OS a si mesmo, e o Gerente a qualquer mecânico ativo. O histórico
+        grava o responsável, que é quem executa a transição (RF-24).
+        """
+        for usuario in (mecanico, responsavel):
+            if not isinstance(usuario, Usuario):
+                raise OrdemServicoInvalida("o mecânico e o responsável são obrigatórios")
+        self._validar_transicao(StatusOS.EM_DIAGNOSTICO, de={StatusOS.RECEBIDA})
+        if not responsavel.ativo:
+            raise AcessoNegado("Usuário desativado não pode atribuir o mecânico.")
+        assume_a_propria_os = (
+            responsavel.perfil == PerfilUsuario.MECANICO and responsavel == mecanico
+        )
+        if responsavel.perfil != PerfilUsuario.GERENTE and not assume_a_propria_os:
+            raise AcessoNegado("O mecânico só atribui a OS a si mesmo, e o Gerente a qualquer um.")
+        if not (mecanico.ativo and mecanico.perfil == PerfilUsuario.MECANICO):
+            raise MecanicoIndisponivel()
         self._mudar_status(
             StatusOS.EM_DIAGNOSTICO,
             de={StatusOS.RECEBIDA},
             origem=OrigemTransicao.USUARIO,
-            usuario_id=mecanico_id,
+            usuario_id=responsavel.id,
         )
-        self.mecanico_id = mecanico_id
+        self.mecanico_id = mecanico.id
 
     def finalizar_orcamento(
         self,
@@ -355,6 +378,12 @@ class OrdemServico:
     def _prazo_das_pecas_pendentes(self) -> timedelta:
         prazos = [item.prazo_reposicao_dias for item in self.pecas if item.quantidade_pendente > 0]
         return timedelta(days=max(prazos, default=0))
+
+    def _item_da_peca(self, peca_id: UUID) -> ItemPeca:
+        item = next((item for item in self.pecas if item.peca_id == peca_id), None)
+        if item is None:
+            raise EntidadeNaoEncontrada("Item de peça", peca_id)
+        return item
 
     def _exigir_itens_editaveis(self) -> None:
         if self.status != StatusOS.EM_DIAGNOSTICO:

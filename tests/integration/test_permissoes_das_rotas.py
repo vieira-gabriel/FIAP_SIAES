@@ -4,6 +4,7 @@ As permissões vêm dos RF-03 a RF-12. Uma rota nova precisa entrar em `ROTAS`, 
 `ROTAS_PUBLICAS` se for pública, senão `test_toda_rota_da_aplicacao_esta_na_matriz` falha.
 """
 
+import re
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -48,6 +49,15 @@ ROTAS: list[tuple[str, str, frozenset[PerfilUsuario]]] = [
     ("PUT", "/pecas/{id}", frozenset({GERENTE})),
     ("DELETE", "/pecas/{id}", frozenset({GERENTE})),
     ("POST", "/pecas/{id}/reposicao", frozenset({MECANICO, GERENTE})),
+    ("POST", "/ordens-servico", frozenset({ATENDENTE, GERENTE})),
+    ("GET", "/ordens-servico", TODOS),
+    ("GET", "/ordens-servico/{id}", TODOS),
+    ("POST", "/ordens-servico/{id}/mecanico", frozenset({MECANICO, GERENTE})),
+    ("POST", "/ordens-servico/{id}/servicos", frozenset({MECANICO, GERENTE})),
+    ("DELETE", "/ordens-servico/{id}/servicos/{servico_id}", frozenset({MECANICO, GERENTE})),
+    ("POST", "/ordens-servico/{id}/pecas", frozenset({MECANICO, GERENTE})),
+    ("DELETE", "/ordens-servico/{id}/pecas/{peca_id}", frozenset({MECANICO, GERENTE})),
+    ("POST", "/ordens-servico/{id}/orcamento", frozenset({MECANICO, GERENTE})),
     ("PUT", "/pecas/{id}/quantidade-fisica", frozenset({MECANICO, GERENTE})),
 ]
 
@@ -94,7 +104,7 @@ async def _requisitar(cliente_http, metodo, caminho, cabecalho):
     """O corpo vazio e o id inexistente bastam: o guard responde antes da validação e do banco."""
     corpo = {} if metodo in {"POST", "PUT"} else None
     return await cliente_http.request(
-        metodo, caminho.replace("{id}", str(uuid4())), json=corpo, headers=cabecalho
+        metodo, re.sub(r"\{\w+\}", lambda _: str(uuid4()), caminho), json=corpo, headers=cabecalho
     )
 
 

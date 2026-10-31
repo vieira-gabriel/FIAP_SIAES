@@ -134,6 +134,59 @@ def test_congelar_recusa_peca_diferente_do_item():
         item.congelar(criar_peca())
 
 
+def item_com_pendencia(quantidade: int, reservada: int, pendente: int) -> ItemPeca:
+    return ItemPeca(
+        peca_id=criar_peca().id,
+        nome="Filtro de óleo",
+        quantidade=quantidade,
+        preco_unitario_congelado=Valor("35.90"),
+        prazo_reposicao_dias=3,
+        quantidade_reservada=reservada,
+        quantidade_pendente=pendente,
+    )
+
+
+@pytest.mark.parametrize(
+    ("alocada", "reservada", "pendente"),
+    [(1, 2, 2), (3, 4, 0)],
+)
+def test_alocar_converte_pendente_em_reservada(alocada, reservada, pendente):
+    item = item_com_pendencia(quantidade=4, reservada=1, pendente=3)
+
+    item.alocar(alocada)
+
+    assert (item.quantidade_reservada, item.quantidade_pendente) == (reservada, pendente)
+    assert item.quantidade == 4
+
+
+@pytest.mark.parametrize("quantidade", [0, -1, True, 1.5, "1", None])
+def test_alocar_recusa_quantidade_que_nao_seja_inteiro_maior_que_zero(quantidade):
+    item = item_com_pendencia(quantidade=4, reservada=1, pendente=3)
+
+    with pytest.raises(OrdemServicoInvalida):
+        item.alocar(quantidade)
+
+    assert (item.quantidade_reservada, item.quantidade_pendente) == (1, 3)
+
+
+def test_alocar_recusa_quantidade_acima_da_pendente_e_nao_altera_o_item():
+    item = item_com_pendencia(quantidade=4, reservada=3, pendente=1)
+
+    with pytest.raises(OrdemServicoInvalida, match="pendente"):
+        item.alocar(2)
+
+    assert (item.quantidade_reservada, item.quantidade_pendente) == (3, 1)
+
+
+def test_alocar_sem_pendencia_e_recusado():
+    item = item_com_pendencia(quantidade=2, reservada=2, pendente=0)
+
+    with pytest.raises(OrdemServicoInvalida):
+        item.alocar(1)
+
+    assert (item.quantidade_reservada, item.quantidade_pendente) == (2, 0)
+
+
 def test_igualdade_pela_peca_do_catalogo():
     peca = criar_peca()
 

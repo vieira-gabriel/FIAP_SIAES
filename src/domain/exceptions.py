@@ -218,6 +218,27 @@ class PecaComPendencia(RegraDeNegocioViolada):
         self.numeros_das_os = numeros_das_os
 
 
+class NumeroOSIndisponivel(RegraDeNegocioViolada):
+    """Nenhum número livre foi gerado após as tentativas da abertura (RF-13)."""
+
+    def __init__(self):
+        super().__init__("Não foi possível gerar um número livre para a OS. Tente novamente.")
+
+
+class MecanicoIndisponivel(RegraDeNegocioViolada):
+    """O usuário indicado não tem o perfil Mecânico ou está desativado (RF-16)."""
+
+    def __init__(self):
+        super().__init__("O usuário indicado não é um mecânico ativo.")
+
+
+class OSDeOutroCliente(RegraDeNegocioViolada):
+    """A placa informada pertence a um veículo de outro cliente (RF-07, RF-13)."""
+
+    def __init__(self):
+        super().__init__("A placa informada pertence a um veículo de outro cliente.")
+
+
 class PlacaJaCadastrada(RegraDeNegocioViolada):
     """A placa identifica um único veículo ativo; a de um excluído pode ser recadastrada (RF-07)."""
 

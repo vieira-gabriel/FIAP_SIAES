@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 
+from domain.entities.estoque_peca import EstoquePeca
 from domain.entities.historico_status_os import HistoricoStatusOS
 from domain.entities.item_peca import ItemPeca
 from domain.entities.ordem_servico import OrdemServico
@@ -19,6 +20,7 @@ from domain.exceptions import (
     ItemIndisponivel,
     ItemJaIncluido,
     ItensBloqueados,
+    MecanicoIndisponivel,
     MotivoObrigatorio,
     OrdemServicoInvalida,
     PecasPendentes,
@@ -28,6 +30,7 @@ from domain.exceptions import (
 from domain.value_objects.numero_os import NumeroOS
 from domain.value_objects.orcamento import Orcamento
 from domain.value_objects.origem_transicao import OrigemTransicao
+from domain.value_objects.pendencia_peca import PendenciaPeca
 from domain.value_objects.perfil_usuario import PerfilUsuario
 from domain.value_objects.quantidade_peca import QuantidadePeca
 from domain.value_objects.status_os import StatusOS
@@ -442,22 +445,48 @@ def fora_de(*permitidos: StatusOS) -> list[StatusOS]:
     return [status for status in StatusOS if status not in permitidos]
 
 
-def test_atribuir_mecanico_leva_a_os_para_em_diagnostico():
-    mecanico_id = uuid4()
+def _recusada_sem_alterar(os: OrdemServico) -> None:
+    assert os.status is StatusOS.RECEBIDA
+    assert os.mecanico_id is None
+    assert os.historico == ()
+
+
+def test_mecanico_atribui_a_os_a_si_mesmo_e_ela_vai_para_em_diagnostico():
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
     os = criar_os(status=StatusOS.RECEBIDA)
 
-    os.atribuir_mecanico(mecanico_id)
+    os.atribuir_mecanico(mecanico, mecanico)
 
     assert os.status is StatusOS.EM_DIAGNOSTICO
-    assert os.mecanico_id == mecanico_id
+    assert os.mecanico_id == mecanico.id
+    registro = os.historico[-1]
+    assert (registro.status_anterior, registro.status_novo) == (
+        StatusOS.RECEBIDA,
+        StatusOS.EM_DIAGNOSTICO,
+    )
+    assert registro.origem is OrigemTransicao.USUARIO
+    assert registro.usuario_id == mecanico.id
+
+
+def test_gerente_atribui_a_os_a_um_mecanico_e_o_historico_grava_o_gerente():
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
+    gerente = criar_usuario(PerfilUsuario.GERENTE)
+    os = criar_os(status=StatusOS.RECEBIDA)
+
+    os.atribuir_mecanico(mecanico, gerente)
+
+    assert os.status is StatusOS.EM_DIAGNOSTICO
+    assert os.mecanico_id == mecanico.id
+    assert os.historico[-1].usuario_id == gerente.id
 
 
 @pytest.mark.parametrize("status", fora_de(StatusOS.RECEBIDA))
 def test_atribuir_mecanico_so_a_partir_de_recebida(status):
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
     os = criar_os(status=status)
 
     with pytest.raises(TransicaoDeStatusInvalida) as erro:
-        os.atribuir_mecanico(uuid4())
+        os.atribuir_mecanico(mecanico, mecanico)
 
     assert erro.value.status_atual is status
     assert erro.value.status_pretendido is StatusOS.EM_DIAGNOSTICO
@@ -465,15 +494,68 @@ def test_atribuir_mecanico_so_a_partir_de_recebida(status):
     assert os.mecanico_id is None
 
 
-@pytest.mark.parametrize("mecanico_id", ["nao-e-uuid", None, 123])
-def test_atribuir_mecanico_recusa_id_invalido_sem_mudar_o_status(mecanico_id):
+def test_mecanico_nao_atribui_a_os_a_outro_mecanico():
+    os = criar_os(status=StatusOS.RECEBIDA)
+
+    with pytest.raises(AcessoNegado):
+        os.atribuir_mecanico(
+            criar_usuario(PerfilUsuario.MECANICO), criar_usuario(PerfilUsuario.MECANICO)
+        )
+
+    _recusada_sem_alterar(os)
+
+
+def test_atendente_nao_atribui_mecanico():
+    os = criar_os(status=StatusOS.RECEBIDA)
+
+    with pytest.raises(AcessoNegado):
+        os.atribuir_mecanico(
+            criar_usuario(PerfilUsuario.MECANICO), criar_usuario(PerfilUsuario.ATENDENTE)
+        )
+
+    _recusada_sem_alterar(os)
+
+
+@pytest.mark.parametrize("perfil", [PerfilUsuario.GERENTE, PerfilUsuario.MECANICO])
+def test_responsavel_desativado_nao_atribui_mecanico(perfil):
+    responsavel = criar_usuario(perfil, ativo=False)
+    mecanico = responsavel if perfil is PerfilUsuario.MECANICO else criar_usuario(perfil)
+    os = criar_os(status=StatusOS.RECEBIDA)
+
+    with pytest.raises(AcessoNegado, match="desativado"):
+        os.atribuir_mecanico(mecanico, responsavel)
+
+    _recusada_sem_alterar(os)
+
+
+@pytest.mark.parametrize(
+    ("perfil", "ativo"),
+    [
+        (PerfilUsuario.GERENTE, True),
+        (PerfilUsuario.ATENDENTE, True),
+        (PerfilUsuario.MECANICO, False),
+    ],
+)
+def test_gerente_so_atribui_a_os_a_mecanico_ativo(perfil, ativo):
+    os = criar_os(status=StatusOS.RECEBIDA)
+
+    with pytest.raises(MecanicoIndisponivel):
+        os.atribuir_mecanico(criar_usuario(perfil, ativo), criar_usuario(PerfilUsuario.GERENTE))
+
+    _recusada_sem_alterar(os)
+
+
+@pytest.mark.parametrize("invalido", ["nao-e-usuario", None, 123, uuid4()])
+def test_atribuir_mecanico_recusa_mecanico_ou_responsavel_invalido(invalido):
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
     os = criar_os(status=StatusOS.RECEBIDA)
 
     with pytest.raises(OrdemServicoInvalida):
-        os.atribuir_mecanico(mecanico_id)
+        os.atribuir_mecanico(invalido, mecanico)
+    with pytest.raises(OrdemServicoInvalida):
+        os.atribuir_mecanico(mecanico, invalido)
 
-    assert os.status is StatusOS.RECEBIDA
-    assert os.mecanico_id is None
+    _recusada_sem_alterar(os)
 
 
 def test_finalizar_orcamento_congela_os_valores_vigentes_e_aguarda_a_aprovacao():
@@ -793,7 +875,7 @@ def test_fluxo_completo_sem_pecas_pendentes():
     servico = criar_servico()
     os = criar_os(status=StatusOS.RECEBIDA)
 
-    os.atribuir_mecanico(mecanico.id)
+    os.atribuir_mecanico(mecanico, mecanico)
     os.incluir_servico(servico)
     os.finalizar_orcamento(USUARIO_ID, [servico], [])
     os.aprovar_orcamento()
@@ -1029,11 +1111,11 @@ def test_o_historico_da_os_e_somente_leitura():
 
 
 def test_o_historico_so_cresce_pelas_transicoes():
-    mecanico_id = uuid4()
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
     os = abrir_os()
     antes = os.historico
 
-    os.atribuir_mecanico(mecanico_id)
+    os.atribuir_mecanico(mecanico, mecanico)
 
     assert os.historico[:1] == antes
     assert len(os.historico) == 2
@@ -1051,7 +1133,7 @@ def test_fluxo_completo_registra_a_sequencia_de_transicoes():
     servico = criar_servico()
     os = abrir_os(atendente_id=atendente_id)
 
-    os.atribuir_mecanico(mecanico.id)
+    os.atribuir_mecanico(mecanico, mecanico)
     os.incluir_servico(servico)
     os.finalizar_orcamento(mecanico.id, [servico], [])
     os.aprovar_orcamento()
@@ -1329,7 +1411,7 @@ def test_a_estimativa_acompanha_o_fluxo_real_da_os():
     os = criar_os(status=StatusOS.RECEBIDA, mecanico_id=None)
     assert os.estimar_entrega(MOMENTO_DA_CONSULTA) is None
 
-    os.atribuir_mecanico(mecanico.id)
+    os.atribuir_mecanico(mecanico, mecanico)
     os.incluir_servico(servico)
     os.incluir_peca(peca, quantidade=1)
     assert os.estimar_entrega(MOMENTO_DA_CONSULTA) is None
@@ -1528,8 +1610,9 @@ def test_iniciar_execucao_recusada_nao_acumula_evento():
 
 
 def test_transicoes_sem_reacao_no_estoque_nao_acumulam_evento():
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
     os = criar_os(status=StatusOS.RECEBIDA)
-    os.atribuir_mecanico(uuid4())
+    os.atribuir_mecanico(mecanico, mecanico)
     aguardando_peca = os_aguardando_aprovacao_com_peca_pendente()
     aguardando_peca.collect_domain_events()
 
@@ -1556,3 +1639,122 @@ def test_collect_domain_events_devolve_na_ordem_e_esvazia_a_lista():
 
     assert [type(evento) for evento in eventos] == [ExecucaoIniciadaEvent, OSCanceladaEvent]
     assert os.collect_domain_events() == []
+
+
+def os_aguardando_peca(*itens: ItemPeca, **alteracoes) -> OrdemServico:
+    return criar_os(status=StatusOS.AGUARDANDO_PECA, pecas=list(itens), **alteracoes)
+
+
+def test_alocar_peca_converte_a_pendente_em_reservada_e_mantem_a_os_aguardando_peca():
+    item, outro = item_peca_reservado(3, 1, pendente=2), item_peca_reservado(1, 0, pendente=1)
+    os = os_aguardando_peca(item, outro)
+
+    os.alocar_peca(item.peca_id, 1)
+
+    assert (item.quantidade_reservada, item.quantidade_pendente) == (2, 1)
+    assert (outro.quantidade_reservada, outro.quantidade_pendente) == (0, 1)
+    assert os.status is StatusOS.AGUARDANDO_PECA
+
+
+def test_alocar_peca_libera_a_os_em_aguardando_peca_quando_nao_resta_pendencia():
+    item = item_peca_reservado(3, 1, pendente=2)
+    os = os_aguardando_peca(item)
+
+    os.alocar_peca(item.peca_id, 2)
+
+    assert (item.quantidade_reservada, item.quantidade_pendente) == (3, 0)
+    assert os.status is StatusOS.AGUARDANDO_EXECUCAO
+    registro = os.historico[-1]
+    assert (registro.status_anterior, registro.status_novo) == (
+        StatusOS.AGUARDANDO_PECA,
+        StatusOS.AGUARDANDO_EXECUCAO,
+    )
+    assert registro.origem is OrigemTransicao.SISTEMA
+    assert registro.usuario_id is None
+
+
+def test_alocar_peca_so_libera_a_os_quando_a_ultima_peca_pendente_e_alocada():
+    primeira, segunda = item_peca_reservado(2, 0, pendente=2), item_peca_reservado(1, 0, pendente=1)
+    os = os_aguardando_peca(primeira, segunda)
+
+    os.alocar_peca(primeira.peca_id, 2)
+    assert os.status is StatusOS.AGUARDANDO_PECA
+
+    os.alocar_peca(segunda.peca_id, 1)
+    assert os.status is StatusOS.AGUARDANDO_EXECUCAO
+
+
+def test_alocar_peca_em_aguardando_aprovacao_reserva_sem_mudar_o_status():
+    peca = criar_peca()
+    os = criar_os()
+    os.incluir_peca(peca, quantidade=2)
+    os.finalizar_orcamento(USUARIO_ID, [], [peca])
+
+    os.alocar_peca(peca.id, 2)
+
+    assert os.status is StatusOS.AGUARDANDO_APROVACAO
+    assert (os.pecas[0].quantidade_reservada, os.pecas[0].quantidade_pendente) == (2, 0)
+    os.aprovar_orcamento()
+    assert os.status is StatusOS.AGUARDANDO_EXECUCAO
+
+
+def test_alocar_peca_nao_acumula_evento_de_dominio():
+    item = item_peca_reservado(1, 0, pendente=1)
+    os = os_aguardando_peca(item)
+
+    os.alocar_peca(item.peca_id, 1)
+
+    assert os.collect_domain_events() == []
+
+
+def test_alocar_peca_que_nao_esta_na_os_nao_altera_nada():
+    item = item_peca_reservado(1, 0, pendente=1)
+    os = os_aguardando_peca(item)
+
+    with pytest.raises(EntidadeNaoEncontrada):
+        os.alocar_peca(uuid4(), 1)
+
+    assert (item.quantidade_reservada, item.quantidade_pendente) == (0, 1)
+    assert os.status is StatusOS.AGUARDANDO_PECA
+
+
+@pytest.mark.parametrize("quantidade", [0, -1, 3, True, 1.5, None])
+def test_alocar_peca_com_quantidade_invalida_ou_acima_da_pendente_nao_altera_nada(quantidade):
+    item = item_peca_reservado(3, 1, pendente=2)
+    os = os_aguardando_peca(item)
+
+    with pytest.raises(OrdemServicoInvalida):
+        os.alocar_peca(item.peca_id, quantidade)
+
+    assert (item.quantidade_reservada, item.quantidade_pendente) == (1, 2)
+    assert os.status is StatusOS.AGUARDANDO_PECA
+    assert os.historico == ()
+
+
+def test_reposicao_insuficiente_libera_so_a_os_mais_antiga_e_a_mais_nova_segue_aguardando():
+    peca = criar_peca()
+    abertura = datetime(2026, 10, 27, 9, 0, tzinfo=UTC)
+
+    def os_aguardando(data_abertura: datetime) -> OrdemServico:
+        item = ItemPeca.a_partir_de(peca, quantidade=3)
+        item.marcar_como_pendente()
+        return os_aguardando_peca(item, data_abertura=data_abertura)
+
+    antiga, nova = os_aguardando(abertura), os_aguardando(abertura + timedelta(hours=2))
+    estoque = EstoquePeca(peca_id=peca.id, quantidade_fisica=4)
+    ordens = {antiga.id: antiga, nova.id: nova}
+
+    alocacoes = estoque.alocar_pendencias(
+        [
+            PendenciaPeca(nova.id, nova.data_abertura, nova.pecas[0].quantidade_pendente),
+            PendenciaPeca(antiga.id, antiga.data_abertura, antiga.pecas[0].quantidade_pendente),
+        ]
+    )
+    for alocacao in alocacoes:
+        ordens[alocacao.os_id].alocar_peca(peca.id, alocacao.quantidade_reservada)
+
+    assert [(a.os_id, a.quantidade_reservada) for a in alocacoes] == [(antiga.id, 3), (nova.id, 1)]
+    assert antiga.status is StatusOS.AGUARDANDO_EXECUCAO
+    assert nova.status is StatusOS.AGUARDANDO_PECA
+    assert (nova.pecas[0].quantidade_reservada, nova.pecas[0].quantidade_pendente) == (1, 2)
+    assert estoque.saldo_disponivel() == 0

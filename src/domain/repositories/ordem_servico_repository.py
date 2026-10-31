@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from uuid import UUID
 
 from domain.entities.ordem_servico import OrdemServico
+from domain.value_objects.filtro_ordens_servico import FiltroOrdensServico
 from domain.value_objects.numero_os import NumeroOS
 
 
@@ -15,6 +16,11 @@ class OrdemServicoRepository(ABC):
 
     @abstractmethod
     async def buscar_por_numero(self, numero: NumeroOS) -> OrdemServico | None: ...
+
+    @abstractmethod
+    async def listar(self, filtro: FiltroOrdensServico) -> list[OrdemServico]:
+        """As OS que atendem a todos os critérios do filtro, das abertas mais recentemente às
+        mais antigas (RF-14)."""
 
     @abstractmethod
     async def listar_pendentes_da_peca(self, peca_id: UUID) -> list[OrdemServico]:

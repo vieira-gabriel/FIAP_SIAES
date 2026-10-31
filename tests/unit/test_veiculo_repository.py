@@ -19,6 +19,7 @@ def test_porta_define_salvar_buscas_e_listagem():
         "salvar",
         "buscar_por_id",
         "buscar_por_placa",
+        "listar_por_placa",
         "listar",
     }
 
@@ -28,6 +29,8 @@ def test_implementacao_incompleta_nao_pode_ser_criada():
         async def salvar(self, veiculo): ...
 
         async def buscar_por_id(self, id): ...
+
+        async def listar_por_placa(self, placa): ...
 
         async def listar(self, cliente_id=None): ...
 
@@ -50,6 +53,19 @@ async def test_busca_por_placa_ignora_o_veiculo_excluido(veiculos):
     await veiculos.salvar(excluido)
 
     assert await veiculos.buscar_por_placa(Placa("ABC1D23")) is None
+
+
+async def test_listar_por_placa_inclui_o_veiculo_excluido_e_o_que_reaproveitou_a_placa(veiculos):
+    excluido, atual = _veiculo(), _veiculo()
+    excluido.excluir()
+    await veiculos.salvar(excluido)
+    await veiculos.salvar(atual)
+    await veiculos.salvar(_veiculo(placa="XYZ9A87"))
+
+    da_placa = await veiculos.listar_por_placa(Placa("abc-1d23"))
+
+    assert {v.id for v in da_placa} == {excluido.id, atual.id}
+    assert await veiculos.listar_por_placa(Placa("QQQ1A11")) == []
 
 
 async def test_buscar_ativo_por_id_devolve_o_veiculo_ativo(veiculos):

@@ -4,12 +4,15 @@ from fastapi import FastAPI, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import State
 
-from application.events.event_dispatcher import EventDispatcher
+from application.events.event_dispatcher import EventDispatcher, EventHandler
+from application.handlers.alocacao_pecas_pendentes_handler import AlocacaoPecasPendentesHandler
+from application.handlers.reserva_pecas_handler import ReservaPecasHandler
 from application.ports.password_hasher import PasswordHasher
 from application.ports.token_service import TokenService
 from application.ports.verificador_do_banco import VerificadorDoBanco
 from application.use_cases.ajustar_quantidade_fisica_da_peca import AjustarQuantidadeFisicaDaPeca
 from application.use_cases.alterar_senha_do_usuario import AlterarSenhaDoUsuario
+from application.use_cases.atribuir_mecanico import AtribuirMecanico
 from application.use_cases.atualizar_cliente import AtualizarCliente
 from application.use_cases.atualizar_peca import AtualizarPeca
 from application.use_cases.atualizar_servico import AtualizarServico
@@ -22,8 +25,10 @@ from application.use_cases.cadastrar_servico import CadastrarServico
 from application.use_cases.cadastrar_usuario import CadastrarUsuario
 from application.use_cases.cadastrar_veiculo import CadastrarVeiculo
 from application.use_cases.criar_carga_inicial import CriarCargaInicial, SenhasDaCargaInicial
+from application.use_cases.criar_os import CriarOS
 from application.use_cases.desativar_usuario import DesativarUsuario
 from application.use_cases.detalhar_cliente import DetalharCliente
+from application.use_cases.detalhar_ordem_servico import DetalharOrdemServico
 from application.use_cases.detalhar_peca import DetalharPeca
 from application.use_cases.detalhar_servico import DetalharServico
 from application.use_cases.detalhar_usuario import DetalharUsuario
@@ -32,13 +37,22 @@ from application.use_cases.excluir_cliente import ExcluirCliente
 from application.use_cases.excluir_peca import ExcluirPeca
 from application.use_cases.excluir_servico import ExcluirServico
 from application.use_cases.excluir_veiculo import ExcluirVeiculo
+from application.use_cases.finalizar_orcamento import FinalizarOrcamento
+from application.use_cases.incluir_peca_na_os import IncluirPecaNaOS
+from application.use_cases.incluir_servico_na_os import IncluirServicoNaOS
 from application.use_cases.listar_clientes import ListarClientes
+from application.use_cases.listar_ordens_servico import ListarOrdensServico
 from application.use_cases.listar_pecas import ListarPecas
 from application.use_cases.listar_servicos import ListarServicos
 from application.use_cases.listar_usuarios import ListarUsuarios
 from application.use_cases.listar_veiculos import ListarVeiculos
 from application.use_cases.reativar_usuario import ReativarUsuario
+from application.use_cases.remover_peca_da_os import RemoverPecaDaOS
+from application.use_cases.remover_servico_da_os import RemoverServicoDaOS
 from application.use_cases.repor_peca import ReporPeca
+from domain.events.domain_event import DomainEvent
+from domain.events.orcamento_finalizado_event import OrcamentoFinalizadoEvent
+from domain.events.saldo_peca_atualizado_event import SaldoPecaAtualizadoEvent
 from domain.repositories.cliente_repository import ClienteRepository
 from domain.repositories.estoque_repository import EstoqueRepository
 from domain.repositories.ordem_servico_repository import OrdemServicoRepository
@@ -82,6 +96,7 @@ def montar_dependencias(app: FastAPI) -> None:
     app.state.password_hasher = BcryptPasswordHasher()
     app.state.verificador_do_banco = VerificadorDoBancoSqlAlchemy(engine)
     app.state.senhas_da_carga_inicial = _senhas_da_carga_inicial(configuracao)
+    app.state.fabricas_de_handlers = _fabricas_de_handlers()
 
 
 async def executar_carga_inicial(app: FastAPI) -> None:
@@ -186,21 +201,46 @@ def _com_repositorios_de_pecas_e_eventos[T](
     caso_de_uso: Callable[[PecaRepository, EstoqueRepository, EventDispatcher], T],
 ) -> Callable[[Request], AsyncIterator[T]]:
     return _por_requisicao(
-        lambda sessao, _: caso_de_uso(
+        lambda sessao, estado: caso_de_uso(
             PostgresPecaRepository(sessao),
             PostgresEstoqueRepository(sessao),
-            _eventos_da_requisicao(sessao),
+            _eventos_da_requisicao(sessao, estado),
         )
     )
 
 
-def _eventos_da_requisicao(sessao: AsyncSession) -> EventDispatcher:
-    """Um despacho por requisição: os handlers usam os repositórios da mesma sessão, para a
-    reação ao evento gravar na mesma transação da operação (RF-12, RNF-08).
+def _fabricas_de_handlers() -> list[
+    tuple[type[DomainEvent], Callable[[AsyncSession], EventHandler]]
+]:
+    """Os handlers da aplicação: cada um nasce por requisição, sobre a sessão dela."""
+    return [
+        (
+            OrcamentoFinalizadoEvent,
+            lambda sessao: ReservaPecasHandler(
+                PostgresOrdemServicoRepository(sessao), PostgresEstoqueRepository(sessao)
+            ),
+        ),
+        (
+            SaldoPecaAtualizadoEvent,
+            lambda sessao: AlocacaoPecasPendentesHandler(
+                PostgresOrdemServicoRepository(sessao), PostgresEstoqueRepository(sessao)
+            ),
+        ),
+    ]
 
-    Ainda sem handler; o de alocação às OS com peça pendente é registrado aqui (RF-19, #94).
+
+def _eventos_da_requisicao(sessao: AsyncSession, estado: State) -> EventDispatcher:
+    """Um despacho por requisição, com os handlers presos à sessão da unidade de trabalho: a
+    reação ao evento grava na mesma transação da operação, e uma falha desfaz as duas (RNF-08).
+
+    Os handlers vêm de `app.state.fabricas_de_handlers`, uma lista de pares
+    `(tipo_do_evento, fabrica)`; a fabrica recebe a sessão e devolve o handler. A alocação às OS
+    com peça pendente (RF-19, #94) entra por essa lista.
     """
-    return EventDispatcher()
+    despachador = EventDispatcher()
+    for tipo_do_evento, fabrica in estado.fabricas_de_handlers:
+        despachador.registrar(tipo_do_evento, fabrica(sessao))
+    return despachador
 
 
 def _com_repositorios_de_pecas_e_ordens[T](
@@ -227,6 +267,66 @@ obter_listar_veiculos = _com_repositorio_de_veiculos(ListarVeiculos)
 obter_detalhar_veiculo = _com_repositorio_de_veiculos(DetalharVeiculo)
 obter_excluir_veiculo = _com_repositorio_de_veiculos(ExcluirVeiculo)
 
+
+def _com_abertura_de_os[T](
+    caso_de_uso: Callable[..., T],
+) -> Callable[[Request], AsyncIterator[T]]:
+    """Cliente, veículo e OS na mesma sessão: a abertura grava tudo ou nada (RNF-08)."""
+    return _por_requisicao(
+        lambda sessao, _: caso_de_uso(
+            PostgresClienteRepository(sessao),
+            PostgresVeiculoRepository(sessao),
+            PostgresOrdemServicoRepository(sessao),
+        )
+    )
+
+
+obter_criar_os = _com_abertura_de_os(CriarOS)
+obter_atribuir_mecanico = _por_requisicao(
+    lambda sessao, _: AtribuirMecanico(
+        PostgresOrdemServicoRepository(sessao), PostgresUsuarioRepository(sessao)
+    )
+)
+obter_incluir_servico_na_os = _por_requisicao(
+    lambda sessao, _: IncluirServicoNaOS(
+        PostgresOrdemServicoRepository(sessao), PostgresServicoRepository(sessao)
+    )
+)
+obter_incluir_peca_na_os = _por_requisicao(
+    lambda sessao, _: IncluirPecaNaOS(
+        PostgresOrdemServicoRepository(sessao), PostgresPecaRepository(sessao)
+    )
+)
+obter_remover_servico_da_os = _por_requisicao(
+    lambda sessao, _: RemoverServicoDaOS(PostgresOrdemServicoRepository(sessao))
+)
+obter_remover_peca_da_os = _por_requisicao(
+    lambda sessao, _: RemoverPecaDaOS(PostgresOrdemServicoRepository(sessao))
+)
+obter_finalizar_orcamento = _por_requisicao(
+    lambda sessao, estado: FinalizarOrcamento(
+        PostgresOrdemServicoRepository(sessao),
+        PostgresEstoqueRepository(sessao),
+        PostgresServicoRepository(sessao),
+        PostgresPecaRepository(sessao),
+        _eventos_da_requisicao(sessao, estado),
+    )
+)
+obter_detalhar_ordem_servico = _por_requisicao(
+    lambda sessao, _: DetalharOrdemServico(
+        PostgresOrdemServicoRepository(sessao),
+        PostgresClienteRepository(sessao),
+        PostgresVeiculoRepository(sessao),
+    )
+)
+obter_listar_ordens_servico = _por_requisicao(
+    lambda sessao, _: ListarOrdensServico(
+        PostgresOrdemServicoRepository(sessao),
+        PostgresClienteRepository(sessao),
+        PostgresVeiculoRepository(sessao),
+        PostgresUsuarioRepository(sessao),
+    )
+)
 obter_cadastrar_servico = _com_repositorio_de_servicos(CadastrarServico)
 obter_atualizar_servico = _com_repositorio_de_servicos(AtualizarServico)
 obter_listar_servicos = _com_repositorio_de_servicos(ListarServicos)

@@ -29,6 +29,12 @@ class PostgresVeiculoRepository(VeiculoRepository):
         modelo = await self._sessao.scalar(consulta)
         return _para_entidade(modelo) if modelo else None
 
+    async def listar_por_placa(self, placa: Placa) -> list[Veiculo]:
+        modelos = await self._sessao.scalars(
+            select(VeiculoModel).where(VeiculoModel.placa == placa.valor)
+        )
+        return [_para_entidade(modelo) for modelo in modelos]
+
     async def listar(self, cliente_id: UUID | None = None) -> list[Veiculo]:
         consulta = select(VeiculoModel).where(VeiculoModel.ativo.is_(True))
         if cliente_id is not None:

@@ -2,10 +2,12 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from application.events.event_dispatcher import EventDispatcher, EventHandler
 from application.use_cases.finalizar_orcamento import FinalizarOrcamento
 from domain.entities.ordem_servico import OrdemServico
 from domain.entities.peca import Peca
 from domain.entities.servico import Servico
+from domain.events.orcamento_finalizado_event import OrcamentoFinalizadoEvent
 from domain.exceptions import EntidadeNaoEncontrada, ItemIndisponivel
 from domain.repositories.estoque_repository import EstoqueRepository
 from domain.value_objects.numero_os import NumeroOS
@@ -43,9 +45,21 @@ def estoques():
     return EstoquesQueRegistramOBloqueio()
 
 
+class HandlerQueFalha(EventHandler):
+    async def tratar(self, evento):
+        raise RuntimeError("falha na reserva")
+
+
 @pytest.fixture
-def finalizar(ordens, estoques, servicos, pecas):
-    return FinalizarOrcamento(ordens, estoques, servicos, pecas)
+def despachador(orcamentos_finalizados) -> EventDispatcher:
+    despachador = EventDispatcher()
+    despachador.registrar(OrcamentoFinalizadoEvent, orcamentos_finalizados)
+    return despachador
+
+
+@pytest.fixture
+def finalizar(ordens, estoques, servicos, pecas, despachador):
+    return FinalizarOrcamento(ordens, estoques, servicos, pecas, despachador)
 
 
 async def _os_em_diagnostico(ordens, servicos_da_os=(), pecas_da_os=()) -> OrdemServico:
@@ -115,3 +129,42 @@ async def test_peca_excluida_depois_de_incluida_mantem_a_os_em_diagnostico(
 async def test_os_inexistente(finalizar):
     with pytest.raises(EntidadeNaoEncontrada):
         await finalizar.executar(uuid4(), USUARIO_ID)
+
+
+async def test_despacha_o_orcamento_finalizado_depois_de_salvar_a_os(
+    finalizar, ordens, orcamentos_finalizados
+):
+    os = await _os_em_diagnostico(ordens)
+
+    await finalizar.executar(os.id, USUARIO_ID)
+
+    (evento,) = orcamentos_finalizados.recebidos
+    assert isinstance(evento, OrcamentoFinalizadoEvent)
+    assert evento.os_id == os.id
+    assert (await ordens.buscar_por_id(os.id)).collect_domain_events() == []
+
+
+async def test_conclusao_recusada_nao_despacha_evento(
+    finalizar, ordens, pecas, orcamentos_finalizados
+):
+    peca = _peca("FLT-001")
+    os = await _os_em_diagnostico(ordens, pecas_da_os=[peca])
+    peca.excluir([])
+    await pecas.salvar(peca)
+
+    with pytest.raises(ItemIndisponivel):
+        await finalizar.executar(os.id, USUARIO_ID)
+
+    assert orcamentos_finalizados.recebidos == []
+
+
+async def test_falha_do_handler_sobe_para_a_unidade_de_trabalho_desfazer(
+    ordens, estoques, servicos, pecas
+):
+    despachador = EventDispatcher()
+    despachador.registrar(OrcamentoFinalizadoEvent, HandlerQueFalha())
+    finalizar = FinalizarOrcamento(ordens, estoques, servicos, pecas, despachador)
+    os = await _os_em_diagnostico(ordens)
+
+    with pytest.raises(RuntimeError, match="falha na reserva"):
+        await finalizar.executar(os.id, USUARIO_ID)

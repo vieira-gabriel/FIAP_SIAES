@@ -4,6 +4,54 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-30 — PR da issue #94 (alocação das peças repostas)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Alocação das peças repostas (RF-19)": o `AlocacaoPecasPendentesHandler` trata o `SaldoPecaAtualizadoEvent` (reposição e ajuste para cima) na transação da operação, aloca o saldo atual às OS pendentes da mais antiga para a mais nova e libera as OS de `AGUARDANDO_PECA` que ficam sem pendência. O `ReservaPecasHandler` passou a delegar a repartição do saldo ao mesmo `alocar_saldo`, e a lista de handlers do `container.py` ganhou o novo handler.
+
+**Motivo:** o RF-19 manda alocar o saldo às OS pendentes quando ele aumenta, na mesma transação (RNF-08). A reserva da conclusão do orçamento (RF-18) e a alocação da reposição repartem o saldo do mesmo jeito, então o núcleo fica em um lugar só. O handler usa o saldo atual do estoque, e não o do evento, porque duas operações na mesma transação geram dois eventos e o primeiro chega com um saldo antigo. A releitura de cada OS depois do estoque segue a ordem descrita na decisão em aberto "Ordem dos bloqueios entre alocação e cancelamento" (seção 8.2), que continua em aberto.
+
+## 2026-10-30 — PR da issue #93 (reserva de peças)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Reserva das peças na conclusão do orçamento (RF-18)": o `ReservaPecasHandler` trata o `OrcamentoFinalizadoEvent` na transação da conclusão, aloca o saldo pela OS mais antiga e aplica cada alocação com `OrdemServico.alocar_peca`. A lista `app.state.fabricas_de_handlers`, que nascia vazia, passou a trazer esse handler, registrado em `_fabricas_de_handlers` no `container.py`.
+
+**Motivo:** o RF-18 manda reservar as peças na conclusão do orçamento e deixar o resto pendente, e o RF-19 manda dar a prioridade à OS mais antiga. O handler reaproveita o `alocar_pendencias` da #43, para a OS nova só usar o que sobra depois das OS que já esperam a mesma peça, e roda na transação da conclusão (RNF-08), com os estoques já bloqueados pelo `FinalizarOrcamento` (RNF-09). A releitura de uma OS mais antiga, quando ela recebe saldo, herda o impasse registrado na decisão em aberto "Ordem dos bloqueios entre alocação e cancelamento" (seção 8.2).
+
+## 2026-10-30 — PR da issue #92 (itens e conclusão do orçamento)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Itens e conclusão do orçamento (RF-17)": rotas para incluir e remover serviços e peças da OS e para concluir o orçamento, com os códigos de resposta de cada caso. O `FinalizarOrcamento` passou a receber o `EventDispatcher` e a despachar o `OrcamentoFinalizadoEvent` depois de salvar a OS, na mesma unidade de trabalho.
+
+**Motivo:** o RF-17 define as regras dos itens e do congelamento, mas não a forma das rotas. O despacho dentro da transação é o que permite à reserva das peças (RF-18, issue #93) gravar junto com a conclusão e desfazer tudo se falhar, como pede o RF-17 (RNF-08). A decisão de deixar qualquer Mecânico ou Gerente alterar os itens, e não só o mecânico atribuído, segue o texto do RF-17, que lista só os perfis.
+
+## 2026-10-30 — PR da issue #91 (atribuição do mecânico)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Atribuição do mecânico (RF-16)": `POST /ordens-servico/{id}/mecanico` para Mecânico e Gerente, com o `mecanico_id` opcional no corpo (o Mecânico omite, o Gerente informa). `OrdemServico.atribuir_mecanico` passou a receber o mecânico e o responsável como `Usuario`, como o `iniciar_execucao`, e concentra as regras de quem pode atribuir. O diagrama de classes e a descrição das transições do C4 acompanham a nova assinatura.
+
+**Motivo:** a tabela de transições da Linguagem Ubíqua diz que o histórico grava o usuário que executa a transição, mas o `atribuir_mecanico(mecanico_id)` gravava o mecânico atribuído, e o histórico não mostraria o Gerente que atribuiu a OS a outro (RF-24). Receber os dois usuários também permite recusar, no domínio, o mecânico que atribui a OS a outro e o indicado que não é um mecânico ativo. As duas escolhas (histórico com o responsável e só mecânico ativo como indicado) foram decididas com o usuário ao implementar a issue.
+
+## 2026-10-30 — PR #142 (listagem de OS)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Listagem de OS (RF-14)": `GET /ordens-servico` para os três perfis, com os filtros combináveis `documento`, `placa`, `status`, `mecanico_id` e período de abertura, resposta da mais recente para a mais antiga e sem paginação. A porta `VeiculoRepository` ganhou `listar_por_placa`, que devolve também os veículos excluídos.
+
+**Motivo:** o RF-14 não define a forma dos filtros nem da resposta. A busca por placa precisa incluir os veículos excluídos, porque as OS deles continuam no histórico (RF-09); com a busca só de veículos ativos, a listagem esconderia as OS de um veículo excluído e, com a placa reaproveitada, as do veículo antigo.
+
+## 2026-10-30 — PR #141 (detalhamento da OS)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Detalhamento da OS (RF-15)": `GET /ordens-servico/{id}` para os três perfis, com cliente e veículo (mesmo excluídos), itens com as quantidades reservada e pendente, orçamento, histórico e a estimativa de entrega calculada na consulta. A seção 8.2 ganhou a decisão em aberto "Prazo de reposição sem limite máximo".
+
+**Motivo:** o RF-15 pede todos os dados da OS numa consulta, mas não define a forma da resposta. O detalhamento é a primeira rota de leitura da OS e mostrou que um prazo de reposição acima de cerca de 2,9 milhões de dias, aceito hoje no cadastro de peças, impede a estimativa e deixa a OS ilegível; a escolha entre limitar o cadastro e tolerar o estouro na consulta é do grupo.
+
+## 2026-10-30 — PR #140 (despacho dos eventos na transação)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Despacho dos eventos na transação (RNF-08)": cada requisição monta o `EventDispatcher` com os handlers criados sobre a sessão da unidade de trabalho, e os handlers entram em `app.state.fabricas_de_handlers`, uma lista de pares `(tipo_do_evento, fabrica)`. A linha "Ponto de entrada e montagem" deixou de dizer que os handlers são registrados direto em `_eventos_da_requisicao`.
+
+**Motivo:** a issue #89 liga o `EventDispatcher` à unidade de trabalho para que a reação a um evento grave na mesma transação da operação e uma falha desfaça as duas. Os requisitos não definem como os handlers são registrados; a lista em `app.state` mantém o registro em um só lugar e permite trocá-la nos testes, em vez de editar o container a cada handler da Fase 5.
+
+## 2026-10-30 — PR #139 (abertura da OS)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Abertura da OS (RF-13)": `POST /ordens-servico`, para Atendente e Gerente, com o documento e a placa no corpo e os objetos opcionais `cliente` e `veiculo`, usados só para cadastrar o que ainda não existe; sem eles, um cliente ou veículo inexistente responde `404`, e a placa de um veículo de outro cliente responde `422` (`OSDeOutroCliente`). O número é refeito com outro UUID até 5 vezes quando já existe (`NumeroOSIndisponivel`). Cliente, veículo e OS são gravados na mesma unidade de trabalho. Em `docs/estrutura-de-pastas.md`, o caso de uso `criar_os.py` deixou de constar como pendente.
+
+**Motivo:** os requisitos RF-04, RF-07 e RF-13 pedem o cadastro de cliente e veículo no mesmo fluxo da abertura, mas não definem a forma do corpo da requisição. A escolha de objetos opcionais fica restrita ao schema e ao router, e vale para os próximos casos de uso da Fase 5.
+
 ## 2026-10-29 — PR da issue #88 (persistência da OS)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Persistência da OS" (quatro tabelas com os modelos em `infrastructure/database/ordem_servico_model.py`, número único com `NumeroOSJaCadastrado`, chaves estrangeiras, orçamento gravado como os dois subtotais, CHECKs nas quantidades de `itens_peca`, triggers que recusam UPDATE, DELETE e TRUNCATE no histórico, ordem dos itens e do histórico, bloqueio `SELECT ... FOR UPDATE` nas buscas de uma OS, lista de pendências sem bloqueio e ordem dos bloqueios entre OS e estoque) e a linha de Migrations passou a citar a `0007` e o teste do trigger. O item "Item excluído do catálogo antes do congelamento" saiu da seção 8.2 para a 8.1. Em `docs/estrutura-de-pastas.md` e na Linguagem Ubíqua, o adaptador da OS deixou de constar como provisório.

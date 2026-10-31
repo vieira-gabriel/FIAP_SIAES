@@ -18,6 +18,11 @@ class VeiculoRepository(ABC):
         """Só o veículo ativo: a placa de um excluído pode pertencer a um novo cadastro (RF-07)."""
 
     @abstractmethod
+    async def listar_por_placa(self, placa: Placa) -> list[Veiculo]:
+        """Todos os veículos que já tiveram a placa, inclusive os excluídos: as OS deles
+        continuam no histórico (RF-09, RF-14)."""
+
+    @abstractmethod
     async def listar(self, cliente_id: UUID | None = None) -> list[Veiculo]:
         """Só os veículos ativos, em ordem de placa; com `cliente_id`, só os desse cliente."""
 

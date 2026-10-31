@@ -124,8 +124,7 @@ A pasta `migrations/` do Alembic (guia, seção 8.1) fica na raiz do projeto, ju
 
 A autenticação JWT (seção 5), a configuração do PostgreSQL (RNF-08) e o `Dockerfile` com o `docker-compose.yml` (RNF-15) já estão implementados. Permanecem pendentes, por dependerem de implementação:
 
-* o caso de uso `criar_os.py`, que existe vazio (Fase 5);
-* os handlers de `application/handlers/` que reagem aos eventos de domínio (Fase 5);
+* os handlers de `application/handlers/` que reagem aos eventos de domínio, de que existem o `reserva_pecas_handler.py` e o `alocacao_pecas_pendentes_handler.py`; faltam os do estorno e da baixa (Fase 5);
 * a evidência da medição de cobertura (RNF-14), que a Fase 7 registra.
 
 As portas e os adaptadores de usuário, cliente, veículo, serviço, peça, estoque e OS já existem; os modelos da OS ficam em `infrastructure/database/ordem_servico_model.py` (issue #88). Os relatórios de segredos (RNF-06) e de vulnerabilidades (RNF-07) estão em `docs/security/`.

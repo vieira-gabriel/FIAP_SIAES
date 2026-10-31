@@ -11,6 +11,7 @@ from presentation.container import (
 )
 from presentation.middlewares.tratamento_de_erros import registrar_tratamento_de_erros
 from presentation.routers import (
+    acompanhamento_publico,
     autenticacao,
     clientes,
     ordens_servico,
@@ -55,6 +56,7 @@ app.include_router(servicos.router)
 app.include_router(pecas.router)
 app.include_router(veiculos.router)
 app.include_router(ordens_servico.router)
+app.include_router(acompanhamento_publico.router)
 
 
 def _openapi_com_esquema_bearer() -> dict[str, Any]:

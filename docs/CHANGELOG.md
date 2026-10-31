@@ -10,6 +10,12 @@ Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recente
 
 **Motivo:** o RF-25 pede a consulta pública sem indicar qual dos dois dados está errado, mas não define a forma da requisição. O documento vai no corpo, e não na URL, para não aparecer nos logs de acesso. A validação do formato fica no caso de uso porque o DTO responderia `400` a um documento malformado, o que diferenciaria esse caso do número inexistente. O nome do caso de uso passou a descrever o que ele faz: consulta a OS inteira, e não só o status. O rate limiting da rota (RNF-05) continua na issue #97.
 
+## 2026-10-30 — PR da issue #95 (cancelamento pelo Gerente)
+
+**O que mudou:** a seção 8.1 do guia ganhou as decisões "Cancelamento pelo Gerente (RF-23, RF-18)" (`POST /ordens-servico/{id}/cancelamento`, `CancelarOS` e `EstornoReservasHandler` na transação), "Higienização do motivo contra XSS (RNF-04)" (o motivo com `<` responde `400`) e "Repetição da transação em impasse (RF-19, RF-23)". A decisão em aberto "Ordem dos bloqueios entre alocação e cancelamento" saiu da seção 8.2, e as linhas do guia que a citavam (reserva, alocação, persistência da OS e ponto de montagem) passaram a apontar para a nova decisão. No C4, o handler de estorno passou a se chamar `EstornoReservasHandler` e o caso de uso `CancelarOS` entrou no diagrama.
+
+**Motivo:** a alocação da reposição (issue #94) bloqueia o estoque e depois a OS, e o cancelamento bloqueia a OS e depois o estoque; com as duas se cruzando, o PostgreSQL aborta uma transação. O grupo escolheu, entre as opções A, B e C da seção 8.2, repetir a transação, que mantém a ordem dos bloqueios e a prioridade pela OS mais antiga (RF-19). Para a higienização do motivo, foi escolhida a recusa do texto com `<`, que preserva o texto original no histórico (RF-24), em vez de escapá-lo. O nome `EstornoReservasHandler` substitui o `EstornoPecasHandler` do C4 por descrever o que o handler faz: devolver reservas, e não peças.
+
 ## 2026-10-30 — PR da issue #94 (alocação das peças repostas)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Alocação das peças repostas (RF-19)": o `AlocacaoPecasPendentesHandler` trata o `SaldoPecaAtualizadoEvent` (reposição e ajuste para cima) na transação da operação, aloca o saldo atual às OS pendentes da mais antiga para a mais nova e libera as OS de `AGUARDANDO_PECA` que ficam sem pendência. O `ReservaPecasHandler` passou a delegar a repartição do saldo ao mesmo `alocar_saldo`, e a lista de handlers do `container.py` ganhou o novo handler.

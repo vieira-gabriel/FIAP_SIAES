@@ -261,6 +261,13 @@ class MotivoObrigatorio(RegraDeNegocioViolada):
         super().__init__("Informe o motivo do cancelamento.")
 
 
+class MotivoInvalido(ValorInvalido):
+    """O motivo com `<` é recusado, para o histórico não guardar marcação HTML (RNF-04)."""
+
+    def __init__(self):
+        super().__init__("O motivo não pode conter o caractere '<'.")
+
+
 class CredenciaisInvalidas(ErroDeDominio):
     """E-mail inexistente, senha incorreta ou usuário desativado (RF-01).
 

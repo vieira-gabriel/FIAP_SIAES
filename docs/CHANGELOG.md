@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-30 — PR da issue #98 (aprovação do orçamento pelo cliente)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Aprovação do orçamento pelo cliente (RF-26)": `POST /acompanhamento/aprovacao`, sem JWT, com origem `CLIENTE` no histórico. A identificação por número da OS e CPF/CNPJ saiu do `ConsultarOSPublica` para o caso de uso `LocalizarOSDoTitular`, que a consulta e a aprovação compartilham. O rate limiting passou a ter um contador único para todas as rotas públicas. No C4, o `LocalizarOSDoTitular` entrou no diagrama, e a aprovação deixou de ligar ao `EventDispatcher`.
+
+**Motivo:** a aprovação e, depois dela, a rejeição (issue #102) precisam da mesma identificação da consulta e do mesmo `404` indistinto; extrair o caso de uso evita repetir a regra que protege contra a adivinhação do documento. O contador único fecha uma brecha: com um contador por rota, quem alternasse entre a consulta e a aprovação teria o dobro de tentativas por minuto, contra o limite de 10 requisições por IP da RNF-05. A aprovação não emite evento porque só muda o status; o estoque só é tocado na reserva, na reposição e no cancelamento.
+
 ## 2026-10-30 — PR da issue #97 (rate limiting das rotas públicas)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Rate limiting (RNF-05)" no lugar da linha "Rate limiting" (o `limite_publico` do SlowAPI em `presentation/middlewares/rate_limit.py`, o limite de `RATE_LIMIT_PUBLICO` lido pelo container, a contagem por IP e o que conta para o limite), e a tabela de erros da seção 5.5 passou a listar o `429` (`LIMITE_DE_REQUISICOES_EXCEDIDO`, com `Retry-After`). A linha "Consulta pública da OS" deixou de dizer que a rota não tinha limite.

@@ -1,6 +1,7 @@
 """Limite de requisições por IP nas rotas públicas, contra força bruta e raspagem (RNF-05).
 
-Uso em uma rota pública, que precisa receber o `request: Request`:
+Todas as rotas públicas dividem o mesmo contador por IP. Uso em uma rota pública, que precisa
+receber o `request: Request`:
 
     @router.post("")
     @limite_publico
@@ -38,7 +39,9 @@ def _limite_configurado() -> str:
     return _limite_publico
 
 
-limite_publico = limiter.limit(_limite_configurado)
+# Um só contador para todas as rotas públicas: quem alterna entre a consulta e a aprovação não
+# ganha mais tentativas de adivinhar o CPF/CNPJ.
+limite_publico = limiter.shared_limit(_limite_configurado, scope="publico")
 
 
 async def tratar_limite_excedido(_request: Request, erro: RateLimitExceeded) -> JSONResponse:

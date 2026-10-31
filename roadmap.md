@@ -322,7 +322,7 @@ Tarefas da fase:
 - [x] Teste de integração do fluxo completo: abertura → diagnóstico → orçamento → aprovação → fila de execução → execução → finalização → entrega (RNF-13; issue #103): `tests/integration/test_fluxo_completo_da_os.py`, só pelas rotas HTTP, conferindo o status, o histórico e o estoque a cada etapa
 - [x] Teste de integração da aprovação com peça pendente e da liberação pela reposição de estoque, incluindo a prioridade entre duas OS (RNF-13; issue #104): `tests/integration/test_peca_pendente_e_prioridade.py`, pelas rotas HTTP; a OS mais antiga é liberada primeiro, mesmo aprovada depois e mesmo criada depois, e a reposição parcial a deixa em `AGUARDANDO_PECA`
 - [ ] Testes de integração dos fluxos de rejeição e de cancelamento, verificando o estorno das reservas (RNF-13)
-- [ ] (Recomendado) Teste de concorrência com duas reservas disputando a mesma peça (RNF-09)
+- [x] (Recomendado) Teste de concorrência com duas reservas disputando a mesma peça (RNF-09; issue #106)
 
 ---
 

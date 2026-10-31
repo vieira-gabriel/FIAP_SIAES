@@ -288,10 +288,7 @@ class OrdemServico:
         if not isinstance(usuario, Usuario):
             raise OrdemServicoInvalida("o usuário é obrigatório")
         self._validar_transicao(StatusOS.EM_EXECUCAO, de={StatusOS.AGUARDANDO_EXECUCAO})
-        if not usuario.ativo:
-            raise AcessoNegado("Usuário desativado não pode iniciar a execução.")
-        if usuario.perfil != PerfilUsuario.GERENTE and usuario.id != self.mecanico_id:
-            raise AcessoNegado("Apenas o mecânico atribuído ou o Gerente pode iniciar a execução.")
+        self._exigir_mecanico_atribuido_ou_gerente(usuario, "iniciar a execução")
         self.data_inicio_execucao = self._mudar_status(
             StatusOS.EM_EXECUCAO,
             de={StatusOS.AGUARDANDO_EXECUCAO},
@@ -324,14 +321,17 @@ class OrdemServico:
         self._descartar_pendencias()
         self._acumular_os_cancelada(baixa_ja_realizada=baixa_ja_realizada)
 
-    def concluir_manutencao(self, usuario_id: UUID) -> None:
-        """Grava o momento da conclusão técnica (RF-21)."""
-        _exigir_usuario(usuario_id)
+    def concluir_manutencao(self, usuario: Usuario) -> None:
+        """Só o mecânico atribuído ou o Gerente, e ativos, concluem; grava o momento (RF-21)."""
+        if not isinstance(usuario, Usuario):
+            raise OrdemServicoInvalida("o usuário é obrigatório")
+        self._validar_transicao(StatusOS.FINALIZADA, de={StatusOS.EM_EXECUCAO})
+        self._exigir_mecanico_atribuido_ou_gerente(usuario, "concluir a manutenção")
         self.data_finalizacao = self._mudar_status(
             StatusOS.FINALIZADA,
             de={StatusOS.EM_EXECUCAO},
             origem=OrigemTransicao.USUARIO,
-            usuario_id=usuario_id,
+            usuario_id=usuario.id,
         )
 
     def entregar_veiculo(self, usuario_id: UUID) -> None:
@@ -343,6 +343,12 @@ class OrdemServico:
             origem=OrigemTransicao.USUARIO,
             usuario_id=usuario_id,
         )
+
+    def _exigir_mecanico_atribuido_ou_gerente(self, usuario: Usuario, acao: str) -> None:
+        if not usuario.ativo:
+            raise AcessoNegado(f"Usuário desativado não pode {acao}.")
+        if usuario.perfil != PerfilUsuario.GERENTE and usuario.id != self.mecanico_id:
+            raise AcessoNegado(f"Apenas o mecânico atribuído ou o Gerente pode {acao}.")
 
     def estimar_entrega(self, momento_consulta: datetime) -> datetime | None:
         """Data prevista de entrega pela tabela do RF-25, com os valores congelados nos itens.

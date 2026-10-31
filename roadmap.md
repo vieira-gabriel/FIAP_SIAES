@@ -303,9 +303,9 @@ Tarefas da fase:
 - [x] Inclusão de serviços e peças e conclusão do orçamento, com transição para `AGUARDANDO_APROVACAO` (RF-17; issue #92). A conclusão despacha o `OrcamentoFinalizadoEvent` na mesma transação; a reserva das peças que reage a ele é a issue #93
 - [x] Reserva das peças com registro de pendências e prioridade pela OS mais antiga (RF-18; issue #93): o `ReservaPecasHandler` trata o `OrcamentoFinalizadoEvent` na transação da conclusão
 - [x] Alocação automática das peças repostas e liberação de OS de `AGUARDANDO_PECA` para `AGUARDANDO_EXECUCAO` (RF-19; issue #94): o `AlocacaoPecasPendentesHandler` trata o `SaldoPecaAtualizadoEvent` da reposição e do ajuste para cima, na transação da operação
-- [ ] Início da execução pelo mecânico atribuído ou pelo Gerente, com baixa das peças (RF-20)
-- [ ] Conclusão da manutenção com transição para `FINALIZADA` (RF-21)
-- [ ] Entrega do veículo com transição para `ENTREGUE`, restrita a Atendente e Gerente (RF-22)
+- [x] Início da execução pelo mecânico atribuído ou pelo Gerente, com baixa das peças (RF-20; issue #99): `POST /ordens-servico/{id}/execucao`; o `ExecucaoIniciadaEvent` é tratado pelo `BaixaEstoqueHandler` na transação, que reduz a quantidade física e a reservada; outro mecânico recebe `403`
+- [x] Conclusão da manutenção com transição para `FINALIZADA` (RF-21; issue #100): `POST /ordens-servico/{id}/conclusao`, só para o mecânico atribuído ou o Gerente (`403` para outro mecânico); `concluir_manutencao` passou a receber o `Usuario`; os itens ficam bloqueados depois da finalização (`422`)
+- [x] Entrega do veículo com transição para `ENTREGUE`, restrita a Atendente e Gerente (RF-22; issue #101): `POST /ordens-servico/{id}/entrega`; o Mecânico recebe `403` e a OS fora de `FINALIZADA`, `422`
 - [x] Cancelamento pelo Gerente, com motivo no histórico e estorno das reservas (RF-23, RF-18; issue #95): `POST /ordens-servico/{id}/cancelamento`, só para o Gerente; o `OSCanceladaEvent` é tratado pelo `EstornoReservasHandler` na transação, e o saldo devolvido segue para a alocação às OS que esperam a peça. O motivo com `<` responde `400` (RNF-04). Os impasses entre a alocação e o cancelamento são repetidos pela unidade de trabalho, em até 3 tentativas
 - [x] Registro de toda transição no histórico de status (RF-24; issue #88): tabela só com inserção, protegida por trigger
 

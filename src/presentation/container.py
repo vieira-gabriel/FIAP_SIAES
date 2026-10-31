@@ -6,6 +6,7 @@ from starlette.datastructures import State
 
 from application.events.event_dispatcher import EventDispatcher, EventHandler
 from application.handlers.alocacao_pecas_pendentes_handler import AlocacaoPecasPendentesHandler
+from application.handlers.baixa_estoque_handler import BaixaEstoqueHandler
 from application.handlers.estorno_reservas_handler import EstornoReservasHandler
 from application.handlers.reserva_pecas_handler import ReservaPecasHandler
 from application.ports.password_hasher import PasswordHasher
@@ -27,6 +28,7 @@ from application.use_cases.cadastrar_servico import CadastrarServico
 from application.use_cases.cadastrar_usuario import CadastrarUsuario
 from application.use_cases.cadastrar_veiculo import CadastrarVeiculo
 from application.use_cases.cancelar_os import CancelarOS
+from application.use_cases.concluir_manutencao import ConcluirManutencao
 from application.use_cases.consultar_os_publica import ConsultarOSPublica
 from application.use_cases.criar_carga_inicial import CriarCargaInicial, SenhasDaCargaInicial
 from application.use_cases.criar_os import CriarOS
@@ -37,6 +39,7 @@ from application.use_cases.detalhar_peca import DetalharPeca
 from application.use_cases.detalhar_servico import DetalharServico
 from application.use_cases.detalhar_usuario import DetalharUsuario
 from application.use_cases.detalhar_veiculo import DetalharVeiculo
+from application.use_cases.entregar_veiculo import EntregarVeiculo
 from application.use_cases.excluir_cliente import ExcluirCliente
 from application.use_cases.excluir_peca import ExcluirPeca
 from application.use_cases.excluir_servico import ExcluirServico
@@ -44,6 +47,7 @@ from application.use_cases.excluir_veiculo import ExcluirVeiculo
 from application.use_cases.finalizar_orcamento import FinalizarOrcamento
 from application.use_cases.incluir_peca_na_os import IncluirPecaNaOS
 from application.use_cases.incluir_servico_na_os import IncluirServicoNaOS
+from application.use_cases.iniciar_execucao import IniciarExecucao
 from application.use_cases.listar_clientes import ListarClientes
 from application.use_cases.listar_ordens_servico import ListarOrdensServico
 from application.use_cases.listar_pecas import ListarPecas
@@ -57,6 +61,7 @@ from application.use_cases.remover_peca_da_os import RemoverPecaDaOS
 from application.use_cases.remover_servico_da_os import RemoverServicoDaOS
 from application.use_cases.repor_peca import ReporPeca
 from domain.events.domain_event import DomainEvent
+from domain.events.execucao_iniciada_event import ExecucaoIniciadaEvent
 from domain.events.orcamento_finalizado_event import OrcamentoFinalizadoEvent
 from domain.events.os_cancelada_event import OSCanceladaEvent
 from domain.events.saldo_peca_atualizado_event import SaldoPecaAtualizadoEvent
@@ -243,6 +248,10 @@ def _fabricas_de_handlers() -> list[
             OSCanceladaEvent,
             lambda sessao: EstornoReservasHandler(PostgresEstoqueRepository(sessao)),
         ),
+        (
+            ExecucaoIniciadaEvent,
+            lambda sessao: BaixaEstoqueHandler(PostgresEstoqueRepository(sessao)),
+        ),
     ]
 
 
@@ -337,6 +346,24 @@ obter_cancelar_os = _por_requisicao(
         CancelarOS(PostgresOrdemServicoRepository(sessao), _eventos_da_requisicao(sessao, estado)),
         sessao,
     )
+)
+obter_iniciar_execucao = _por_requisicao(
+    lambda sessao, estado: com_repeticao_em_impasse(
+        IniciarExecucao(
+            PostgresOrdemServicoRepository(sessao),
+            PostgresUsuarioRepository(sessao),
+            _eventos_da_requisicao(sessao, estado),
+        ),
+        sessao,
+    )
+)
+obter_concluir_manutencao = _por_requisicao(
+    lambda sessao, _: ConcluirManutencao(
+        PostgresOrdemServicoRepository(sessao), PostgresUsuarioRepository(sessao)
+    )
+)
+obter_entregar_veiculo = _por_requisicao(
+    lambda sessao, _: EntregarVeiculo(PostgresOrdemServicoRepository(sessao))
 )
 obter_detalhar_ordem_servico = _por_requisicao(
     lambda sessao, _: DetalharOrdemServico(

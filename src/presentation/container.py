@@ -76,6 +76,7 @@ from infrastructure.repositories.postgres_usuario_repository import PostgresUsua
 from infrastructure.repositories.postgres_veiculo_repository import PostgresVeiculoRepository
 from infrastructure.security.bcrypt_password_hasher import BcryptPasswordHasher
 from infrastructure.security.jwt_token_service import JwtTokenService
+from presentation.middlewares.rate_limit import configurar_limite_publico
 
 
 def montar_dependencias(app: FastAPI) -> None:
@@ -98,6 +99,7 @@ def montar_dependencias(app: FastAPI) -> None:
     app.state.verificador_do_banco = VerificadorDoBancoSqlAlchemy(engine)
     app.state.senhas_da_carga_inicial = _senhas_da_carga_inicial(configuracao)
     app.state.fabricas_de_handlers = _fabricas_de_handlers()
+    configurar_limite_publico(configuracao.rate_limit_publico)
 
 
 async def executar_carga_inicial(app: FastAPI) -> None:

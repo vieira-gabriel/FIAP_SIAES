@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import State
 
 from application.events.event_dispatcher import EventDispatcher, EventHandler
+from application.handlers.alocacao_pecas_pendentes_handler import AlocacaoPecasPendentesHandler
 from application.handlers.reserva_pecas_handler import ReservaPecasHandler
 from application.ports.password_hasher import PasswordHasher
 from application.ports.token_service import TokenService
@@ -51,6 +52,7 @@ from application.use_cases.remover_servico_da_os import RemoverServicoDaOS
 from application.use_cases.repor_peca import ReporPeca
 from domain.events.domain_event import DomainEvent
 from domain.events.orcamento_finalizado_event import OrcamentoFinalizadoEvent
+from domain.events.saldo_peca_atualizado_event import SaldoPecaAtualizadoEvent
 from domain.repositories.cliente_repository import ClienteRepository
 from domain.repositories.estoque_repository import EstoqueRepository
 from domain.repositories.ordem_servico_repository import OrdemServicoRepository
@@ -215,6 +217,12 @@ def _fabricas_de_handlers() -> list[
         (
             OrcamentoFinalizadoEvent,
             lambda sessao: ReservaPecasHandler(
+                PostgresOrdemServicoRepository(sessao), PostgresEstoqueRepository(sessao)
+            ),
+        ),
+        (
+            SaldoPecaAtualizadoEvent,
+            lambda sessao: AlocacaoPecasPendentesHandler(
                 PostgresOrdemServicoRepository(sessao), PostgresEstoqueRepository(sessao)
             ),
         ),

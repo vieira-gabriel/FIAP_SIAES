@@ -6,6 +6,7 @@ from http import HTTPStatus
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException
 
 from domain.exceptions import (
@@ -16,6 +17,7 @@ from domain.exceptions import (
     RegraDeNegocioViolada,
     ValorInvalido,
 )
+from presentation.middlewares.rate_limit import tratar_limite_excedido
 from presentation.schemas.erro import DetalheDoErro, ErroResponse
 
 logger = logging.getLogger(__name__)
@@ -41,6 +43,7 @@ _MENSAGEM_DO_ERRO_INTERNO = "Erro interno. Tente novamente mais tarde."
 def registrar_tratamento_de_erros(app: FastAPI) -> None:
     for tipo, codigo_http, codigo in _ERROS_DE_DOMINIO:
         app.add_exception_handler(tipo, _tratador_de_erro_de_dominio(codigo_http, codigo))
+    app.add_exception_handler(RateLimitExceeded, tratar_limite_excedido)
     app.add_exception_handler(RequestValidationError, _tratar_entrada_invalida)
     app.add_exception_handler(HTTPException, _tratar_http_exception)
     app.add_exception_handler(Exception, _tratar_erro_interno)

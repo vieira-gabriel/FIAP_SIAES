@@ -64,7 +64,12 @@ ROTAS: list[tuple[str, str, frozenset[PerfilUsuario]]] = [
     ("PUT", "/pecas/{id}/quantidade-fisica", frozenset({MECANICO, GERENTE})),
 ]
 
-ROTAS_PUBLICAS = {("POST", "/auth/login"), ("GET", "/health")}
+ROTAS_PUBLICAS = {
+    ("POST", "/auth/login"),
+    ("GET", "/health"),
+    ("POST", "/acompanhamento"),
+    ("POST", "/acompanhamento/aprovacao"),
+}
 
 AUTORIZADOS = [
     pytest.param(metodo, caminho, perfil, id=f"{perfil} {metodo} {caminho}")

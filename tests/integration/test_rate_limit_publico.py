@@ -25,6 +25,16 @@ async def test_a_11a_requisicao_no_mesmo_minuto_recebe_429(cliente_http):
     assert estouro.headers["Retry-After"] == "60"
 
 
+async def test_consulta_e_aprovacao_dividem_o_mesmo_contador(cliente_http):
+    for _ in range(5):
+        await _consultar(cliente_http)
+    for _ in range(5):
+        await cliente_http.post("/acompanhamento/aprovacao", json=CONSULTA)
+
+    assert (await _consultar(cliente_http)).status_code == 429
+    assert (await cliente_http.post("/acompanhamento/aprovacao", json=CONSULTA)).status_code == 429
+
+
 async def test_o_limite_vem_da_configuracao(cliente_http):
     configurar_limite_publico("2/minute")
 

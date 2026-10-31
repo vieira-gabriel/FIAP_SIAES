@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 
 from application.use_cases.consultar_os_publica import ConsultarOSPublica
+from application.use_cases.localizar_os_do_titular import LocalizarOSDoTitular
 from domain.entities.cliente import Cliente
 from domain.entities.item_servico import ItemServico
 from domain.entities.ordem_servico import OrdemServico
@@ -20,7 +21,7 @@ NUMERO = "529-7F3A9C2B"
 
 @pytest.fixture
 def consultar(ordens, clientes) -> ConsultarOSPublica:
-    return ConsultarOSPublica(ordens, clientes)
+    return ConsultarOSPublica(LocalizarOSDoTitular(ordens, clientes))
 
 
 async def _os_do_cliente(clientes, ordens, documento=None, **alteracoes) -> OrdemServico:

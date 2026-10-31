@@ -13,6 +13,7 @@ from application.ports.token_service import TokenService
 from application.ports.verificador_do_banco import VerificadorDoBanco
 from application.use_cases.ajustar_quantidade_fisica_da_peca import AjustarQuantidadeFisicaDaPeca
 from application.use_cases.alterar_senha_do_usuario import AlterarSenhaDoUsuario
+from application.use_cases.aprovar_orcamento import AprovarOrcamento
 from application.use_cases.atribuir_mecanico import AtribuirMecanico
 from application.use_cases.atualizar_cliente import AtualizarCliente
 from application.use_cases.atualizar_peca import AtualizarPeca
@@ -49,6 +50,7 @@ from application.use_cases.listar_pecas import ListarPecas
 from application.use_cases.listar_servicos import ListarServicos
 from application.use_cases.listar_usuarios import ListarUsuarios
 from application.use_cases.listar_veiculos import ListarVeiculos
+from application.use_cases.localizar_os_do_titular import LocalizarOSDoTitular
 from application.use_cases.reativar_usuario import ReativarUsuario
 from application.use_cases.remover_peca_da_os import RemoverPecaDaOS
 from application.use_cases.remover_servico_da_os import RemoverServicoDaOS
@@ -342,9 +344,20 @@ obter_detalhar_ordem_servico = _por_requisicao(
         PostgresVeiculoRepository(sessao),
     )
 )
-obter_consultar_os_publica = _por_requisicao(
-    lambda sessao, _: ConsultarOSPublica(
+
+
+def _localizar_os_do_titular(sessao: AsyncSession) -> LocalizarOSDoTitular:
+    return LocalizarOSDoTitular(
         PostgresOrdemServicoRepository(sessao), PostgresClienteRepository(sessao)
+    )
+
+
+obter_consultar_os_publica = _por_requisicao(
+    lambda sessao, _: ConsultarOSPublica(_localizar_os_do_titular(sessao))
+)
+obter_aprovar_orcamento = _por_requisicao(
+    lambda sessao, _: AprovarOrcamento(
+        _localizar_os_do_titular(sessao), PostgresOrdemServicoRepository(sessao)
     )
 )
 obter_listar_ordens_servico = _por_requisicao(

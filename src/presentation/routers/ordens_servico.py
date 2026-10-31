@@ -12,7 +12,12 @@ from application.use_cases.criar_os import (
     DadosDoNovoVeiculo,
 )
 from application.use_cases.detalhar_ordem_servico import DetalharOrdemServico
+from application.use_cases.finalizar_orcamento import FinalizarOrcamento
+from application.use_cases.incluir_peca_na_os import IncluirPecaNaOS
+from application.use_cases.incluir_servico_na_os import IncluirServicoNaOS
 from application.use_cases.listar_ordens_servico import CriteriosDaListagem, ListarOrdensServico
+from application.use_cases.remover_peca_da_os import RemoverPecaDaOS
+from application.use_cases.remover_servico_da_os import RemoverServicoDaOS
 from domain.value_objects.documento import Documento
 from domain.value_objects.perfil_usuario import PerfilUsuario
 from domain.value_objects.placa import Placa
@@ -21,14 +26,22 @@ from presentation.container import (
     obter_atribuir_mecanico,
     obter_criar_os,
     obter_detalhar_ordem_servico,
+    obter_finalizar_orcamento,
+    obter_incluir_peca_na_os,
+    obter_incluir_servico_na_os,
     obter_listar_ordens_servico,
+    obter_remover_peca_da_os,
+    obter_remover_servico_da_os,
 )
 from presentation.middlewares.dependencies import exigir_perfis
 from presentation.schemas.erro import ErroResponse
 from presentation.schemas.ordem_servico import (
     AbrirOSRequest,
     AtribuirMecanicoRequest,
+    IncluirPecaRequest,
+    IncluirServicoRequest,
     OSDetalheResponse,
+    OSItensResponse,
     OSResponse,
     OSResumoResponse,
 )
@@ -46,6 +59,8 @@ router = APIRouter(
 _ABERTURA = exigir_perfis(PerfilUsuario.ATENDENTE, PerfilUsuario.GERENTE)
 # RF-16: a atribuição do mecânico é do Mecânico e do Gerente.
 _ATRIBUICAO = exigir_perfis(PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
+# RF-17: os itens e a conclusão do orçamento são do Mecânico e do Gerente.
+_DIAGNOSTICO = exigir_perfis(PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
 # RF-14, RF-15: a consulta é de todos os perfis.
 _CONSULTA = exigir_perfis(PerfilUsuario.ATENDENTE, PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
 
@@ -53,6 +68,21 @@ _NAO_ENCONTRADO = {
     status.HTTP_404_NOT_FOUND: {
         "model": ErroResponse,
         "description": "Cliente ou veículo não cadastrado e sem os dados para cadastrá-lo.",
+    }
+}
+_ITEM_NAO_ENCONTRADO = {
+    status.HTTP_404_NOT_FOUND: {
+        "model": ErroResponse,
+        "description": "OS, serviço, peça ou item da OS não encontrado.",
+    }
+}
+_ITEM_RECUSADO = {
+    status.HTTP_422_UNPROCESSABLE_CONTENT: {
+        "model": ErroResponse,
+        "description": (
+            "OS fora de `EM_DIAGNOSTICO`, serviço ou peça excluído, item repetido ou "
+            "dados fora do formato."
+        ),
     }
 }
 _REGRA_VIOLADA = {
@@ -162,3 +192,78 @@ async def atribuir_mecanico(
         mecanico_id = usuario.usuario_id
     os = await atribuir.executar(id, mecanico_id, usuario.usuario_id)
     return OSResponse.de_entidade(os)
+
+
+@router.post(
+    "/{id}/servicos",
+    status_code=status.HTTP_201_CREATED,
+    responses=_ITEM_NAO_ENCONTRADO | _ITEM_RECUSADO,
+)
+async def incluir_servico(
+    id: UUID,
+    dados: IncluirServicoRequest,
+    _usuario: Annotated[UsuarioAutenticado, Depends(_DIAGNOSTICO)],
+    incluir: Annotated[IncluirServicoNaOS, Depends(obter_incluir_servico_na_os, scope="function")],
+) -> OSItensResponse:
+    """Inclui um serviço ativo do catálogo na OS, que precisa estar em `EM_DIAGNOSTICO` (RF-17)."""
+    return OSItensResponse.de_entidade(await incluir.executar(id, dados.servico_id))
+
+
+@router.delete(
+    "/{id}/servicos/{servico_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=_ITEM_NAO_ENCONTRADO | _ITEM_RECUSADO,
+)
+async def remover_servico(
+    id: UUID,
+    servico_id: UUID,
+    _usuario: Annotated[UsuarioAutenticado, Depends(_DIAGNOSTICO)],
+    remover: Annotated[RemoverServicoDaOS, Depends(obter_remover_servico_da_os, scope="function")],
+) -> None:
+    """Tira o serviço da OS, que precisa estar em `EM_DIAGNOSTICO` (RF-17)."""
+    await remover.executar(id, servico_id)
+
+
+@router.post(
+    "/{id}/pecas",
+    status_code=status.HTTP_201_CREATED,
+    responses=_ITEM_NAO_ENCONTRADO | _ITEM_RECUSADO,
+)
+async def incluir_peca(
+    id: UUID,
+    dados: IncluirPecaRequest,
+    _usuario: Annotated[UsuarioAutenticado, Depends(_DIAGNOSTICO)],
+    incluir: Annotated[IncluirPecaNaOS, Depends(obter_incluir_peca_na_os, scope="function")],
+) -> OSItensResponse:
+    """Inclui uma peça ativa do catálogo na OS, com a quantidade, que precisa estar em
+    `EM_DIAGNOSTICO`. A reserva no estoque só acontece na conclusão do orçamento (RF-17, RF-18)."""
+    return OSItensResponse.de_entidade(await incluir.executar(id, dados.peca_id, dados.quantidade))
+
+
+@router.delete(
+    "/{id}/pecas/{peca_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=_ITEM_NAO_ENCONTRADO | _ITEM_RECUSADO,
+)
+async def remover_peca(
+    id: UUID,
+    peca_id: UUID,
+    _usuario: Annotated[UsuarioAutenticado, Depends(_DIAGNOSTICO)],
+    remover: Annotated[RemoverPecaDaOS, Depends(obter_remover_peca_da_os, scope="function")],
+) -> None:
+    """Tira a peça da OS, que precisa estar em `EM_DIAGNOSTICO` (RF-17)."""
+    await remover.executar(id, peca_id)
+
+
+@router.post(
+    "/{id}/orcamento",
+    responses=_ITEM_NAO_ENCONTRADO | _ITEM_RECUSADO,
+)
+async def concluir_orcamento(
+    id: UUID,
+    usuario: Annotated[UsuarioAutenticado, Depends(_DIAGNOSTICO)],
+    finalizar: Annotated[FinalizarOrcamento, Depends(obter_finalizar_orcamento, scope="function")],
+) -> OSItensResponse:
+    """Congela os valores vigentes do catálogo e envia o orçamento ao cliente: a OS passa de
+    `EM_DIAGNOSTICO` para `AGUARDANDO_APROVACAO` (RF-17)."""
+    return OSItensResponse.de_entidade(await finalizar.executar(id, usuario.usuario_id))

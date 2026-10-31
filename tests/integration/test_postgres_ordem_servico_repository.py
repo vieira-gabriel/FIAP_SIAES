@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 
+from application.events.event_dispatcher import EventDispatcher
 from application.use_cases.finalizar_orcamento import FinalizarOrcamento
 from domain.entities.cliente import Cliente
 from domain.entities.estoque_peca import EstoquePeca
@@ -345,6 +346,7 @@ async def test_finalizar_orcamento_recusa_peca_excluida_depois_de_incluida(
                 PostgresEstoqueRepository(sessao),
                 PostgresServicoRepository(sessao),
                 PostgresPecaRepository(sessao),
+                EventDispatcher(),
             ).executar(os.id, cadastros.mecanico.id)
 
     assert (await _buscar(fabrica_de_sessoes, os.id)).status is StatusOS.EM_DIAGNOSTICO
@@ -372,4 +374,5 @@ async def test_finalizar_orcamento_espera_a_exclusao_da_peca_em_andamento(
                     PostgresEstoqueRepository(sessao),
                     PostgresServicoRepository(sessao),
                     PostgresPecaRepository(sessao),
+                    EventDispatcher(),
                 ).executar(os.id, cadastros.mecanico.id)

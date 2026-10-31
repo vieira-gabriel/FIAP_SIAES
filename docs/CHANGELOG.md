@@ -4,6 +4,24 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-31 — PR da issue #101 (entrega do veículo)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Entrega do veículo (RF-22)": `POST /ordens-servico/{id}/entrega`, para Atendente e Gerente, e o caso de uso `EntregarVeiculo`.
+
+**Motivo:** o RF-22 restringe a entrega à equipe de atendimento, mas não define a rota. A conferência do perfil fica na rota, como no cancelamento, porque a entidade não precisa do perfil para decidir a transição, ao contrário do início da execução e da conclusão, que dependem do mecânico atribuído.
+
+## 2026-10-31 — PR da issue #100 (conclusão da manutenção)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Conclusão da manutenção (RF-21)": `POST /ordens-servico/{id}/conclusao` e o caso de uso `ConcluirManutencao`. O método `OrdemServico.concluir_manutencao` passou a receber o `Usuario`, em vez do id, e a regra de quem pode concluir foi reunida com a do início da execução. A assinatura foi atualizada na receita da seção 5.2 do guia, no diagrama de classes do C4 e na tabela de transições da Linguagem Ubíqua (Mecânico atribuído, Gerente).
+
+**Motivo:** o RF-21 lista os perfis Mecânico e Gerente, mas não diz se um mecânico pode concluir a OS de outro; o RF-20 diz que só o atribuído inicia. Seguiu-se a mesma regra do início, por escolha do usuário na issue #100, o que exige o `Usuario` na entidade (perfil, estado ativo e id).
+
+## 2026-10-30 — PR da issue #99 (início da execução com baixa das peças)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Início da execução e baixa das peças (RF-20)": `POST /ordens-servico/{id}/execucao`, o caso de uso `IniciarExecucao` e o `BaixaEstoqueHandler` na transação. A decisão "Repetição da transação em impasse" passou a incluir o `IniciarExecucao`.
+
+**Motivo:** o RF-20 manda dar baixa nas peças reservadas no início da execução, na mesma transação da mudança de status (RNF-08), mas não define a rota nem como a permissão do mecânico atribuído é checada. A OS confere o mecânico, e a rota só filtra o perfil, como na atribuição. O `IniciarExecucao` bloqueia a OS e depois o estoque, a mesma ordem do cancelamento, e por isso pode ser a transação abortada num impasse com a alocação da reposição; a repetição da issue #95 o cobre.
+
 ## 2026-10-30 — PR da issue #95 (cancelamento pelo Gerente)
 
 **O que mudou:** a seção 8.1 do guia ganhou as decisões "Cancelamento pelo Gerente (RF-23, RF-18)" (`POST /ordens-servico/{id}/cancelamento`, `CancelarOS` e `EstornoReservasHandler` na transação), "Higienização do motivo contra XSS (RNF-04)" (o motivo com `<` responde `400`) e "Repetição da transação em impasse (RF-19, RF-23)". A decisão em aberto "Ordem dos bloqueios entre alocação e cancelamento" saiu da seção 8.2, e as linhas do guia que a citavam (reserva, alocação, persistência da OS e ponto de montagem) passaram a apontar para a nova decisão. No C4, o handler de estorno passou a se chamar `EstornoReservasHandler` e o caso de uso `CancelarOS` entrou no diagrama.

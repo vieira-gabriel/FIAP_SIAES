@@ -899,7 +899,7 @@ def test_fluxo_completo_sem_pecas_pendentes():
     os.finalizar_orcamento(USUARIO_ID, [servico], [])
     os.aprovar_orcamento()
     os.iniciar_execucao(mecanico)
-    os.concluir_manutencao(USUARIO_ID)
+    os.concluir_manutencao(mecanico)
     os.entregar_veiculo(USUARIO_ID)
 
     assert os.status is StatusOS.ENTREGUE
@@ -925,11 +925,53 @@ def test_concluir_manutencao_grava_o_momento_da_conclusao():
     os = criar_os(status=StatusOS.EM_EXECUCAO)
     antes = datetime.now(UTC)
 
-    os.concluir_manutencao(USUARIO_ID)
+    os.concluir_manutencao(criar_usuario(PerfilUsuario.GERENTE))
 
     assert os.status is StatusOS.FINALIZADA
     assert os.data_finalizacao.tzinfo is UTC
     assert antes <= os.data_finalizacao <= antes + timedelta(seconds=1)
+
+
+def test_concluir_manutencao_pelo_mecanico_atribuido_registra_o_usuario():
+    mecanico = criar_usuario(PerfilUsuario.MECANICO)
+    os = criar_os(status=StatusOS.EM_EXECUCAO, mecanico_id=mecanico.id)
+
+    os.concluir_manutencao(mecanico)
+
+    assert os.status is StatusOS.FINALIZADA
+    assert os.historico[-1].usuario_id == mecanico.id
+
+
+def test_concluir_manutencao_recusa_o_mecanico_que_nao_e_o_atribuido():
+    atribuido = criar_usuario(PerfilUsuario.MECANICO)
+    outro = criar_usuario(PerfilUsuario.MECANICO)
+    os = criar_os(status=StatusOS.EM_EXECUCAO, mecanico_id=atribuido.id)
+
+    with pytest.raises(AcessoNegado):
+        os.concluir_manutencao(outro)
+
+    assert os.status is StatusOS.EM_EXECUCAO
+    assert os.data_finalizacao is None
+
+
+@pytest.mark.parametrize("perfil", [PerfilUsuario.MECANICO, PerfilUsuario.GERENTE])
+def test_concluir_manutencao_recusa_o_usuario_desativado(perfil):
+    usuario = criar_usuario(perfil, ativo=False)
+    os = criar_os(status=StatusOS.EM_EXECUCAO, mecanico_id=usuario.id)
+
+    with pytest.raises(AcessoNegado):
+        os.concluir_manutencao(usuario)
+
+    assert os.status is StatusOS.EM_EXECUCAO
+
+
+def test_concluir_manutencao_exige_o_usuario():
+    os = criar_os(status=StatusOS.EM_EXECUCAO)
+
+    with pytest.raises(OrdemServicoInvalida):
+        os.concluir_manutencao(None)
+
+    assert os.status is StatusOS.EM_EXECUCAO
 
 
 @pytest.mark.parametrize("status", fora_de(StatusOS.EM_EXECUCAO))
@@ -937,7 +979,7 @@ def test_concluir_manutencao_so_a_partir_de_em_execucao(status):
     os = criar_os(status=status)
 
     with pytest.raises(TransicaoDeStatusInvalida) as erro:
-        os.concluir_manutencao(USUARIO_ID)
+        os.concluir_manutencao(criar_usuario(PerfilUsuario.GERENTE))
 
     assert erro.value.status_pretendido is StatusOS.FINALIZADA
     assert os.status is status
@@ -946,7 +988,7 @@ def test_concluir_manutencao_so_a_partir_de_em_execucao(status):
 
 def test_itens_ficam_bloqueados_depois_de_finalizada():
     os = criar_os(status=StatusOS.EM_EXECUCAO)
-    os.concluir_manutencao(USUARIO_ID)
+    os.concluir_manutencao(criar_usuario(PerfilUsuario.GERENTE))
 
     with pytest.raises(ItensBloqueados) as erro:
         os.incluir_servico(criar_servico())
@@ -1157,7 +1199,7 @@ def test_fluxo_completo_registra_a_sequencia_de_transicoes():
     os.finalizar_orcamento(mecanico.id, [servico], [])
     os.aprovar_orcamento()
     os.iniciar_execucao(mecanico)
-    os.concluir_manutencao(mecanico.id)
+    os.concluir_manutencao(mecanico)
     os.entregar_veiculo(atendente_id)
 
     usuario, cliente = OrigemTransicao.USUARIO, OrigemTransicao.CLIENTE
@@ -1222,7 +1264,7 @@ def test_o_registro_usa_o_mesmo_instante_dos_timestamps_da_os():
     os.iniciar_execucao(mecanico)
     assert os.historico[-1].data_hora == os.data_inicio_execucao
 
-    os.concluir_manutencao(mecanico.id)
+    os.concluir_manutencao(mecanico)
     assert os.historico[-1].data_hora == os.data_finalizacao
 
 
@@ -1230,7 +1272,7 @@ def test_transicao_recusada_nao_gera_registro():
     os = abrir_os()
 
     with pytest.raises(TransicaoDeStatusInvalida):
-        os.concluir_manutencao(USUARIO_ID)
+        os.concluir_manutencao(criar_usuario(PerfilUsuario.GERENTE))
     with pytest.raises(MotivoObrigatorio):
         os.cancelar(USUARIO_ID, "")
 
@@ -1451,7 +1493,7 @@ def test_a_estimativa_acompanha_o_fluxo_real_da_os():
     previsto_a_partir_do_inicio = os.data_inicio_execucao + timedelta(minutes=90)
     assert os.estimar_entrega(MOMENTO_DA_CONSULTA) == previsto_a_partir_do_inicio
 
-    os.concluir_manutencao(mecanico.id)
+    os.concluir_manutencao(mecanico)
     assert os.estimar_entrega(MOMENTO_DA_CONSULTA) == os.data_finalizacao
 
 
@@ -1640,7 +1682,7 @@ def test_transicoes_sem_reacao_no_estoque_nao_acumulam_evento():
     aguardando_peca.pecas[0].quantidade_pendente = 0
     aguardando_peca.liberar_para_execucao()
     em_execucao = criar_os(status=StatusOS.EM_EXECUCAO)
-    em_execucao.concluir_manutencao(USUARIO_ID)
+    em_execucao.concluir_manutencao(criar_usuario(PerfilUsuario.GERENTE))
     em_execucao.entregar_veiculo(USUARIO_ID)
 
     for ordem in (os, aguardando_peca, em_execucao):

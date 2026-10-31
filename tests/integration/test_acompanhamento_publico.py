@@ -1,13 +1,16 @@
-"""Consulta e aprovação do orçamento pelo cliente, pelo número da OS e pelo CPF/CNPJ, sem JWT,
-com PostgreSQL real (RF-25, RF-26)."""
+"""Consulta, aprovação e rejeição do orçamento pelo cliente, pelo número da OS e pelo CPF/CNPJ,
+sem JWT, com PostgreSQL real (RF-25, RF-26, RF-18)."""
 
 from uuid import uuid4
 
 import pytest
+from asyncpg.exceptions import DeadlockDetectedError
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 
 from domain.entities.usuario import Usuario
 from domain.value_objects.perfil_usuario import PerfilUsuario
+from infrastructure.repositories.postgres_estoque_repository import PostgresEstoqueRepository
 from presentation.main import app
 
 DOCUMENTO = "529.982.247-25"
@@ -318,3 +321,151 @@ async def test_aprovacao_com_identificacao_errada_responde_404_e_nao_aprova(
     assert (await _detalhe(cliente_http, gerente, os_orcada["id"]))["status"] == (
         "AGUARDANDO_APROVACAO"
     )
+
+
+async def _rejeitar(cliente_http, numero: str, documento: str = DOCUMENTO):
+    corpo = {"numero": numero, "documento": documento}
+    return await cliente_http.post("/acompanhamento/rejeicao", json=corpo)
+
+
+async def _estoque(cliente_http, quem, peca_id: str) -> tuple[int, int, int]:
+    corpo = (await cliente_http.get(f"/pecas/{peca_id}", headers=_cabecalho(quem))).json()
+    return corpo["quantidade_fisica"], corpo["quantidade_reservada"], corpo["saldo_disponivel"]
+
+
+async def _peca_da_os(cliente_http, quem, os_id: str) -> str:
+    (peca,) = (await _detalhe(cliente_http, quem, os_id))["pecas"]
+    return peca["peca_id"]
+
+
+async def test_rejeicao_cancela_a_os_e_devolve_as_reservas_ao_saldo_disponivel(
+    cliente_http, mecanico, gerente, os_recebida
+):
+    await _orcar(cliente_http, mecanico, gerente, os_recebida, saldo=5)
+    peca_id = await _peca_da_os(cliente_http, gerente, os_recebida["id"])
+    assert await _estoque(cliente_http, gerente, peca_id) == (5, 2, 3)
+
+    resposta = await _rejeitar(cliente_http, os_recebida["numero"])
+
+    assert resposta.status_code == 200
+    corpo = resposta.json()
+    assert (corpo["status"], corpo["estimativa_entrega"]) == ("CANCELADA", None)
+    assert await _estoque(cliente_http, gerente, peca_id) == (5, 0, 5)
+    registro = (await _detalhe(cliente_http, gerente, os_recebida["id"]))["historico"][-1]
+    assert (registro["status_anterior"], registro["status_novo"]) == (
+        "AGUARDANDO_APROVACAO",
+        "CANCELADA",
+    )
+    assert (registro["origem"], registro["usuario_id"]) == ("CLIENTE", None)
+
+
+async def test_rejeicao_com_peca_pendente_remove_a_pendencia(
+    cliente_http, mecanico, gerente, os_orcada
+):
+    peca_id = await _peca_da_os(cliente_http, gerente, os_orcada["id"])
+
+    resposta = await _rejeitar(cliente_http, os_orcada["numero"])
+    reposicao = await cliente_http.post(
+        f"/pecas/{peca_id}/reposicao", json={"quantidade": 2}, headers=_cabecalho(mecanico)
+    )
+
+    assert resposta.status_code == 200
+    assert reposicao.status_code == 200
+    assert await _estoque(cliente_http, gerente, peca_id) == (2, 0, 2)
+    assert (await _detalhe(cliente_http, gerente, os_orcada["id"]))["status"] == "CANCELADA"
+
+
+async def test_saldo_devolvido_pela_rejeicao_libera_a_os_que_esperava_a_peca(
+    cliente_http, atendente, mecanico, gerente, os_recebida, conexao
+):
+    await _orcar(cliente_http, mecanico, gerente, os_recebida, saldo=2)
+    peca_id = await _peca_da_os(cliente_http, gerente, os_recebida["id"])
+    outro = await cliente_http.post(
+        "/ordens-servico",
+        json=ABERTURA
+        | {"placa": "XYZ9K88", "documento": "111.444.777-35"}
+        | {"cliente": {"nome": "João", "email": "joao@exemplo.com", "telefone": "11911112222"}},
+        headers=_cabecalho(atendente),
+    )
+    esperando_id = outro.json()["id"]
+    await cliente_http.post(
+        f"/ordens-servico/{esperando_id}/mecanico", headers=_cabecalho(mecanico)
+    )
+    await cliente_http.post(
+        f"/ordens-servico/{esperando_id}/pecas",
+        json={"peca_id": peca_id, "quantidade": 2},
+        headers=_cabecalho(mecanico),
+    )
+    await cliente_http.post(
+        f"/ordens-servico/{esperando_id}/orcamento", headers=_cabecalho(mecanico)
+    )
+    assert await _estoque(cliente_http, gerente, peca_id) == (2, 2, 0)
+
+    await _rejeitar(cliente_http, os_recebida["numero"])
+
+    esperando = await _detalhe(cliente_http, gerente, esperando_id)
+    assert esperando["pecas"][0]["quantidade_reservada"] == 2
+    assert await _estoque(cliente_http, gerente, peca_id) == (2, 2, 0)
+
+
+async def test_segunda_rejeicao_responde_422(cliente_http, os_orcada):
+    primeira = await _rejeitar(cliente_http, os_orcada["numero"])
+    segunda = await _rejeitar(cliente_http, os_orcada["numero"])
+
+    assert (primeira.status_code, segunda.status_code) == (200, 422)
+    assert segunda.json()["codigo"] == "REGRA_DE_NEGOCIO_VIOLADA"
+
+
+async def test_rejeicao_depois_da_aprovacao_responde_422_e_mantem_as_reservas(
+    cliente_http, mecanico, gerente, os_recebida
+):
+    await _orcar(cliente_http, mecanico, gerente, os_recebida, saldo=5)
+    peca_id = await _peca_da_os(cliente_http, gerente, os_recebida["id"])
+    await _aprovar(cliente_http, os_recebida["numero"])
+
+    resposta = await _rejeitar(cliente_http, os_recebida["numero"])
+
+    assert (resposta.status_code, resposta.json()["codigo"]) == (422, "REGRA_DE_NEGOCIO_VIOLADA")
+    assert await _estoque(cliente_http, gerente, peca_id) == (5, 2, 3)
+
+
+async def test_rejeicao_de_os_ainda_sem_orcamento_responde_422(cliente_http, os_recebida):
+    resposta = await _rejeitar(cliente_http, os_recebida["numero"])
+
+    assert (resposta.status_code, resposta.json()["codigo"]) == (422, "REGRA_DE_NEGOCIO_VIOLADA")
+
+
+async def test_rejeicao_com_identificacao_errada_responde_404_e_nao_cancela(
+    cliente_http, gerente, os_orcada
+):
+    inexistente = await _rejeitar(cliente_http, "999-00000000")
+    outro_titular = await _rejeitar(cliente_http, os_orcada["numero"], "111.444.777-35")
+
+    assert inexistente.status_code == outro_titular.status_code == 404
+    assert inexistente.json() == outro_titular.json()
+    assert (await _detalhe(cliente_http, gerente, os_orcada["id"]))["status"] == (
+        "AGUARDANDO_APROVACAO"
+    )
+
+
+async def test_impasse_na_rejeicao_e_repetido_e_a_resposta_e_200(
+    cliente_http, mecanico, gerente, os_recebida, monkeypatch
+):
+    await _orcar(cliente_http, mecanico, gerente, os_recebida, saldo=5)
+    peca_id = await _peca_da_os(cliente_http, gerente, os_recebida["id"])
+    salvar_original = PostgresEstoqueRepository.salvar
+    tentativas = []
+
+    async def salvar_com_impasse_na_primeira_vez(self, estoque):
+        tentativas.append(estoque.peca_id)
+        if len(tentativas) == 1:
+            raise DBAPIError("UPDATE estoque_pecas", None, DeadlockDetectedError())
+        await salvar_original(self, estoque)
+
+    monkeypatch.setattr(PostgresEstoqueRepository, "salvar", salvar_com_impasse_na_primeira_vez)
+
+    resposta = await _rejeitar(cliente_http, os_recebida["numero"])
+
+    assert resposta.status_code == 200
+    assert len(tentativas) == 2
+    assert await _estoque(cliente_http, gerente, peca_id) == (5, 0, 5)

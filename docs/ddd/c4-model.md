@@ -123,6 +123,7 @@ flowchart TD
         FinalizarOrcamento["⚙️ FinalizarOrcamento"]
         CancelarOS["⚙️ CancelarOS"]
         AprovarOrcamento["⚙️ AprovarOrcamento"]
+        RejeitarOrcamento["⚙️ RejeitarOrcamento"]
         IniciarExecucao["⚙️ IniciarExecucao"]
         ConsultarOSPublica["⚙️ ConsultarOSPublica"]
         LocalizarOSDoTitular["⚙️ LocalizarOSDoTitular\nNúmero da OS + CPF/CNPJ do titular."]
@@ -164,6 +165,10 @@ flowchart TD
     RouterOS --> FinalizarOrcamento
     RouterOS --> IniciarExecucao
     RouterAcompanhamento --> AprovarOrcamento
+    RouterAcompanhamento --> RejeitarOrcamento
+    RejeitarOrcamento --> LocalizarOSDoTitular
+    RejeitarOrcamento --> AggOS
+    RejeitarOrcamento --> EventDispatcher
     RouterAcompanhamento --> ConsultarOSPublica
     ConsultarOSPublica --> LocalizarOSDoTitular
     AprovarOrcamento --> LocalizarOSDoTitular

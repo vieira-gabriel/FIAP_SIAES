@@ -20,6 +20,7 @@ from domain.exceptions import (
     ItemJaIncluido,
     ItensBloqueados,
     MecanicoIndisponivel,
+    MotivoInvalido,
     MotivoObrigatorio,
     OrdemServicoInvalida,
     PecasPendentes,
@@ -310,6 +311,8 @@ class OrdemServico:
         self._validar_transicao(StatusOS.CANCELADA, de=_CANCELAVEIS)
         if not isinstance(motivo, str) or not motivo.strip():
             raise MotivoObrigatorio()
+        if "<" in motivo:
+            raise MotivoInvalido()
         baixa_ja_realizada = self.status is StatusOS.EM_EXECUCAO
         self._mudar_status(
             StatusOS.CANCELADA,

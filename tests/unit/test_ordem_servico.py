@@ -21,6 +21,7 @@ from domain.exceptions import (
     ItemJaIncluido,
     ItensBloqueados,
     MecanicoIndisponivel,
+    MotivoInvalido,
     MotivoObrigatorio,
     OrdemServicoInvalida,
     PecasPendentes,
@@ -858,6 +859,24 @@ def test_nao_cancela_os_finalizada_entregue_ou_cancelada(status):
 
     assert erro.value.status_pretendido is StatusOS.CANCELADA
     assert os.status is status
+
+
+@pytest.mark.parametrize("motivo", ["<b>desistiu</b>", "valor < 10", "<"])
+def test_cancelar_recusa_o_motivo_com_marcacao(motivo):
+    os = criar_os(status=StatusOS.AGUARDANDO_PECA)
+
+    with pytest.raises(MotivoInvalido):
+        os.cancelar(USUARIO_ID, motivo)
+
+    assert (os.status, os.historico) == (StatusOS.AGUARDANDO_PECA, ())
+
+
+def test_cancelar_aceita_o_motivo_com_acentos_e_outros_simbolos():
+    os = criar_os(status=StatusOS.AGUARDANDO_PECA)
+
+    os.cancelar(USUARIO_ID, "Cliente desistiu & levou o carro > 10 dias")
+
+    assert os.status is StatusOS.CANCELADA
 
 
 @pytest.mark.parametrize("motivo", ["", "   ", None])

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, status
 
 from application.ports.token_service import UsuarioAutenticado
 from application.use_cases.atribuir_mecanico import AtribuirMecanico
+from application.use_cases.cancelar_os import CancelarOS
 from application.use_cases.criar_os import (
     CriarOS,
     DadosDoNovoCliente,
@@ -24,6 +25,7 @@ from domain.value_objects.placa import Placa
 from domain.value_objects.status_os import StatusOS
 from presentation.container import (
     obter_atribuir_mecanico,
+    obter_cancelar_os,
     obter_criar_os,
     obter_detalhar_ordem_servico,
     obter_finalizar_orcamento,
@@ -38,6 +40,7 @@ from presentation.schemas.erro import ErroResponse
 from presentation.schemas.ordem_servico import (
     AbrirOSRequest,
     AtribuirMecanicoRequest,
+    CancelarOSRequest,
     IncluirPecaRequest,
     IncluirServicoRequest,
     OSDetalheResponse,
@@ -61,6 +64,8 @@ _ABERTURA = exigir_perfis(PerfilUsuario.ATENDENTE, PerfilUsuario.GERENTE)
 _ATRIBUICAO = exigir_perfis(PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
 # RF-17: os itens e a conclusão do orçamento são do Mecânico e do Gerente.
 _DIAGNOSTICO = exigir_perfis(PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
+# RF-23: só o Gerente cancela a OS.
+_CANCELAMENTO = exigir_perfis(PerfilUsuario.GERENTE)
 # RF-14, RF-15: a consulta é de todos os perfis.
 _CONSULTA = exigir_perfis(PerfilUsuario.ATENDENTE, PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
 
@@ -267,3 +272,27 @@ async def concluir_orcamento(
     """Congela os valores vigentes do catálogo e envia o orçamento ao cliente: a OS passa de
     `EM_DIAGNOSTICO` para `AGUARDANDO_APROVACAO` (RF-17)."""
     return OSItensResponse.de_entidade(await finalizar.executar(id, usuario.usuario_id))
+
+
+@router.post(
+    "/{id}/cancelamento",
+    responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErroResponse,
+            "description": "O motivo contém o caractere '<'.",
+        },
+        status.HTTP_404_NOT_FOUND: {"model": ErroResponse, "description": "OS não encontrada."},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": ErroResponse,
+            "description": "Motivo em branco ou OS fora de `RECEBIDA` a `EM_EXECUCAO`.",
+        },
+    },
+)
+async def cancelar_os(
+    id: UUID,
+    dados: CancelarOSRequest,
+    gerente: Annotated[UsuarioAutenticado, Depends(_CANCELAMENTO)],
+    cancelar: Annotated[CancelarOS, Depends(obter_cancelar_os, scope="function")],
+) -> OSResponse:
+    """Cancela a OS com o motivo e devolve as peças reservadas ao estoque (RF-23, RF-18)."""
+    return OSResponse.de_entidade(await cancelar.executar(id, gerente.usuario_id, dados.motivo))

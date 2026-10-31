@@ -6,6 +6,7 @@ from starlette.datastructures import State
 
 from application.events.event_dispatcher import EventDispatcher, EventHandler
 from application.handlers.alocacao_pecas_pendentes_handler import AlocacaoPecasPendentesHandler
+from application.handlers.estorno_reservas_handler import EstornoReservasHandler
 from application.handlers.reserva_pecas_handler import ReservaPecasHandler
 from application.ports.password_hasher import PasswordHasher
 from application.ports.token_service import TokenService
@@ -24,6 +25,7 @@ from application.use_cases.cadastrar_peca import CadastrarPeca
 from application.use_cases.cadastrar_servico import CadastrarServico
 from application.use_cases.cadastrar_usuario import CadastrarUsuario
 from application.use_cases.cadastrar_veiculo import CadastrarVeiculo
+from application.use_cases.cancelar_os import CancelarOS
 from application.use_cases.consultar_os_publica import ConsultarOSPublica
 from application.use_cases.criar_carga_inicial import CriarCargaInicial, SenhasDaCargaInicial
 from application.use_cases.criar_os import CriarOS
@@ -53,6 +55,7 @@ from application.use_cases.remover_servico_da_os import RemoverServicoDaOS
 from application.use_cases.repor_peca import ReporPeca
 from domain.events.domain_event import DomainEvent
 from domain.events.orcamento_finalizado_event import OrcamentoFinalizadoEvent
+from domain.events.os_cancelada_event import OSCanceladaEvent
 from domain.events.saldo_peca_atualizado_event import SaldoPecaAtualizadoEvent
 from domain.repositories.cliente_repository import ClienteRepository
 from domain.repositories.estoque_repository import EstoqueRepository
@@ -63,6 +66,7 @@ from domain.repositories.usuario_repository import UsuarioRepository
 from domain.repositories.veiculo_repository import VeiculoRepository
 from infrastructure.config import Configuracao, carregar_configuracao
 from infrastructure.database.engine import criar_engine, criar_fabrica_de_sessoes
+from infrastructure.database.repeticao_em_impasse import com_repeticao_em_impasse
 from infrastructure.database.unidade_de_trabalho import UnidadeDeTrabalhoSqlAlchemy
 from infrastructure.database.verificador_do_banco import VerificadorDoBancoSqlAlchemy
 from infrastructure.repositories.postgres_cliente_repository import PostgresClienteRepository
@@ -204,10 +208,13 @@ def _com_repositorios_de_pecas_e_eventos[T](
     caso_de_uso: Callable[[PecaRepository, EstoqueRepository, EventDispatcher], T],
 ) -> Callable[[Request], AsyncIterator[T]]:
     return _por_requisicao(
-        lambda sessao, estado: caso_de_uso(
-            PostgresPecaRepository(sessao),
-            PostgresEstoqueRepository(sessao),
-            _eventos_da_requisicao(sessao, estado),
+        lambda sessao, estado: com_repeticao_em_impasse(
+            caso_de_uso(
+                PostgresPecaRepository(sessao),
+                PostgresEstoqueRepository(sessao),
+                _eventos_da_requisicao(sessao, estado),
+            ),
+            sessao,
         )
     )
 
@@ -228,6 +235,10 @@ def _fabricas_de_handlers() -> list[
             lambda sessao: AlocacaoPecasPendentesHandler(
                 PostgresOrdemServicoRepository(sessao), PostgresEstoqueRepository(sessao)
             ),
+        ),
+        (
+            OSCanceladaEvent,
+            lambda sessao: EstornoReservasHandler(PostgresEstoqueRepository(sessao)),
         ),
     ]
 
@@ -307,12 +318,21 @@ obter_remover_peca_da_os = _por_requisicao(
     lambda sessao, _: RemoverPecaDaOS(PostgresOrdemServicoRepository(sessao))
 )
 obter_finalizar_orcamento = _por_requisicao(
-    lambda sessao, estado: FinalizarOrcamento(
-        PostgresOrdemServicoRepository(sessao),
-        PostgresEstoqueRepository(sessao),
-        PostgresServicoRepository(sessao),
-        PostgresPecaRepository(sessao),
-        _eventos_da_requisicao(sessao, estado),
+    lambda sessao, estado: com_repeticao_em_impasse(
+        FinalizarOrcamento(
+            PostgresOrdemServicoRepository(sessao),
+            PostgresEstoqueRepository(sessao),
+            PostgresServicoRepository(sessao),
+            PostgresPecaRepository(sessao),
+            _eventos_da_requisicao(sessao, estado),
+        ),
+        sessao,
+    )
+)
+obter_cancelar_os = _por_requisicao(
+    lambda sessao, estado: com_repeticao_em_impasse(
+        CancelarOS(PostgresOrdemServicoRepository(sessao), _eventos_da_requisicao(sessao, estado)),
+        sessao,
     )
 )
 obter_detalhar_ordem_servico = _por_requisicao(

@@ -1,37 +1,10 @@
 import pytest
 
-from application.ports.password_hasher import PasswordHasher
 from application.ports.token_service import TokenService, UsuarioAutenticado
 from application.use_cases.autenticar_usuario import AutenticarUsuario
 from domain.entities.usuario import Usuario
 from domain.exceptions import CredenciaisInvalidas
-from domain.repositories.usuario_repository import UsuarioRepository
 from domain.value_objects.perfil_usuario import PerfilUsuario
-
-
-class UsuarioRepositoryEmMemoria(UsuarioRepository):
-    def __init__(self):
-        self.dados = {}
-
-    async def salvar(self, usuario):
-        self.dados[usuario.id] = usuario
-
-    async def buscar_por_id(self, id):
-        return self.dados.get(id)
-
-    async def buscar_por_email(self, email):
-        return next((u for u in self.dados.values() if u.email == email), None)
-
-    async def listar(self):
-        return sorted(self.dados.values(), key=lambda usuario: usuario.nome)
-
-
-class PasswordHasherFalso(PasswordHasher):
-    async def gerar_hash(self, senha):
-        return f"hash:{senha}"
-
-    async def verificar(self, senha, senha_hash):
-        return senha_hash == f"hash:{senha}"
 
 
 class TokenServiceFalso(TokenService):
@@ -44,22 +17,21 @@ class TokenServiceFalso(TokenService):
 
 
 @pytest.fixture
-async def usuarios():
-    repositorio = UsuarioRepositoryEmMemoria()
-    await repositorio.salvar(
+async def usuarios(usuarios, password_hasher):
+    await usuarios.salvar(
         Usuario(
             nome="Gerente",
             email="admin@oficina.com",
-            senha_hash=await PasswordHasherFalso().gerar_hash("senha-correta"),
+            senha_hash=await password_hasher.gerar_hash("senha-correta"),
             perfil=PerfilUsuario.GERENTE,
         )
     )
-    return repositorio
+    return usuarios
 
 
 @pytest.fixture
-def autenticar(usuarios):
-    return AutenticarUsuario(usuarios, PasswordHasherFalso(), TokenServiceFalso())
+def autenticar(usuarios, password_hasher):
+    return AutenticarUsuario(usuarios, password_hasher, TokenServiceFalso())
 
 
 async def test_login_valido_devolve_token_com_perfil(autenticar, usuarios):

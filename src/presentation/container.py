@@ -4,7 +4,8 @@ from fastapi import FastAPI, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import State
 
-from application.events.event_dispatcher import EventDispatcher
+from application.events.event_dispatcher import EventDispatcher, EventHandler
+from application.handlers.reserva_pecas_handler import ReservaPecasHandler
 from application.ports.password_hasher import PasswordHasher
 from application.ports.token_service import TokenService
 from application.ports.verificador_do_banco import VerificadorDoBanco
@@ -48,6 +49,8 @@ from application.use_cases.reativar_usuario import ReativarUsuario
 from application.use_cases.remover_peca_da_os import RemoverPecaDaOS
 from application.use_cases.remover_servico_da_os import RemoverServicoDaOS
 from application.use_cases.repor_peca import ReporPeca
+from domain.events.domain_event import DomainEvent
+from domain.events.orcamento_finalizado_event import OrcamentoFinalizadoEvent
 from domain.repositories.cliente_repository import ClienteRepository
 from domain.repositories.estoque_repository import EstoqueRepository
 from domain.repositories.ordem_servico_repository import OrdemServicoRepository
@@ -91,7 +94,7 @@ def montar_dependencias(app: FastAPI) -> None:
     app.state.password_hasher = BcryptPasswordHasher()
     app.state.verificador_do_banco = VerificadorDoBancoSqlAlchemy(engine)
     app.state.senhas_da_carga_inicial = _senhas_da_carga_inicial(configuracao)
-    app.state.fabricas_de_handlers = []
+    app.state.fabricas_de_handlers = _fabricas_de_handlers()
 
 
 async def executar_carga_inicial(app: FastAPI) -> None:
@@ -202,6 +205,20 @@ def _com_repositorios_de_pecas_e_eventos[T](
             _eventos_da_requisicao(sessao, estado),
         )
     )
+
+
+def _fabricas_de_handlers() -> list[
+    tuple[type[DomainEvent], Callable[[AsyncSession], EventHandler]]
+]:
+    """Os handlers da aplicação: cada um nasce por requisição, sobre a sessão dela."""
+    return [
+        (
+            OrcamentoFinalizadoEvent,
+            lambda sessao: ReservaPecasHandler(
+                PostgresOrdemServicoRepository(sessao), PostgresEstoqueRepository(sessao)
+            ),
+        ),
+    ]
 
 
 def _eventos_da_requisicao(sessao: AsyncSession, estado: State) -> EventDispatcher:

@@ -470,3 +470,119 @@ async def test_falha_do_handler_desfaz_a_conclusao_inteira(
     assert (detalhe["status"], detalhe["orcamento"]) == ("EM_DIAGNOSTICO", None)
     assert len(detalhe["historico"]) == 2
     assert await conexao.scalar(text(f"SELECT count(*) FROM {tabela_do_handler}")) == 0
+
+
+async def _peca_com_saldo(cliente_http, gerente, saldo: int) -> dict:
+    resposta = await cliente_http.post(
+        "/pecas", json=PECA | {"quantidade_fisica_inicial": saldo}, headers=_cabecalho(gerente)
+    )
+    assert resposta.status_code == 201
+    return resposta.json()
+
+
+async def _estoque(cliente_http, quem, peca_id: str) -> tuple[int, int, int]:
+    corpo = (await cliente_http.get(f"/pecas/{peca_id}", headers=_cabecalho(quem))).json()
+    return corpo["quantidade_fisica"], corpo["quantidade_reservada"], corpo["saldo_disponivel"]
+
+
+async def _os_orcada(cliente_http, atendente, mecanico, peca_id: str, quantidade: int) -> str:
+    """Abre a OS, o mecânico a assume, inclui a peça e conclui o orçamento."""
+    aberta = await cliente_http.post(
+        "/ordens-servico", json=ABERTURA, headers=_cabecalho(atendente)
+    )
+    os_id = aberta.json()["id"]
+    await cliente_http.post(f"/ordens-servico/{os_id}/mecanico", headers=_cabecalho(mecanico))
+    await _incluir_peca(cliente_http, mecanico, os_id, peca_id, quantidade)
+    resposta = await _concluir(cliente_http, mecanico, os_id)
+    assert resposta.status_code == 200
+    return os_id
+
+
+async def _reservada_e_pendente(cliente_http, quem, os_id: str) -> tuple[int, int]:
+    (peca,) = (await _detalhe(cliente_http, quem, os_id))["pecas"]
+    return peca["quantidade_reservada"], peca["quantidade_pendente"]
+
+
+async def test_conclusao_reserva_toda_a_quantidade_quando_ha_saldo(
+    cliente_http, atendente, mecanico, gerente
+):
+    peca = await _peca_com_saldo(cliente_http, gerente, saldo=10)
+
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+
+    assert await _reservada_e_pendente(cliente_http, mecanico, os_id) == (2, 0)
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (10, 2, 8)
+
+
+async def test_conclusao_reserva_o_que_ha_e_deixa_o_resto_pendente(
+    cliente_http, atendente, mecanico, gerente
+):
+    peca = await _peca_com_saldo(cliente_http, gerente, saldo=1)
+
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+
+    assert await _reservada_e_pendente(cliente_http, mecanico, os_id) == (1, 1)
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (1, 1, 0)
+
+
+async def test_conclusao_com_peca_sem_saldo_registra_o_pendente(
+    cliente_http, atendente, mecanico, peca
+):
+    os_id = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+
+    detalhe = await _detalhe(cliente_http, mecanico, os_id)
+
+    assert detalhe["status"] == "AGUARDANDO_APROVACAO"
+    assert [(p["quantidade_reservada"], p["quantidade_pendente"]) for p in detalhe["pecas"]] == [
+        (0, 2)
+    ]
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (0, 0, 0)
+
+
+async def test_saldo_que_sobra_vai_primeiro_para_a_os_aberta_antes(
+    cliente_http, atendente, mecanico, gerente
+):
+    peca = await _peca_com_saldo(cliente_http, gerente, saldo=3)
+    primeira = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    segunda = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=2)
+    assert await _reservada_e_pendente(cliente_http, mecanico, primeira) == (2, 0)
+    assert await _reservada_e_pendente(cliente_http, mecanico, segunda) == (1, 1)
+    await cliente_http.post(
+        f"/pecas/{peca['id']}/reposicao", json={"quantidade": 1}, headers=_cabecalho(gerente)
+    )
+
+    terceira = await _os_orcada(cliente_http, atendente, mecanico, peca["id"], quantidade=1)
+
+    assert await _reservada_e_pendente(cliente_http, mecanico, segunda) == (2, 0)
+    assert await _reservada_e_pendente(cliente_http, mecanico, terceira) == (0, 1)
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (4, 4, 0)
+
+
+async def test_falha_de_um_handler_depois_da_reserva_desfaz_a_reserva(
+    cliente_http, atendente, mecanico, gerente, conexao, tabela_do_handler, monkeypatch
+):
+    peca = await _peca_com_saldo(cliente_http, gerente, saldo=5)
+    aberta = await cliente_http.post(
+        "/ordens-servico", json=ABERTURA, headers=_cabecalho(atendente)
+    )
+    os_id = aberta.json()["id"]
+    await cliente_http.post(f"/ordens-servico/{os_id}/mecanico", headers=_cabecalho(mecanico))
+    await _incluir_peca(cliente_http, mecanico, os_id, peca["id"], 2)
+    monkeypatch.setattr(
+        app.state,
+        "fabricas_de_handlers",
+        [
+            *app.state.fabricas_de_handlers,
+            (
+                OrcamentoFinalizadoEvent,
+                lambda sessao: GravadorDeTeste(sessao, tabela_do_handler, True),
+            ),
+        ],
+    )
+
+    with pytest.raises(RuntimeError, match="falha simulada na reserva"):
+        await _concluir(cliente_http, mecanico, os_id)
+
+    assert await _estoque(cliente_http, mecanico, peca["id"]) == (5, 0, 5)
+    detalhe = await _detalhe(cliente_http, mecanico, os_id)
+    assert (detalhe["status"], detalhe["pecas"][0]["quantidade_pendente"]) == ("EM_DIAGNOSTICO", 0)

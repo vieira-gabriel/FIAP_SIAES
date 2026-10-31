@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-30 — PR da issue #96 (consulta pública da OS)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Consulta pública da OS (RF-25)": `POST /acompanhamento`, sem JWT, com o número e o documento no corpo, a mesma resposta `404` para número inexistente, número ou documento malformado e documento de outro titular, e uma resposta sem dados do cliente. No C4, o caso de uso `ConsultarStatusPublico` passou a se chamar `ConsultarOSPublica`.
+
+**Motivo:** o RF-25 pede a consulta pública sem indicar qual dos dois dados está errado, mas não define a forma da requisição. O documento vai no corpo, e não na URL, para não aparecer nos logs de acesso. A validação do formato fica no caso de uso porque o DTO responderia `400` a um documento malformado, o que diferenciaria esse caso do número inexistente. O nome do caso de uso passou a descrever o que ele faz: consulta a OS inteira, e não só o status. O rate limiting da rota (RNF-05) continua na issue #97.
+
 ## 2026-10-30 — PR da issue #94 (alocação das peças repostas)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Alocação das peças repostas (RF-19)": o `AlocacaoPecasPendentesHandler` trata o `SaldoPecaAtualizadoEvent` (reposição e ajuste para cima) na transação da operação, aloca o saldo atual às OS pendentes da mais antiga para a mais nova e libera as OS de `AGUARDANDO_PECA` que ficam sem pendência. O `ReservaPecasHandler` passou a delegar a repartição do saldo ao mesmo `alocar_saldo`, e a lista de handlers do `container.py` ganhou o novo handler.

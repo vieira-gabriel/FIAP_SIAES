@@ -123,7 +123,7 @@ flowchart TD
         FinalizarOrcamento["⚙️ FinalizarOrcamento"]
         AprovarOrcamento["⚙️ AprovarOrcamento"]
         IniciarExecucao["⚙️ IniciarExecucao"]
-        ConsultarStatusPublico["⚙️ ConsultarStatusPublico"]
+        ConsultarOSPublica["⚙️ ConsultarOSPublica"]
         
         Ports["🔌 Portas de Serviço (application/ports/)\nTokenService, PasswordHasher"]
         EventDispatcher["⚡ EventDispatcher (In-Memory)\nBarramento síncrono para eventos de domínio."]
@@ -162,7 +162,7 @@ flowchart TD
     RouterOS --> FinalizarOrcamento
     RouterOS --> IniciarExecucao
     RouterAcompanhamento --> AprovarOrcamento
-    RouterAcompanhamento --> ConsultarStatusPublico
+    RouterAcompanhamento --> ConsultarOSPublica
     
     AprovarOrcamento --> AggOS
     IniciarExecucao --> AggOS

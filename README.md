@@ -207,6 +207,8 @@ Sem o banco no ar, os testes de integração são pulados, e `uv run pytest` rod
 uv run pytest --cov --cov-report=term-missing --cov-fail-under=80
 ```
 
+A medição salva (100% em `domain/` e em `application/`) está em [`docs/evidencias/cobertura.md`](docs/evidencias/cobertura.md).
+
 **Lint e formatação:**
 
 ```bash
@@ -216,6 +218,17 @@ uv run ruff format --check src tests migrations
 
 O CI (`.github/workflows/ci.yml`) roda tudo isso em cada Pull Request, com um PostgreSQL 16, e também o Bandit e o pip-audit (RNF-07).
 
+## Desempenho
+
+O tempo de resposta (RNF-10, p95 abaixo de 500 ms) é medido com o Locust, contra a aplicação no ar. Com o `.env` preenchido, `docker compose up --build -d app` e `uv sync` feitos:
+
+```bash
+set -a; . ./.env; set +a
+uv run locust -f tests/desempenho/locustfile.py --headless --host http://localhost:8000 --users 10 --spawn-rate 5 --run-time 60s
+```
+
+O comando sai com código 1 se o p95 passar de 500 ms ou houver erro. O cenário, o resultado (p95 de 58 ms) e o relatório do Locust estão em [`docs/evidencias/desempenho.md`](docs/evidencias/desempenho.md).
+
 ## Documentação
 
 - [Requisitos funcionais](docs/requisitos-funcionais.md) e [não funcionais](docs/requisitos-nao-funcionais.md)
@@ -223,3 +236,5 @@ O CI (`.github/workflows/ci.yml`) roda tudo isso em cada Pull Request, com um Po
 - [Linguagem ubíqua](docs/ddd/linguagem-ubiqua.md)
 - [Modelo C4](docs/ddd/c4-model.md)
 - [Guia de desenvolvimento](docs/guia-de-desenvolvimento.md)
+- Evidências de qualidade: [cobertura de testes](docs/evidencias/cobertura.md) e [desempenho](docs/evidencias/desempenho.md)
+- Segurança: [análise de vulnerabilidades](docs/security/analise-de-vulnerabilidades.md) e [revisão de segredos](docs/security/revisao-de-segredos.md)

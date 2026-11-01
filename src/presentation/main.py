@@ -9,6 +9,7 @@ from presentation.container import (
     executar_carga_inicial,
     montar_dependencias,
 )
+from presentation.middlewares.interface_web import registrar_interface_web
 from presentation.middlewares.tratamento_de_erros import registrar_tratamento_de_erros
 from presentation.routers import (
     acompanhamento_publico,
@@ -59,6 +60,7 @@ app.include_router(veiculos.router)
 app.include_router(ordens_servico.router)
 app.include_router(relatorios.router)
 app.include_router(acompanhamento_publico.router)
+registrar_interface_web(app)
 
 
 def _openapi_com_esquema_bearer() -> dict[str, Any]:

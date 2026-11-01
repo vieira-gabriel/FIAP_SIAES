@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import ColumnElement, Select, exists, select
@@ -66,6 +67,21 @@ class PostgresOrdemServicoRepository(OrdemServicoRepository):
             _consulta()
             .where(*_condicoes(filtro))
             .order_by(OrdemServicoModel.data_abertura.desc(), OrdemServicoModel.id)
+        )
+        return [_para_entidade(modelo) for modelo in await self._sessao.scalars(consulta)]
+
+    async def listar_finalizadas(
+        self, finalizadas_de: datetime | None, finalizadas_ate: datetime | None
+    ) -> list[OrdemServico]:
+        condicoes = [OrdemServicoModel.data_finalizacao.is_not(None)]
+        if finalizadas_de is not None:
+            condicoes.append(OrdemServicoModel.data_finalizacao >= finalizadas_de)
+        if finalizadas_ate is not None:
+            condicoes.append(OrdemServicoModel.data_finalizacao <= finalizadas_ate)
+        consulta = (
+            _consulta()
+            .where(*condicoes)
+            .order_by(OrdemServicoModel.data_finalizacao, OrdemServicoModel.id)
         )
         return [_para_entidade(modelo) for modelo in await self._sessao.scalars(consulta)]
 

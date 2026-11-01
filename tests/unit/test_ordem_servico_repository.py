@@ -40,6 +40,7 @@ def test_porta_define_salvar_buscas_e_pendencias_da_peca():
         "buscar_por_id",
         "buscar_por_numero",
         "listar",
+        "listar_finalizadas",
         "listar_pendentes_da_peca",
     }
 

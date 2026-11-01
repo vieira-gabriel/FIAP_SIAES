@@ -363,6 +363,25 @@ class OrdemServico:
         except OverflowError:
             raise OrdemServicoInvalida("os prazos dos itens passam do limite de datas") from None
 
+    def tempo_de_execucao(self) -> timedelta:
+        """Do início da execução até a finalização, sem as esperas anteriores (RF-27)."""
+        inicio = _registrada(self.data_inicio_execucao, "o início da execução")
+        return _registrada(self.data_finalizacao, "a finalização") - inicio
+
+    def tempo_total(self) -> timedelta:
+        """Da abertura até a finalização, incluindo todas as esperas (RF-27)."""
+        return _registrada(self.data_finalizacao, "a finalização") - self.data_abertura
+
+    def tempo_de_espera_por_peca(self) -> timedelta | None:
+        """Soma dos intervalos entre a entrada e a saída de `AGUARDANDO_PECA` no histórico
+        (RF-27). Nulo se a OS nunca esperou peça; a espera em andamento não conta."""
+        esperas = [
+            saida.data_hora - entrada.data_hora
+            for entrada, saida in zip(self.historico, self.historico[1:], strict=False)
+            if entrada.status_novo == StatusOS.AGUARDANDO_PECA
+        ]
+        return sum(esperas, timedelta()) if esperas else None
+
     def collect_domain_events(self) -> list[DomainEvent]:
         eventos, self._domain_events = self._domain_events, []
         return eventos

@@ -131,13 +131,13 @@ Toda transição gera um registro no Histórico de Status (RF-24), com a origem 
 | **Adaptador de Infraestrutura** | Implementação ORM / SQL (`PostgreSQL`) | `src/infrastructure/repositories/postgres_ordem_servico_repository.py` |
 | **Evento de Domínio** | Dataclass de Evento Imutável | `src/domain/events/orcamento_finalizado_event.py` |
 
-Os exemplos de caso de uso, adaptador e evento da OS acima mostram o padrão a seguir; o arquivo `aprovar_orcamento.py` ainda não existe e entra com a Fase 5. Já existem como exemplos reais: `entities/ordem_servico.py`, `value_objects/cpf.py`, `repositories/ordem_servico_repository.py`, `repositories/estoque_repository.py`, `infrastructure/repositories/postgres_ordem_servico_repository.py`, `infrastructure/repositories/postgres_estoque_repository.py`, `use_cases/cadastrar_cliente.py` e `events/orcamento_finalizado_event.py`.
+Todos os arquivos da coluna "Exemplo no Repositório" existem no código, e o padrão se repete nos demais arquivos de cada pasta. Outros exemplos reais: `repositories/estoque_repository.py`, `infrastructure/repositories/postgres_estoque_repository.py`, `use_cases/cadastrar_cliente.py` e `handlers/reserva_pecas_handler.py`.
 
 ---
 
 ## 7. Eventos de Domínio
 
-Fatos do domínio que fazem um agregado alterar outro. O catálogo completo, com o momento da emissão, o handler consumidor e a correspondência com o board, está na seção 7 de `docs/ddd/event-storming.md`. Todos herdam de `DomainEvent` (`domain_event.py`), que traz o identificador e a data e hora de ocorrência. Os agregados acumulam os eventos e os entregam por `collect_domain_events()`, que devolve a lista e a esvazia. `OSCanceladaEvent.estornos` e `ExecucaoIniciadaEvent.baixas` são listas de `QuantidadePeca` (`peca_id` e `quantidade`). Os quatro eventos estão implementados; os handlers que reagem a eles entram com a Fase 5.
+Fatos do domínio que fazem um agregado alterar outro. O catálogo completo, com o momento da emissão, o handler consumidor e a correspondência com o board, está na seção 7 de `docs/ddd/event-storming.md`. Todos herdam de `DomainEvent` (`domain_event.py`), que traz o identificador e a data e hora de ocorrência. Os agregados acumulam os eventos e os entregam por `collect_domain_events()`, que devolve a lista e a esvazia. `OSCanceladaEvent.estornos` e `ExecucaoIniciadaEvent.baixas` são listas de `QuantidadePeca` (`peca_id` e `quantidade`). Os quatro eventos estão implementados, e cada um tem o handler que reage a ele em `src/application/handlers/`.
 
 | Evento | Definição no Domínio | Correspondência no Código (`src/domain/events/`) |
 | :--- | :--- | :--- |

@@ -123,8 +123,6 @@ Pontos de atenção:
 
 A pasta `migrations/` do Alembic (guia, seção 8.1) fica na raiz do projeto, junto com o `alembic.ini`, e foi criada na issue #25 com a revisão de base `0001_schema_base`, vazia; as tabelas entram com cada entidade (da `0002` à `0007`: `usuarios`, `clientes`, `servicos`, `veiculos`, `pecas`, `estoque_pecas` e as tabelas da OS, `ordens_servico`, `itens_servico`, `itens_peca` e `historico_status_os`). `src/infrastructure/config.py` (configuração) e `src/presentation/container.py` (montagem das dependências), decididos na issue #9, foram criados na issue #22; o container monta a engine, a fábrica de sessões, os serviços de token e de hash e o verificador do banco (issue #26). O login já está ligado: o container oferece `obter_autenticar_usuario` e executa a carga inicial de usuários na subida; as funções `obter_<caso_de_uso>` dos cadastros de usuários, clientes, veículos, serviços e peças também já existem, e as demais entram com os casos de uso do fluxo da OS.
 
-A autenticação JWT (seção 5), a configuração do PostgreSQL (RNF-08) e o `Dockerfile` com o `docker-compose.yml` (RNF-15) já estão implementados. Permanecem pendentes, por dependerem de implementação:
-
-* os handlers de `application/handlers/` que reagem aos eventos de domínio, de que existem o `reserva_pecas_handler.py` e o `alocacao_pecas_pendentes_handler.py`; faltam os do estorno e da baixa (Fase 5);
+A autenticação JWT (seção 5), a configuração do PostgreSQL (RNF-08) e o `Dockerfile` com o `docker-compose.yml` (RNF-15) já estão implementados.
 
 As portas e os adaptadores de usuário, cliente, veículo, serviço, peça, estoque e OS já existem; os modelos da OS ficam em `infrastructure/database/ordem_servico_model.py` (issue #88). Os relatórios de segredos (RNF-06) e de vulnerabilidades (RNF-07) estão em `docs/security/`.

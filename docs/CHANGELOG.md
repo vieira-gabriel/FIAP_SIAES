@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-31 — PR da issue #115 (revisão do Swagger)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Documentação do Swagger (RNF-16, RNF-03)": o OpenAPI passa a documentar o `422` e o `500` com o corpo `ErroResponse`, e cada rota declara os códigos que realmente devolve. Um teste unitário (`tests/unit/test_openapi.py`) protege o contrato.
+
+**Motivo:** a revisão encontrou 15 rotas cujo `422` aparecia no Swagger com o corpo `HTTPValidationError` do FastAPI, enquanto a API devolve `ErroResponse`, e o `500` não aparecia em nenhuma. O `/docs` precisa corresponder ao comportamento real (RNF-16).
+
 ## 2026-10-31 — PR da issue #102 (rejeição do orçamento pelo cliente)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Rejeição do orçamento pelo cliente (RF-26, RF-18)": `POST /acompanhamento/rejeicao`, sem JWT, e o caso de uso `RejeitarOrcamento`, que despacha o `OSCanceladaEvent` para o `EstornoReservasHandler` do cancelamento. A decisão "Repetição da transação em impasse" passou a incluir o `RejeitarOrcamento`. No C4, o `RejeitarOrcamento` entrou no diagrama de componentes.

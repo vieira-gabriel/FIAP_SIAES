@@ -4,11 +4,11 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
-## 2026-10-31 — Branch local `feat/interface-web` (POC da interface web, sem PR)
+## 2026-10-31 — PR #170 (POC da interface web)
 
-**O que mudou:** a pasta `src/presentation/web/` entrou na árvore da seção 2 do guia, na tabela da seção 3 e em `docs/estrutura-de-pastas.md`, junto com o módulo `presentation/middlewares/interface_web.py`, que entrega as páginas e aplica os cabeçalhos de segurança delas. A seção 8.1 ganhou as decisões "Interface web (POC)" e "Decisão do orçamento no balcão (RF-26, RF-24)", e a decisão "Repetição da transação em impasse" passou a incluir o `RejeitarOrcamentoNoBalcao`.
+**O que mudou:** a pasta `src/presentation/web/` entrou na árvore da seção 2 do guia, na tabela da seção 3 e em `docs/estrutura-de-pastas.md`, junto com o módulo `presentation/middlewares/interface_web.py`, que entrega as páginas e aplica os cabeçalhos de segurança delas por uma subclasse de `StaticFiles`. A seção 8.1 ganhou as decisões "Interface web (POC)" e "Decisão do orçamento no balcão (RF-26, RF-24)", e a decisão "Repetição da transação em impasse" passou a incluir o `RejeitarOrcamentoNoBalcao`.
 
-**Motivo:** a oficina e o cliente usavam o sistema só pelo Swagger. A POC oferece telas para os dois lados sem dependência nova nem serviço novo no Compose, e foi feita para o grupo avaliar; a pasta nova ainda depende da aprovação do grupo (guia, seção 3).
+**Motivo:** a oficina e o cliente usavam o sistema só pelo Swagger. A POC oferece telas para os dois lados sem dependência nova nem serviço novo no Compose, e foi feita para o grupo avaliar; a pasta nova ainda depende da aprovação do grupo (guia, seção 3). Na revisão do PR, os cabeçalhos saíram de um middleware HTTP, que passava por todas as rotas da API, para a subclasse de `StaticFiles`, que só atende as páginas (RNF-10).
 
 ## 2026-10-31 — PR da issue #115 (revisão do Swagger)
 

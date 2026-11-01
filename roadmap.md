@@ -341,8 +341,8 @@ Tarefas da fase:
 
 **Objetivo:** consolidar as evidências de qualidade e segurança exigidas na entrega.
 
-- [ ] Cobertura ≥ 80% nos módulos de domínio e aplicação, medida com `pytest-cov` (RNF-14)
-- [ ] Evidência da cobertura salva (relatório ou captura de tela) para uso no README e no vídeo
+- [x] Cobertura ≥ 80% nos módulos de domínio e aplicação, medida com `pytest-cov` (RNF-14; issue #110). Refazer no commit final
+- [x] Evidência da cobertura salva em `docs/evidencias/` (RNF-14; `docs/evidencias/cobertura.md` e `cobertura.txt`)
 - [x] Análise de vulnerabilidades de dependências, código e imagem Docker, com correção do que for encontrado (RNF-07; issue #111). Refazer no commit final
 - [x] Relatório da análise de vulnerabilidades salvo em `docs/security/` (RNF-07; `docs/security/analise-de-vulnerabilidades.md`)
 - [x] Revisão das proteções contra SQL Injection, IDOR e XSS (RNF-04) e do rate limiting (RNF-05; issue #112)

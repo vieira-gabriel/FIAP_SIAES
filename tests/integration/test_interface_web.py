@@ -33,6 +33,18 @@ async def test_paginas_e_arquivos_levam_os_cabecalhos_de_seguranca(cliente_http,
         assert resposta.headers[nome] == valor
 
 
+async def test_revalidacao_sem_mudanca_responde_304_com_os_cabecalhos(cliente_http):
+    etag = (await cliente_http.get("/comum/api.js")).headers["etag"]
+
+    resposta = await cliente_http.get("/comum/api.js", headers={"If-None-Match": etag})
+
+    assert resposta.status_code == 304
+    assert (
+        resposta.headers["content-security-policy"]
+        == (CABECALHOS_DE_SEGURANCA["Content-Security-Policy"])
+    )
+
+
 async def test_csp_recusa_script_embutido_e_de_outra_origem(cliente_http):
     politica = (await cliente_http.get("/oficina/")).headers["content-security-policy"]
 

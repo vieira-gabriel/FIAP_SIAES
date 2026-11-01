@@ -15,7 +15,7 @@ class AtualizarVeiculoRequest(BaseModel):
 
 
 class CadastrarVeiculoRequest(AtualizarVeiculoRequest):
-    cliente_id: UUID
+    cliente_id: UUID = Field(examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"])
 
 
 class VeiculoResponse(BaseModel):

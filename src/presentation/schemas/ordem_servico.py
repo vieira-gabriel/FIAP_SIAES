@@ -30,7 +30,9 @@ class VeiculoNovoRequest(BaseModel):
 class AtribuirMecanicoRequest(BaseModel):
     """O Mecânico omite o campo, porque atribui a OS a si mesmo; o Gerente informa o mecânico."""
 
-    mecanico_id: UUID | None = None
+    mecanico_id: UUID | None = Field(
+        default=None, examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"]
+    )
 
 
 class CancelarOSRequest(BaseModel):
@@ -192,11 +194,11 @@ class OSDetalheResponse(BaseModel):
 
 
 class IncluirServicoRequest(BaseModel):
-    servico_id: UUID
+    servico_id: UUID = Field(examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"])
 
 
 class IncluirPecaRequest(BaseModel):
-    peca_id: UUID
+    peca_id: UUID = Field(examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"])
     quantidade: int = Field(le=_MAIOR_INTEIRO, examples=[2])
 
 

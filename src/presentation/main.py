@@ -59,15 +59,32 @@ app.include_router(ordens_servico.router)
 app.include_router(acompanhamento_publico.router)
 
 
-def _openapi_com_esquema_bearer() -> dict[str, Any]:
-    """Declara o esquema Bearer JWT para o botão "Authorize", mesmo sem rotas protegidas."""
+def _openapi_da_api() -> dict[str, Any]:
+    """Declara o esquema Bearer JWT para o botão "Authorize", mesmo sem rotas protegidas, e o
+    corpo `ErroResponse` que a API devolve de fato no `422` e no `500`: o FastAPI documenta o
+    `422` com o `HTTPValidationError`, que a API não usa (RNF-16)."""
     esquema = FastAPI.openapi(app)
-    esquema.setdefault("components", {}).setdefault("securitySchemes", {})["HTTPBearer"] = {
+    componentes = esquema.setdefault("components", {})
+    componentes.setdefault("securitySchemes", {})["HTTPBearer"] = {
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
     }
+    corpo_de_erro = {"application/json": {"schema": {"$ref": "#/components/schemas/ErroResponse"}}}
+    for rota in esquema["paths"].values():
+        for operacao in rota.values():
+            respostas = operacao["responses"]
+            if "422" in respostas:
+                respostas["422"]["content"] = corpo_de_erro
+                if respostas["422"]["description"] == "Validation Error":
+                    respostas["422"]["description"] = "Entrada fora do formato esperado."
+            respostas["500"] = {
+                "description": "Erro interno, sem mensagem interna nem stack trace.",
+                "content": corpo_de_erro,
+            }
+    for nome in ("HTTPValidationError", "ValidationError"):
+        componentes["schemas"].pop(nome, None)
     return esquema
 
 
-app.openapi = _openapi_com_esquema_bearer
+app.openapi = _openapi_da_api

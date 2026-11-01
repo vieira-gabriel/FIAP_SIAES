@@ -105,6 +105,7 @@ async def detalhar_peca(
     id: UUID,
     detalhar: Annotated[DetalharPeca, Depends(obter_detalhar_peca)],
 ) -> PecaResponse:
+    """Dados da peça com as quantidades física e reservada e o saldo disponível (RF-12)."""
     return PecaResponse.de_entidades(*await detalhar.executar(id))
 
 

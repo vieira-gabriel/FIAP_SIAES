@@ -122,6 +122,7 @@ Toda dependência externa segue o mesmo padrão:
 | Teste de integração | `tests/integration/` | `test_<fluxo>.py` | `test_fluxo_aprovacao_orcamento.py` |
 | Migration do banco | `migrations/versions/` (raiz do projeto) | gerado pelo Alembic | `<revisão>_cria_tabela_cliente.py` |
 | Relatório de segurança | `docs/security/` | — | relatório da análise de vulnerabilidades (RNF-07) |
+| Evidência de qualidade | `docs/evidencias/` | assunto medido | `cobertura.md` e `cobertura.txt` (RNF-14), relatório do teste de desempenho (RNF-10) |
 | Workflow de CI | `.github/workflows/` (raiz do projeto) | nome do pipeline | `ci.yml` |
 
 Se algo não se encaixa em nenhuma linha desta tabela, **não crie uma pasta nova por conta própria**: discuta com o grupo e, se aprovado, atualize esta tabela e `docs/estrutura-de-pastas.md` no mesmo PR.

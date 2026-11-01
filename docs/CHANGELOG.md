@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-31 — PR da issue #112 (revisão de SQL Injection, IDOR e XSS)
+
+**O que mudou:** a decisão "Higienização do motivo contra XSS" da seção 8.1 do guia passou a "Higienização dos textos livres contra XSS" e cobre também `nome`, `email`, `telefone`, `marca`, `modelo`, `codigo`, `descricao` e `codigo_referencia`, recusados com `400` quando têm `<`. A regra mora em `domain/value_objects/texto_livre.py`.
+
+**Motivo:** o RNF-04 manda higienizar "todos os campos de texto livre", mas só o motivo do cancelamento era verificado. A revisão da issue #112 encontrou os demais campos aceitando `<script>` e devolvendo-o na API; a escolha de recusar (e não escapar) segue a decisão do grupo na issue #95.
+
 ## 2026-10-31 — PR da issue #102 (rejeição do orçamento pelo cliente)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Rejeição do orçamento pelo cliente (RF-26, RF-18)": `POST /acompanhamento/rejeicao`, sem JWT, e o caso de uso `RejeitarOrcamento`, que despacha o `OSCanceladaEvent` para o `EstornoReservasHandler` do cancelamento. A decisão "Repetição da transação em impasse" passou a incluir o `RejeitarOrcamento`. No C4, o `RejeitarOrcamento` entrou no diagrama de componentes.

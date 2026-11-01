@@ -12,7 +12,7 @@ A aplicação é uma API REST com duas frentes:
 
 | Frente | Quem usa | Acesso | O que oferece |
 | :--- | :--- | :--- | :--- |
-| **Frente da Loja** | Atendente, Mecânico e Gerente | Autenticado por JWT, com permissões por perfil (RBAC) | Cadastro de clientes, veículos, serviços, peças e usuários; abertura e acompanhamento das OS; diagnóstico, orçamento, execução e entrega; relatórios de tempo médio |
+| **Frente da Loja** | Atendente, Mecânico e Gerente | Autenticado por JWT, com permissões por perfil (RBAC) | Cadastro de clientes, veículos, serviços, peças e usuários; abertura e acompanhamento das OS; diagnóstico, orçamento, execução e entrega; registro no balcão da aprovação ou rejeição dada pelo cliente; relatórios de tempo médio |
 | **Frente do Cliente** | Cliente da oficina | Público, identificado pelo número da OS junto com o CPF/CNPJ, com limite de requisições | Consulta do status da OS com a estimativa de entrega; aprovação ou rejeição do orçamento |
 
 O centro do sistema é a **máquina de estados da OS**. Cada transição é feita por um método do agregado `OrdemServico`, que bloqueia as transições inválidas e grava um registro no histórico de status:
@@ -52,7 +52,7 @@ src/
 ├── domain/           Regras de negócio: entidades, agregados, objetos de valor, eventos e portas de repositório
 ├── application/      Casos de uso que orquestram o domínio, portas de serviços técnicos e Event Dispatcher
 ├── infrastructure/   Adaptadores: PostgreSQL (SQLAlchemy), JWT, bcrypt e configuração
-└── presentation/     API FastAPI: rotas, DTOs, autenticação das rotas e tratamento de erros
+└── presentation/     API FastAPI: rotas, DTOs, autenticação das rotas, tratamento de erros e interface web
 ```
 
 - **Regra de dependência:** as dependências apontam sempre para dentro, em direção ao domínio. O domínio não conhece as outras camadas, e os casos de uso dependem de interfaces (portas), não das implementações.
@@ -149,6 +149,17 @@ docker compose down
 # Apaga também os dados do banco
 docker compose down -v
 ```
+
+## Interface web
+
+Com a aplicação no ar, a interface fica no próprio endereço da API:
+
+| Endereço | Quem usa | O que oferece |
+| :--- | :--- | :--- |
+| **http://localhost:8000/oficina/** | Atendente, Mecânico e Gerente, com o mesmo login da API | Quadro das OS por status, abertura da OS com cadastro do cliente e do veículo, diagnóstico e orçamento, aprovação ou rejeição registrada no balcão, execução, entrega, cancelamento, clientes e veículos, serviços, peças e estoque, usuários e relatório de tempos médios. O menu e os botões mudam conforme o perfil |
+| **http://localhost:8000/cliente/** | Cliente da oficina, sem login | Consulta da OS pelo número e pelo CPF/CNPJ do titular, com a aprovação ou a rejeição do orçamento |
+
+O detalhe de cada OS traz o link de acompanhamento do cliente (`/cliente/#numero=...`), que já preenche o número da OS. As páginas são HTML, CSS e JavaScript sem etapa de build, em `src/presentation/web/`.
 
 ## Swagger e autenticação
 

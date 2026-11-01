@@ -68,8 +68,8 @@ O Diagrama de Contêineres detalha as unidades de implantação executáveis (co
 ```mermaid
 flowchart TD
     subgraph CLIENTES ["🌐 Camada de Entrada / Clientes HTTP"]
-        BrowserLoja["💻 Portal da Loja / Swagger UI\n[Web Browser / OpenAPI]\nInterface interativa para atendimento e mecânicos."]
-        BrowserCliente["📱 Portal / App do Cliente\n[Web Browser / Mobile]\nAcompanhamento público e aprovação de orçamento."]
+        BrowserLoja["💻 Interface web /oficina/ (POC) ou Swagger UI\n[Web Browser / OpenAPI]\nInterface interativa para atendimento e mecânicos."]
+        BrowserCliente["📱 Interface web /cliente/ (POC)\n[Web Browser / Mobile]\nAcompanhamento público e aprovação de orçamento."]
     end
 
     subgraph DOCKER_COMPOSE ["🐳 Docker Compose Environment"]
@@ -91,7 +91,7 @@ flowchart TD
 
 | Contêiner | Tecnologia | Função e Responsabilidade | Protocolos & Portas |
 | :--- | :--- | :--- | :--- |
-| **API Back-end (`app`)** | Python 3.12, FastAPI, Uvicorn | Expor endpoints RESTful, validar tokens JWT e permissões RBAC, executar casos de uso, orquestrar a máquina de estados da OS e sanitizar dados de entrada. | HTTP/JSON (Porta 8000) |
+| **API Back-end (`app`)** | Python 3.12, FastAPI, Uvicorn | Expor endpoints RESTful, entregar as páginas estáticas da interface web na mesma origem, validar tokens JWT e permissões RBAC, executar casos de uso, orquestrar a máquina de estados da OS e sanitizar dados de entrada. | HTTP/JSON (Porta 8000) |
 | **Banco de Dados (`db`)** | PostgreSQL 16 | Armazenamento relacional persistente com suporte a transações ACID, garantindo integridade referencial e baixa atômica de estoque. | SQL/TCP (Porta 5432) |
 | **Orquestrador Local** | Docker Compose v2 | Orquestra e inicializa os contêineres `app` e `db` em rede isolada para execução local determinística. | Docker Network |
 
@@ -117,6 +117,9 @@ flowchart TD
         
         Dependencies["🛡️ middlewares/dependencies.py\nobter_usuario_autenticado e exigir_perfis validam o token Bearer\ne a claim 'role' (Atendente, Mecanico, Gerente)."]
         RateLimit["⚡ middlewares/rate_limit.py\nlimiter do SlowAPI nas rotas públicas contra força bruta."]
+        InterfaceWeb["🖥️ middlewares/interface_web.py
+Entrega as páginas de web/ (/oficina/ e /cliente/)
+com CSP e cabeçalhos de segurança; as páginas chamam a API."]
     end
 
     subgraph APPLICATION ["2. Camada de Aplicação (src/application/)"]
@@ -292,8 +295,8 @@ classDiagram
         +remover_peca(peca_id: UUID) void
         +congelar_valores(servicos_vigentes: List~Servico~, pecas_vigentes: List~Peca~) void
         +finalizar_orcamento(usuario_id: UUID, servicos_vigentes: List~Servico~, pecas_vigentes: List~Peca~) void
-        +aprovar_orcamento() void
-        +rejeitar_orcamento() void
+        +aprovar_orcamento(usuario_id: Optional~UUID~) void
+        +rejeitar_orcamento(usuario_id: Optional~UUID~) void
         +alocar_peca(peca_id: UUID, quantidade: int) void
         +liberar_para_execucao() void
         +iniciar_execucao(usuario: Usuario) void
@@ -504,7 +507,7 @@ classDiagram
 * **A OS não consulta o catálogo.** `congelar_valores` recebe do caso de uso o `Servico` e a `Peca` vigentes de cada item, atualiza os valores congelados e calcula o `Orcamento`; recusa com `ItemIndisponivel`, sem alterar nenhum item, o serviço ou a peça excluída do catálogo depois de incluída; `finalizar_orcamento(usuario_id, servicos_vigentes, pecas_vigentes)` o chama antes da transição, depois de validar o status de origem. Os itens só mudam em `EM_DIAGNOSTICO` (RF-17), e a OS recusa itens inativos, o mesmo serviço ou peça repetidos e peça com quantidade que não seja um inteiro maior que zero. `Orcamento` guarda os subtotais de serviços e de peças e calcula o total na criação. Incluir ou remover um item descarta o orçamento já calculado, para ele nunca contradizer os itens, e os valores só ficam definitivos quando a OS sai do diagnóstico e os itens deixam de mudar.
 * **Documento do cliente.** `CPF` e `CNPJ` são objetos de valor separados, por decisão do grupo na issue #14, e herdam da base abstrata `Documento`. A base guarda só os dígitos, aplica o cálculo do módulo 11 com o tamanho e os pesos de cada subclasse e expõe `tres_primeiros_digitos()`, usado no número da OS (RF-05, RF-13). `Cliente.documento` é do tipo `Documento`, e por isso `Cliente` e a consulta pública (RF-25) trabalham com um só tipo.
 * **Transições e quem as executa.** Cada método da máquina de estados declara de quais status parte, e só `_mudar_status` altera o `status`, o ponto onde o histórico e os eventos se encaixam. `atribuir_mecanico` recebe o mecânico e o responsável como `Usuario`: o Mecânico só atribui a OS a si mesmo e o Gerente a qualquer mecânico (outro responsável recebe `AcessoNegado`, `403`), o indicado precisa ser um mecânico ativo (`MecanicoIndisponivel`, `422`) e o histórico grava o responsável, que executa a transição. `iniciar_execucao` e `concluir_manutencao` recebem o `Usuario` e só aceitam o mecânico atribuído à OS ou o Gerente; outro usuário recebe `AcessoNegado` (`403`). `liberar_para_execucao` recusa a OS que ainda tem peça pendente (`PecasPendentes`), e `cancelar` exige o motivo (`MotivoObrigatorio`). `rejeitar_orcamento` e `cancelar` descartam as pendências dos itens (RF-18), e as quantidades reservadas ficam até o estorno devolvê-las ao estoque, porque o `OSCanceladaEvent` as usa para calcular as quantidades a estornar. As duas também recusam o usuário desativado (`AcessoNegado`). `finalizar_orcamento` deixa toda a quantidade de cada `ItemPeca` pendente, e a reserva de estoque converte a pendente em reservada (RF-18). A conferência do perfil (Mecânico, Gerente, Atendente) de cada operação fica na camada `presentation`.
-* **Histórico de status.** `_mudar_status` é o único ponto que altera o `status` e grava um `HistoricoStatusOS` por transição, com o mesmo instante de `data_inicio_execucao` e `data_finalizacao`. A origem segue a coluna "Quem executa" da Linguagem Ubíqua: as transições feitas por Mecânico, Gerente ou Atendente gravam `USUARIO` e o `usuario_id` (por isso os métodos recebem o usuário como primeiro parâmetro); `aprovar_orcamento` e `rejeitar_orcamento` gravam `CLIENTE` e `liberar_para_execucao` grava `SISTEMA`, ambos sem usuário. O registro da abertura nasce na fábrica `OrdemServico.abrir`, sem status anterior e com o atendente como usuário; o construtor só reconstitui uma OS e nunca inventa registro, por isso o adaptador de persistência precisa carregar o histórico completo e em ordem (o construtor recusa um histórico que não seja uma sequência de registros, que não esteja encadeado ou que não termine no status da OS). `cancelar` grava o motivo. Os registros são imutáveis (`dataclass` congelada), com data e hora com fuso horário, e o `historico` da OS é uma tupla somente leitura: só os métodos de transição o ampliam, e nada o altera nem remove (RF-24).
+* **Histórico de status.** `_mudar_status` é o único ponto que altera o `status` e grava um `HistoricoStatusOS` por transição, com o mesmo instante de `data_inicio_execucao` e `data_finalizacao`. A origem segue a coluna "Quem executa" da Linguagem Ubíqua: as transições feitas por Mecânico, Gerente ou Atendente gravam `USUARIO` e o `usuario_id` (por isso os métodos recebem o usuário como primeiro parâmetro); `aprovar_orcamento` e `rejeitar_orcamento` gravam `CLIENTE`, sem usuário, quando o próprio cliente decide pela rota pública, e `USUARIO` com o `usuario_id` do Atendente ou do Gerente que registra no balcão a decisão do cliente (RF-26); `liberar_para_execucao` grava `SISTEMA`, sem usuário. O registro da abertura nasce na fábrica `OrdemServico.abrir`, sem status anterior e com o atendente como usuário; o construtor só reconstitui uma OS e nunca inventa registro, por isso o adaptador de persistência precisa carregar o histórico completo e em ordem (o construtor recusa um histórico que não seja uma sequência de registros, que não esteja encadeado ou que não termine no status da OS). `cancelar` grava o motivo. Os registros são imutáveis (`dataclass` congelada), com data e hora com fuso horário, e o `historico` da OS é uma tupla somente leitura: só os métodos de transição o ampliam, e nada o altera nem remove (RF-24).
 * **Prioridade pela OS mais antiga.** `EstoquePeca.alocar_pendencias` recebe as pendências da peça, ordena pela data de abertura da OS e reserva o saldo da mais antiga para a mais nova (RF-18, RF-19). A conclusão do orçamento (o `ReservaPecasHandler`, que inclui a OS nova entre as pendências, depois das OS que já esperam a peça) e o aumento de saldo usam o mesmo método, e `OrdemServico.alocar_peca` converte a quantidade pendente do item em reservada por `ItemPeca.alocar`, que recusa quantidade acima da pendente. A OS em `AGUARDANDO_PECA` que fica sem pendência passa a `AGUARDANDO_EXECUCAO` (origem `SISTEMA`); em `AGUARDANDO_APROVACAO` a reserva não muda o status, e o cliente ainda decide sobre o orçamento. Uma alocação recusada não altera a OS, e o método não emite evento. O método ordena de forma estável (no empate de data vale a ordem recebida), reserva cada pendência com `reservar` e devolve só as OS que receberam alguma quantidade; não emite evento, porque a reserva não aumenta o saldo. Valida a lista inteira antes de reservar: uma pendência de tipo errado ou duas da mesma OS (`AlocacaoInvalida`) não deixam reserva nenhuma. A `PendenciaPeca` exige a data de abertura com fuso horário.
 * **Estorno e baixa.** `cancelar` e `rejeitar_orcamento` calculam as quantidades a estornar a partir do status da OS e as enviam em `OSCanceladaEvent.estornos`. A OS cancelada em `EM_EXECUCAO` envia a lista vazia, porque `iniciar_execucao` já deu baixa em todas as reservas (RF-20); por isso `ItemPeca` não guarda quantidade baixada.
 * **Reserva e limites do estoque.** `reservar` reserva o menor valor entre o pedido e o saldo disponível e devolve o par (reservada, pendente); `OrdemServico.alocar_peca` e `alocar_pendencias` o usam. `baixar` e `estornar` aceitam no máximo a quantidade reservada, e quantidade que não seja um inteiro maior que zero é recusada. Nenhuma operação deixa a reservada acima da física nem o saldo negativo, e quando é recusada não altera o estado. `SaldoPecaAtualizadoEvent` leva o `peca_id` e o saldo disponível do instante da operação; como duas operações na mesma transação geram dois eventos, o handler e `alocar_pendencias` usam o saldo atual do agregado, não o do evento. Só `repor`, `estornar` e o ajuste para cima o acumulam; `baixar` e `reservar` não aumentam o saldo.
@@ -523,8 +526,9 @@ src/
 │   ├── main.py                    # Criação do app FastAPI e registro dos routers
 │   ├── container.py               # Montagem das dependências (único ponto que importa infrastructure)
 │   ├── routers/                   # Routers FastAPI, um arquivo por recurso (autenticacao, usuarios, clientes, veiculos, servicos, pecas, ordens_servico, acompanhamento_publico, saude)
-│   ├── middlewares/               # JWT Auth & Rate Limiting Guards (Depends / Security)
-│   └── schemas/                   # Pydantic DTOs, um arquivo por recurso (Validação de Entrada/Saída HTTP)
+│   ├── middlewares/               # JWT Auth & Rate Limiting Guards (Depends / Security), tratamento de erros e entrega da interface web
+│   ├── schemas/                   # Pydantic DTOs, um arquivo por recurso (Validação de Entrada/Saída HTTP)
+│   └── web/                       # Interface web (POC): páginas estáticas da Frente da Loja (oficina/) e da Frente do Cliente (cliente/)
 ├── application/                   # Nível 3 (Camada de Aplicação & Casos de Uso)
 │   ├── use_cases/                 # Serviços de Orquestração (CriarOS, AprovarOrcamento, AutenticarUsuario)
 │   ├── ports/                     # Interfaces Abstratas de Serviços (TokenService, PasswordHasher)

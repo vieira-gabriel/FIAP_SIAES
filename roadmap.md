@@ -17,11 +17,11 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 | Modelo C4 | Documentado nos 4 níveis; camada de entrada renomeada para `src/presentation/`; estrutura de pastas da seção 6 aprovada pelo grupo (issue #9) |
 | Guia de desenvolvimento e estrutura de pastas | Atualizados para a numeração atual dos requisitos, com as decisões técnicas da seção 8 |
 | Event Storming | PDF reexportado com os fluxos de peça pendente e de cancelamento; link do board registrado em [docs/ddd/event-storming.md](docs/ddd/event-storming.md) |
-| Código (`src/`) e testes | Domínio implementado: objetos de valor, `Cliente`, `Veiculo`, `Usuario`, `Servico`, `Peca`, `OrdemServico` (itens, orçamento, máquina de estados, histórico e estimativa de entrega) e `EstoquePeca` (reserva, baixa, estorno e alocação por prioridade), com os quatro eventos de domínio acumulados por eles e as sete portas de repositório (cliente, veículo, usuário, serviço, peça, estoque e OS). Aplicação com o Event Dispatcher e os casos de uso de login, de carga inicial e dos cadastros de usuários (issue #81), clientes (issue #82), veículos (issue #83), serviços (issue #84) e peças com o saldo do estoque (issue #85). Infraestrutura com configuração, engine, unidade de trabalho, seis migrations (`usuarios`, `clientes`, `servicos`, `veiculos`, `pecas` e `estoque_pecas`) e a persistência desses cadastros. Apresentação com `/health`, login, validação de token com checagem de perfil (RBAC), rotas `/usuarios`, `/clientes`, `/veiculos`, `/servicos` e `/pecas`, as rotas de OS (abertura, detalhamento, listagem, atribuição do mecânico, itens e conclusão do orçamento) e tratamento padronizado de erros. 1755 testes passando (1193 unitários e 562 de integração), com 100% de cobertura em `domain/` e `application/` |
+| Código (`src/`) e testes | Domínio implementado: objetos de valor, `Cliente`, `Veiculo`, `Usuario`, `Servico`, `Peca`, `OrdemServico` (itens, orçamento, máquina de estados, histórico e estimativa de entrega) e `EstoquePeca` (reserva, baixa, estorno e alocação por prioridade), com os quatro eventos de domínio acumulados por eles e as sete portas de repositório (cliente, veículo, usuário, serviço, peça, estoque e OS). Aplicação com o Event Dispatcher e os casos de uso de login, de carga inicial e dos cadastros de usuários (issue #81), clientes (issue #82), veículos (issue #83), serviços (issue #84) e peças com o saldo do estoque (issue #85). Infraestrutura com configuração, engine, unidade de trabalho, seis migrations (`usuarios`, `clientes`, `servicos`, `veiculos`, `pecas` e `estoque_pecas`) e a persistência desses cadastros. Apresentação com `/health`, login, validação de token com checagem de perfil (RBAC), rotas `/usuarios`, `/clientes`, `/veiculos`, `/servicos` e `/pecas`, as rotas de OS (abertura, detalhamento, listagem, atribuição do mecânico, itens e conclusão do orçamento) e tratamento padronizado de erros. 1802 testes passando (1222 unitários e 580 de integração), com 100% de cobertura em `domain/` e `application/` |
 | Configuração do repositório | `.gitignore`, `.env.example`, `pyproject.toml` (com o uv fixado em 0.8.22) e `uv.lock` criados. A proteção da `main` no GitHub ainda não está configurada (API: `protected: false`, sem ruleset) |
 | CI | `.github/workflows/ci.yml` em cada PR e em cada push na `main`: lint, testes com PostgreSQL, cobertura mínima de 80%, Bandit, pip-audit e `docker build` (issue #29) |
 | Docker | `Dockerfile` em Python 3.12, multi-stage com `uv`, usuário não-root e sem o `pip` da imagem base, e `docker-compose.yml` com `app` e `db` (PostgreSQL 16); as migrations rodam antes do Uvicorn |
-| Segurança | Revisão de segredos no código e no histórico (issue #114, `docs/security/revisao-de-segredos.md`) e análise de vulnerabilidades das dependências, do código e da imagem (issue #111, `docs/security/analise-de-vulnerabilidades.md`), ambas sem achado crítico e a repetir no commit final. Medição de desempenho, revisão de SQL Injection, IDOR e XSS e revisão do Swagger seguem pendentes (Fase 7) |
+| Segurança | Revisão de segredos no código e no histórico (issue #114, `docs/security/revisao-de-segredos.md`) e análise de vulnerabilidades das dependências, do código e da imagem (issue #111, `docs/security/analise-de-vulnerabilidades.md`), ambas sem achado crítico e a repetir no commit final. Medição de desempenho feita com o Locust (issue #113, `docs/evidencias/desempenho.md`). Revisão de SQL Injection, IDOR e XSS e revisão do Swagger seguem pendentes (Fase 7) |
 | Pendências do domínio | Nenhuma regra de domínio: `OrdemServico.alocar_peca` (issue #43) e os eventos de domínio (issue #45) estão prontos. A persistência da OS (issue #88), a abertura da OS (issue #90) e a conclusão do orçamento, com o despacho do evento na transação (issues #89 e #92), estão prontas. O `ReservaPecasHandler` (issue #93) e o `AlocacaoPecasPendentesHandler` (issue #94) já estão registrados em `app.state.fabricas_de_handlers`; os handlers do estorno e da baixa entram com a Fase 5 |
 | README | Objetivo, solução, arquitetura, tecnologias e banco de dados (issue #116), pré-requisitos, execução, testes, Swagger e usuários de demonstração (issue #117); faltam a estrutura de diretórios, o link para a documentação DDD e o link do vídeo (issue #121) |
 
@@ -92,7 +92,7 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 | Modo do SQLAlchemy | Assíncrono com asyncpg e pytest-asyncio (issue #3) | Guia §8.1 |
 | Migrations | Alembic com o template `async`, pasta `migrations/` na raiz (issue #4) | Guia §8.1 |
 | Análise de vulnerabilidades | pip-audit, Bandit e Trivy, sem Dependabot (issue #5) | RNF-07, guia §8.1 |
-| Teste de desempenho | Locust (issue #6); cenário de medição pendente | RNF-10, guia §8.1 e §8.2 |
+| Teste de desempenho | Locust (issues #6 e #113); cenário de 10 usuários por 60 s, p95 de 58 ms | RNF-10, guia §8.1 |
 
 ### Decisões de Domínio
 
@@ -341,14 +341,14 @@ Tarefas da fase:
 
 **Objetivo:** consolidar as evidências de qualidade e segurança exigidas na entrega.
 
-- [ ] Cobertura ≥ 80% nos módulos de domínio e aplicação, medida com `pytest-cov` (RNF-14)
-- [ ] Evidência da cobertura salva (relatório ou captura de tela) para uso no README e no vídeo
+- [x] Cobertura ≥ 80% nos módulos de domínio e aplicação, medida com `pytest-cov` (RNF-14; issue #110). Refazer no commit final
+- [x] Evidência da cobertura salva em `docs/evidencias/` (RNF-14; `docs/evidencias/cobertura.md` e `cobertura.txt`)
 - [x] Análise de vulnerabilidades de dependências, código e imagem Docker, com correção do que for encontrado (RNF-07; issue #111). Refazer no commit final
 - [x] Relatório da análise de vulnerabilidades salvo em `docs/security/` (RNF-07; `docs/security/analise-de-vulnerabilidades.md`)
-- [ ] Revisão das proteções contra SQL Injection, IDOR e XSS (RNF-04) e do rate limiting (RNF-05)
-- [ ] Medição do tempo de resposta (p95 < 500 ms) com evidência registrada (RNF-10)
+- [x] Revisão das proteções contra SQL Injection, IDOR e XSS (RNF-04) e do rate limiting (RNF-05; issue #112)
+- [x] Medição do tempo de resposta (p95 < 500 ms) com evidência registrada (RNF-10; issue #113, `docs/evidencias/desempenho.md`). Refazer no commit final
 - [x] Revisão do repositório: nenhum segredo, senha ou token no código ou no histórico do git (RNF-06; issue #114, `docs/security/revisao-de-segredos.md`). Repetir no commit final
-- [ ] Revisão do Swagger: schemas de entrada e saída, códigos HTTP e autenticação Bearer (RNF-16)
+- [x] Revisão do Swagger: schemas de entrada e saída, códigos HTTP e autenticação Bearer (RNF-16; issue #115)
 
 ---
 
@@ -374,8 +374,8 @@ Tarefas da fase:
 
 ### Documentação DDD
 
-- [ ] Conferir se o board, os PDFs exportados e os diagramas correspondem ao código final
-- [ ] Atualizar o mapeamento entre documentação e código na linguagem ubíqua
+- [x] Conferir se o board, os PDFs exportados e os diagramas correspondem ao código final (issue #118). Refazer se o código mudar até a entrega
+- [x] Atualizar o mapeamento entre documentação e código na linguagem ubíqua (issue #118)
 
 ### Vídeo
 

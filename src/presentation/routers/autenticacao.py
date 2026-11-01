@@ -6,6 +6,7 @@ from application.use_cases.autenticar_usuario import AutenticarUsuario
 from domain.exceptions import CredenciaisInvalidas
 from presentation.container import obter_autenticar_usuario
 from presentation.schemas.autenticacao import LoginRequest, TokenResponse
+from presentation.schemas.erro import ErroResponse
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
@@ -13,7 +14,12 @@ router = APIRouter(prefix="/auth", tags=["Autenticação"])
 @router.post(
     "/login",
     response_model=TokenResponse,
-    responses={status.HTTP_401_UNAUTHORIZED: {"description": "E-mail ou senha inválidos."}},
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {
+            "model": ErroResponse,
+            "description": "E-mail ou senha inválidos.",
+        }
+    },
 )
 async def login(
     dados: LoginRequest,

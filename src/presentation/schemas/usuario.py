@@ -33,8 +33,8 @@ class UsuarioCadastroRequest(BaseModel):
 class UsuarioAtualizacaoRequest(BaseModel):
     """A senha muda só pela rota própria, `PUT /usuarios/{id}/senha`."""
 
-    nome: str = Field(min_length=1, max_length=200)
-    email: str = Field(min_length=3, max_length=254)
+    nome: str = Field(min_length=1, max_length=200, examples=["Ana Atendente"])
+    email: str = Field(min_length=3, max_length=254, examples=["ana@oficina.com"])
     perfil: PerfilUsuario
 
 

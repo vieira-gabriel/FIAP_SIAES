@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from application.ports.token_service import UsuarioAutenticado
 from application.use_cases.aprovar_orcamento_no_balcao import AprovarOrcamentoNoBalcao
@@ -93,6 +93,32 @@ _NAO_ENCONTRADO = {
         "description": "Cliente ou veículo não cadastrado e sem os dados para cadastrá-lo.",
     }
 }
+_ABERTURA_INVALIDA = {
+    status.HTTP_400_BAD_REQUEST: {
+        "model": ErroResponse,
+        "description": "Documento, placa ou dados de cadastro inválidos.",
+    }
+}
+_FILTRO_INVALIDO = {
+    status.HTTP_400_BAD_REQUEST: {
+        "model": ErroResponse,
+        "description": (
+            "Documento ou placa inválidos, período sem fuso horário ou com início posterior ao fim."
+        ),
+    }
+}
+_MECANICO_OBRIGATORIO = {
+    status.HTTP_400_BAD_REQUEST: {
+        "model": ErroResponse,
+        "description": "O Gerente não informou o `mecanico_id`.",
+    }
+}
+_QUANTIDADE_INVALIDA = {
+    status.HTTP_400_BAD_REQUEST: {
+        "model": ErroResponse,
+        "description": "Quantidade que não é um inteiro maior que zero.",
+    }
+}
 _ITEM_NAO_ENCONTRADO = {
     status.HTTP_404_NOT_FOUND: {
         "model": ErroResponse,
@@ -119,7 +145,7 @@ _REGRA_VIOLADA = {
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    responses=_NAO_ENCONTRADO | _REGRA_VIOLADA,
+    responses=_ABERTURA_INVALIDA | _NAO_ENCONTRADO | _REGRA_VIOLADA,
 )
 async def abrir_os(
     dados: AbrirOSRequest,
@@ -146,16 +172,44 @@ async def abrir_os(
     return OSResponse.de_entidade(os)
 
 
-@router.get("")
+@router.get("", responses=_FILTRO_INVALIDO)
 async def listar_os(
     _usuario: Annotated[UsuarioAutenticado, Depends(_CONSULTA)],
     listar: Annotated[ListarOrdensServico, Depends(obter_listar_ordens_servico)],
-    documento: str | None = None,
-    placa: str | None = None,
-    status: StatusOS | None = None,
-    mecanico_id: UUID | None = None,
-    abertura_de: datetime | None = None,
-    abertura_ate: datetime | None = None,
+    documento: Annotated[
+        str | None,
+        Query(
+            description="CPF ou CNPJ do cliente, com ou sem pontuação.", examples=["529.982.247-25"]
+        ),
+    ] = None,
+    placa: Annotated[
+        str | None,
+        Query(
+            description="Placa do veículo, de qualquer veículo que a teve.", examples=["ABC1D23"]
+        ),
+    ] = None,
+    status: Annotated[StatusOS | None, Query(description="Status atual da OS.")] = None,
+    mecanico_id: Annotated[
+        UUID | None,
+        Query(
+            description="Mecânico atribuído à OS.",
+            examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+        ),
+    ] = None,
+    abertura_de: Annotated[
+        datetime | None,
+        Query(
+            description="Início do período de abertura, com fuso horário.",
+            examples=["2026-10-01T00:00:00-03:00"],
+        ),
+    ] = None,
+    abertura_ate: Annotated[
+        datetime | None,
+        Query(
+            description="Fim do período de abertura, com fuso horário.",
+            examples=["2026-10-31T23:59:59-03:00"],
+        ),
+    ] = None,
 ) -> list[OSResumoResponse]:
     """As OS que atendem a todos os filtros informados, das mais recentes às mais antigas
     (RF-14). Sem filtros, lista todas."""
@@ -191,7 +245,8 @@ async def detalhar_os(
 
 @router.post(
     "/{id}/mecanico",
-    responses={
+    responses=_MECANICO_OBRIGATORIO
+    | {
         status.HTTP_404_NOT_FOUND: {
             "model": ErroResponse,
             "description": "OS ou mecânico não encontrado.",
@@ -250,7 +305,7 @@ async def remover_servico(
 @router.post(
     "/{id}/pecas",
     status_code=status.HTTP_201_CREATED,
-    responses=_ITEM_NAO_ENCONTRADO | _ITEM_RECUSADO,
+    responses=_QUANTIDADE_INVALIDA | _ITEM_NAO_ENCONTRADO | _ITEM_RECUSADO,
 )
 async def incluir_peca(
     id: UUID,

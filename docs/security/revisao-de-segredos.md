@@ -2,7 +2,7 @@
 
 Verificação do RNF-06: nenhuma credencial, senha, chave ou token pode estar versionado, inclusive no histórico do Git (issue #114).
 
-> Revisão feita em 28/10/2026, sobre a `main`, todas as branches remotas e as referências de pull request (`refs/pull/*/head`). Conferida de novo sobre o commit `f1181d0` da `main`, com 42 branches remotas e 47 referências de PR: 116 commits com alterações, sem achados além do falso positivo da seção 2. Na entrega, a varredura deve ser repetida sobre o commit final, com o comando da seção 4.
+> Revisão feita em 28/10/2026, sobre a `main`, todas as branches remotas e as referências de pull request (`refs/pull/*/head`), e repetida em 31/10/2026 sobre o commit `cccdc6d` da `main` (merge do PR #160), com 72 branches remotas e 77 referências de PR: 364 commits no histórico, 202 com alterações lidas pelo gitleaks, sem achados além do falso positivo da seção 2. Na entrega, a varredura deve ser repetida sobre o commit final, com o comando da seção 4.
 
 ## 1. Resultado
 
@@ -10,12 +10,12 @@ Verificação do RNF-06: nenhuma credencial, senha, chave ou token pode estar ve
 
 | Verificação | Resultado |
 | :--- | :--- |
-| Varredura de todo o histórico (todas as branches e referências de PR) com o gitleaks | 1 achado, um falso positivo (seção 2) |
+| Varredura de todo o histórico (todas as branches e referências de PR) com o gitleaks | Nenhum achado novo: o único falso positivo (seção 2) está no `.gitleaksignore`, e o comando termina com código `0` |
 | Referências de pull request (`refs/pull/*/head`), públicas e fora de um `git fetch` comum | Incluídas na varredura; nenhum achado |
 | `.env` em algum commit de qualquer branch | Nunca versionado |
 | Outros arquivos `.env*` versionados | Só o `.env.example` |
 | Arquivos sensíveis pelo nome (`.pem`, `.key`, `.p12`, `.pfx`, `.crt`, `id_rsa`, `credentials`, dumps de banco) | Nenhum, em todo o histórico |
-| Variáveis secretas do `.env.example` (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `JWT_SECRET_KEY`, `ADMIN_PASSWORD`, `DEMO_ATENDENTE_PASSWORD`, `DEMO_MECANICO_PASSWORD`) | Vazias em todas as versões publicadas do arquivo no histórico (hoje, uma: `5f3faa7`) |
+| Variáveis secretas do `.env.example` (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `JWT_SECRET_KEY`, `ADMIN_PASSWORD`, `DEMO_ATENDENTE_PASSWORD`, `DEMO_MECANICO_PASSWORD`) | Vazias em todas as versões do arquivo no histórico (4 versões, conferidas uma a uma) |
 | `.gitignore` | Ignora `.env` e `.env.*`, com exceção do `.env.example` |
 
 ## 2. Falsos positivos

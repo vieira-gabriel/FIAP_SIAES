@@ -88,6 +88,7 @@ async def detalhar_cliente(
     id: UUID,
     detalhar: Annotated[DetalharCliente, Depends(obter_detalhar_cliente)],
 ) -> ClienteResponse:
+    """Dados do cliente ativo (RF-04, RF-05)."""
     return ClienteResponse.de_entidade(await detalhar.executar(id))
 
 

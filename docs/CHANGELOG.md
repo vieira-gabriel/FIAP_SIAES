@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-31 — PR da issue #110 (evidência de cobertura)
+
+**O que mudou:** nova pasta `docs/evidencias/`, com a evidência da cobertura de `domain/` e `application/` (`cobertura.md` e `cobertura.txt`). A tabela da seção 3 do guia e a tabela de pastas de `docs/estrutura-de-pastas.md` ganharam a pasta; a pendência "evidência da medição de cobertura" saiu da lista de `docs/estrutura-de-pastas.md`.
+
+**Motivo:** a RNF-14 e a issue #110 pedem a evidência salva em um local combinado, e nenhuma pasta existente serve (`docs/security/` é do RNF-06 e RNF-07). A mesma pasta receberá o relatório do teste de desempenho (RNF-10).
+
 ## 2026-10-31 — PR da issue #102 (rejeição do orçamento pelo cliente)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Rejeição do orçamento pelo cliente (RF-26, RF-18)": `POST /acompanhamento/rejeicao`, sem JWT, e o caso de uso `RejeitarOrcamento`, que despacha o `OSCanceladaEvent` para o `EstornoReservasHandler` do cancelamento. A decisão "Repetição da transação em impasse" passou a incluir o `RejeitarOrcamento`. No C4, o `RejeitarOrcamento` entrou no diagrama de componentes.

@@ -79,6 +79,7 @@ A pasta `src/api/` foi removida, pois a RNF-01 nomeia a camada de entrada como `
 | `src/domain/events/`, `src/application/events/`, `src/application/handlers/` e `src/infrastructure/database/` | Seção 6 do modelo C4, aprovadas pelo grupo na issue #9 |
 | `src/presentation/middlewares/` | Seção 6 do modelo C4, aprovada pelo grupo na issue #9; substitui `src/presentation/auth/` |
 | `docs/security/` | RNF-07 — relatório de análise de vulnerabilidades |
+| `docs/evidencias/` | RNF-14 e RNF-10 — evidências de cobertura de testes e de desempenho, para o README e o vídeo (issue #110) |
 | `.github/workflows/` | Guia de desenvolvimento, seção 8.1 — CI no GitHub Actions (issue #29) |
 
 A porta do repositório no domínio é o que permite à camada `application` depender de uma abstração, e não da implementação em PostgreSQL, conforme exige a RNF-02.
@@ -125,6 +126,5 @@ A pasta `migrations/` do Alembic (guia, seção 8.1) fica na raiz do projeto, ju
 A autenticação JWT (seção 5), a configuração do PostgreSQL (RNF-08) e o `Dockerfile` com o `docker-compose.yml` (RNF-15) já estão implementados. Permanecem pendentes, por dependerem de implementação:
 
 * os handlers de `application/handlers/` que reagem aos eventos de domínio, de que existem o `reserva_pecas_handler.py` e o `alocacao_pecas_pendentes_handler.py`; faltam os do estorno e da baixa (Fase 5);
-* a evidência da medição de cobertura (RNF-14), que a Fase 7 registra.
 
 As portas e os adaptadores de usuário, cliente, veículo, serviço, peça, estoque e OS já existem; os modelos da OS ficam em `infrastructure/database/ordem_servico_model.py` (issue #88). Os relatórios de segredos (RNF-06) e de vulnerabilidades (RNF-07) estão em `docs/security/`.

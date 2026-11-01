@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-31 — PR da issue #109 (relatório de tempos médios)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Relatório de tempos médios (RF-27)": `GET /relatorios/tempos-medios`, só para o Gerente, agrupado por mês da finalização (UTC), com os tempos calculados pela `OrdemServico` e a média feita em Python pelo caso de uso `GerarRelatorioDeTempos`. A porta `OrdemServicoRepository` ganhou `listar_finalizadas`.
+
+**Motivo:** o RF-27 pede os tempos "agrupados por período" sem definir a granularidade, o critério de pertencer ao período nem como tratar a OS que não esperou peça. A escolha do mês da finalização torna a métrica estável (só existe depois da finalização), e a média de espera considera só as OS que esperaram.
+
 ## 2026-10-31 — PR da issue #102 (rejeição do orçamento pelo cliente)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Rejeição do orçamento pelo cliente (RF-26, RF-18)": `POST /acompanhamento/rejeicao`, sem JWT, e o caso de uso `RejeitarOrcamento`, que despacha o `OSCanceladaEvent` para o `EstornoReservasHandler` do cancelamento. A decisão "Repetição da transação em impasse" passou a incluir o `RejeitarOrcamento`. No C4, o `RejeitarOrcamento` entrou no diagrama de componentes.

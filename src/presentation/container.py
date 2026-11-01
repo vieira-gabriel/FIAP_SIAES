@@ -45,6 +45,7 @@ from application.use_cases.excluir_peca import ExcluirPeca
 from application.use_cases.excluir_servico import ExcluirServico
 from application.use_cases.excluir_veiculo import ExcluirVeiculo
 from application.use_cases.finalizar_orcamento import FinalizarOrcamento
+from application.use_cases.gerar_relatorio_de_tempos import GerarRelatorioDeTempos
 from application.use_cases.incluir_peca_na_os import IncluirPecaNaOS
 from application.use_cases.incluir_servico_na_os import IncluirServicoNaOS
 from application.use_cases.iniciar_execucao import IniciarExecucao
@@ -404,6 +405,11 @@ obter_listar_ordens_servico = _por_requisicao(
         PostgresClienteRepository(sessao),
         PostgresVeiculoRepository(sessao),
         PostgresUsuarioRepository(sessao),
+    )
+)
+obter_gerar_relatorio_de_tempos = _por_requisicao(
+    lambda sessao, _: GerarRelatorioDeTempos(
+        PostgresOrdemServicoRepository(sessao), PostgresUsuarioRepository(sessao)
     )
 )
 obter_cadastrar_servico = _com_repositorio_de_servicos(CadastrarServico)

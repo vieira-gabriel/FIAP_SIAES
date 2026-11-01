@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import text
 
 SCRIPT = "<script>alert(1)</script>"
+EMAIL_COM_SCRIPT = "<script>alert(1)</script>@exemplo.com"
 INJECAO_SQL = "Maria'); DROP TABLE clientes; --"
 
 CLIENTE = {
@@ -40,6 +41,7 @@ USUARIO = {
         ("/clientes", CLIENTE, "telefone"),
         ("/servicos", SERVICO, "nome"),
         ("/servicos", SERVICO, "descricao"),
+        ("/servicos", SERVICO, "codigo"),
         ("/pecas", PECA, "nome"),
         ("/pecas", PECA, "codigo_referencia"),
         ("/usuarios", USUARIO, "nome"),
@@ -55,13 +57,29 @@ async def test_texto_livre_com_marcacao_html_e_recusado_com_400(
     assert SCRIPT not in resposta.text
 
 
-async def test_marca_do_veiculo_com_marcacao_html_e_recusada(cliente_http, gerente):
-    cliente = (await cliente_http.post("/clientes", json=CLIENTE, headers=gerente)).json()
-    veiculo = {"cliente_id": cliente["id"], "placa": "ABC1D23", "modelo": "Uno", "ano": 2015}
-
+@pytest.mark.parametrize(("rota", "corpo"), [("/clientes", CLIENTE), ("/usuarios", USUARIO)])
+async def test_email_com_marcacao_html_e_recusado_com_400(cliente_http, gerente, rota, corpo):
     resposta = await cliente_http.post(
-        "/veiculos", json=veiculo | {"marca": SCRIPT}, headers=gerente
+        rota, json=corpo | {"email": EMAIL_COM_SCRIPT}, headers=gerente
     )
+
+    assert resposta.status_code == 400
+    assert resposta.json()["codigo"] == "VALOR_INVALIDO"
+    assert EMAIL_COM_SCRIPT not in resposta.text
+
+
+@pytest.mark.parametrize("campo", ["marca", "modelo"])
+async def test_texto_do_veiculo_com_marcacao_html_e_recusado(cliente_http, gerente, campo):
+    cliente = (await cliente_http.post("/clientes", json=CLIENTE, headers=gerente)).json()
+    veiculo = {
+        "cliente_id": cliente["id"],
+        "placa": "ABC1D23",
+        "marca": "Fiat",
+        "modelo": "Uno",
+        "ano": 2015,
+    }
+
+    resposta = await cliente_http.post("/veiculos", json=veiculo | {campo: SCRIPT}, headers=gerente)
 
     assert resposta.status_code == 400
     assert resposta.json()["codigo"] == "VALOR_INVALIDO"

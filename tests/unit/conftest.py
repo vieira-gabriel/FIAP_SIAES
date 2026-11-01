@@ -183,6 +183,16 @@ class OrdemServicoRepositoryEmMemoria(OrdemServicoRepository):
         selecionadas = (os for os in self.dados.values() if _atende(os, filtro))
         return sorted(selecionadas, key=lambda os: os.data_abertura, reverse=True)
 
+    async def listar_finalizadas(self, finalizadas_de, finalizadas_ate):
+        finalizadas = [
+            os
+            for os in self.dados.values()
+            if os.data_finalizacao is not None
+            and (finalizadas_de is None or os.data_finalizacao >= finalizadas_de)
+            and (finalizadas_ate is None or os.data_finalizacao <= finalizadas_ate)
+        ]
+        return sorted(finalizadas, key=lambda os: os.data_finalizacao)
+
     async def listar_pendentes_da_peca(self, peca_id):
         pendentes = [
             os

@@ -17,7 +17,7 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 | Modelo C4 | Documentado nos 4 níveis; camada de entrada renomeada para `src/presentation/`; estrutura de pastas da seção 6 aprovada pelo grupo (issue #9) |
 | Guia de desenvolvimento e estrutura de pastas | Atualizados para a numeração atual dos requisitos, com as decisões técnicas da seção 8 |
 | Event Storming | PDF reexportado com os fluxos de peça pendente e de cancelamento; link do board registrado em [docs/ddd/event-storming.md](docs/ddd/event-storming.md) |
-| Código (`src/`) e testes | Domínio implementado: objetos de valor, `Cliente`, `Veiculo`, `Usuario`, `Servico`, `Peca`, `OrdemServico` (itens, orçamento, máquina de estados, histórico e estimativa de entrega) e `EstoquePeca` (reserva, baixa, estorno e alocação por prioridade), com os quatro eventos de domínio acumulados por eles e as sete portas de repositório (cliente, veículo, usuário, serviço, peça, estoque e OS). Aplicação com o Event Dispatcher e os casos de uso de login, de carga inicial e dos cadastros de usuários (issue #81), clientes (issue #82), veículos (issue #83), serviços (issue #84) e peças com o saldo do estoque (issue #85). Infraestrutura com configuração, engine, unidade de trabalho, seis migrations (`usuarios`, `clientes`, `servicos`, `veiculos`, `pecas` e `estoque_pecas`) e a persistência desses cadastros. Apresentação com `/health`, login, validação de token com checagem de perfil (RBAC), rotas `/usuarios`, `/clientes`, `/veiculos`, `/servicos` e `/pecas`, as rotas de OS (abertura, detalhamento, listagem, atribuição do mecânico, itens e conclusão do orçamento) e tratamento padronizado de erros. 1753 testes passando (1192 unitários e 561 de integração), com 100% de cobertura em `domain/` e `application/` |
+| Código (`src/`) e testes | Domínio implementado: objetos de valor, `Cliente`, `Veiculo`, `Usuario`, `Servico`, `Peca`, `OrdemServico` (itens, orçamento, máquina de estados, histórico e estimativa de entrega) e `EstoquePeca` (reserva, baixa, estorno e alocação por prioridade), com os quatro eventos de domínio acumulados por eles e as sete portas de repositório (cliente, veículo, usuário, serviço, peça, estoque e OS). Aplicação com o Event Dispatcher e os casos de uso de login, de carga inicial e dos cadastros de usuários (issue #81), clientes (issue #82), veículos (issue #83), serviços (issue #84) e peças com o saldo do estoque (issue #85). Infraestrutura com configuração, engine, unidade de trabalho, seis migrations (`usuarios`, `clientes`, `servicos`, `veiculos`, `pecas` e `estoque_pecas`) e a persistência desses cadastros. Apresentação com `/health`, login, validação de token com checagem de perfil (RBAC), rotas `/usuarios`, `/clientes`, `/veiculos`, `/servicos` e `/pecas`, as rotas de OS (abertura, detalhamento, listagem, atribuição do mecânico, itens e conclusão do orçamento) e tratamento padronizado de erros. 1755 testes passando (1193 unitários e 562 de integração), com 100% de cobertura em `domain/` e `application/` |
 | Configuração do repositório | `.gitignore`, `.env.example`, `pyproject.toml` (com o uv fixado em 0.8.22) e `uv.lock` criados. A proteção da `main` no GitHub ainda não está configurada (API: `protected: false`, sem ruleset) |
 | CI | `.github/workflows/ci.yml` em cada PR e em cada push na `main`: lint, testes com PostgreSQL, cobertura mínima de 80%, Bandit, pip-audit e `docker build` (issue #29) |
 | Docker | `Dockerfile` em Python 3.12, multi-stage com `uv`, usuário não-root e sem o `pip` da imagem base, e `docker-compose.yml` com `app` e `db` (PostgreSQL 16); as migrations rodam antes do Uvicorn |
@@ -332,7 +332,7 @@ Tarefas da fase:
 
 - [x] Listagem de OS com filtros por status, mecânico, CPF/CNPJ ou placa e período de abertura (RF-14; issue #107)
 - [x] Detalhamento da OS com histórico, cliente, veículo, itens, pendências, valores e estimativa de entrega (RF-15)
-- [ ] Relatório de tempos médios restrito ao Gerente: execução por período e por mecânico, espera por peça e tempo total da OS (RF-27)
+- [x] Relatório de tempos médios restrito ao Gerente: execução por período e por mecânico, espera por peça e tempo total da OS (RF-27; issue #109)
 - [ ] Testes de integração das rotas (RNF-13)
 
 ---
@@ -374,8 +374,8 @@ Tarefas da fase:
 
 ### Documentação DDD
 
-- [ ] Conferir se o board, os PDFs exportados e os diagramas correspondem ao código final
-- [ ] Atualizar o mapeamento entre documentação e código na linguagem ubíqua
+- [x] Conferir se o board, os PDFs exportados e os diagramas correspondem ao código final (issue #118). Refazer se o código mudar até a entrega
+- [x] Atualizar o mapeamento entre documentação e código na linguagem ubíqua (issue #118)
 
 ### Vídeo
 

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from uuid import UUID
 
 from domain.entities.ordem_servico import OrdemServico
@@ -21,6 +22,13 @@ class OrdemServicoRepository(ABC):
     async def listar(self, filtro: FiltroOrdensServico) -> list[OrdemServico]:
         """As OS que atendem a todos os critérios do filtro, das abertas mais recentemente às
         mais antigas (RF-14)."""
+
+    @abstractmethod
+    async def listar_finalizadas(
+        self, finalizadas_de: datetime | None, finalizadas_ate: datetime | None
+    ) -> list[OrdemServico]:
+        """As OS com data de finalização dentro do período, limites inclusive, da finalização
+        mais antiga à mais recente (RF-27). Um limite nulo não restringe esse lado."""
 
     @abstractmethod
     async def listar_pendentes_da_peca(self, peca_id: UUID) -> list[OrdemServico]:

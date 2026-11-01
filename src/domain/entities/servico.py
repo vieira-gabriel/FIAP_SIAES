@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
 from domain.exceptions import ServicoInvalido
+from domain.value_objects.texto_livre import exigir_sem_marcacao
 from domain.value_objects.valor import Valor
 
 
@@ -64,6 +65,7 @@ class Servico:
             raise ServicoInvalido("o nome é obrigatório")
         if not descricao:
             raise ServicoInvalido("a descrição técnica é obrigatória")
+        exigir_sem_marcacao(ServicoInvalido, codigo=codigo, nome=nome, descricao=descricao)
         if not isinstance(valor_base, Valor):
             raise ServicoInvalido("o valor base é obrigatório")
         if type(tempo_estimado_minutos) is not int or tempo_estimado_minutos < 0:

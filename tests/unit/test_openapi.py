@@ -113,5 +113,6 @@ def test_campos_de_identificador_e_filtros_tem_exemplo(esquema):
         ("LoginRequest", "senha"),
     ]:
         assert schemas[nome]["properties"][campo]["examples"], (nome, campo)
+    assert "ADMIN_PASSWORD" in schemas["LoginRequest"]["properties"]["senha"]["description"]
     parametros = {p["name"]: p for p in esquema["paths"]["/ordens-servico"]["get"]["parameters"]}
     assert all(p.get("description") for p in parametros.values())

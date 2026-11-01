@@ -16,6 +16,7 @@ from presentation.routers import (
     clientes,
     ordens_servico,
     pecas,
+    relatorios,
     saude,
     servicos,
     usuarios,
@@ -56,6 +57,7 @@ app.include_router(servicos.router)
 app.include_router(pecas.router)
 app.include_router(veiculos.router)
 app.include_router(ordens_servico.router)
+app.include_router(relatorios.router)
 app.include_router(acompanhamento_publico.router)
 
 

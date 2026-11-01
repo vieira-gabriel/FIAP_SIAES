@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 from domain.exceptions import PecaComPendencia, PecaInvalida
 from domain.value_objects.numero_os import NumeroOS
+from domain.value_objects.texto_livre import exigir_sem_marcacao
 from domain.value_objects.valor import Valor
 
 
@@ -68,6 +69,7 @@ class Peca:
             raise PecaInvalida("o código de referência é obrigatório")
         if not nome:
             raise PecaInvalida("o nome é obrigatório")
+        exigir_sem_marcacao(PecaInvalida, codigo_referencia=codigo_referencia, nome=nome)
         if not isinstance(preco_unitario, Valor):
             raise PecaInvalida("o preço unitário é obrigatório")
         if type(prazo_reposicao_dias) is not int or prazo_reposicao_dias < 0:

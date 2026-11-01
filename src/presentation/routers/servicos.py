@@ -92,6 +92,7 @@ async def detalhar_servico(
     id: UUID,
     detalhar: Annotated[DetalharServico, Depends(obter_detalhar_servico)],
 ) -> ServicoResponse:
+    """Dados do serviço ativo do catálogo (RF-10)."""
     return ServicoResponse.de_entidade(await detalhar.executar(id))
 
 

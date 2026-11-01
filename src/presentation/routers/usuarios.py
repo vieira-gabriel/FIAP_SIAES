@@ -86,6 +86,7 @@ async def detalhar_usuario(
     id: UUID,
     detalhar: Annotated[DetalharUsuario, Depends(obter_detalhar_usuario)],
 ) -> UsuarioResponse:
+    """Dados do usuário, ativo ou desativado, sem a senha (RF-03)."""
     return UsuarioResponse.de_entidade(await detalhar.executar(id))
 
 
@@ -143,4 +144,5 @@ async def reativar_usuario(
     id: UUID,
     reativar: Annotated[ReativarUsuario, Depends(obter_reativar_usuario, scope=_ANTES_DA_RESPOSTA)],
 ) -> None:
+    """Devolve o acesso ao usuário desativado (RF-03)."""
     await reativar.executar(id)

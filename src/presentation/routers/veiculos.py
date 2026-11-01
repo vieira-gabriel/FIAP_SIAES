@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from application.use_cases.atualizar_veiculo import AtualizarVeiculo
 from application.use_cases.cadastrar_veiculo import CadastrarVeiculo
@@ -90,7 +90,13 @@ async def cadastrar_veiculo(
 @router.get("", dependencies=_CONSULTA)
 async def listar_veiculos(
     listar: Annotated[ListarVeiculos, Depends(obter_listar_veiculos)],
-    cliente_id: UUID | None = None,
+    cliente_id: Annotated[
+        UUID | None,
+        Query(
+            description="Só os veículos desse cliente.",
+            examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+        ),
+    ] = None,
 ) -> list[VeiculoResponse]:
     """Veículos ativos, em ordem de placa; com `cliente_id`, só os desse cliente (RF-07, RF-09)."""
     return [VeiculoResponse.de_entidade(veiculo) for veiculo in await listar.executar(cliente_id)]
@@ -101,6 +107,7 @@ async def detalhar_veiculo(
     id: UUID,
     detalhar: Annotated[DetalharVeiculo, Depends(obter_detalhar_veiculo)],
 ) -> VeiculoResponse:
+    """Dados do veículo ativo (RF-07, RF-08)."""
     return VeiculoResponse.de_entidade(await detalhar.executar(id))
 
 

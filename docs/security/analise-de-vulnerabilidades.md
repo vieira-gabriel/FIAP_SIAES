@@ -2,15 +2,15 @@
 
 Análise das dependências, do código-fonte e da imagem Docker exigida pelo RNF-07, com as ferramentas decididas na issue #5 (issue #111).
 
-> Análise feita em 28/10/2026 sobre o commit `a4f2f03` da `main`, com o ajuste do Dockerfile descrito na seção 4.1. **Na entrega, a análise deve ser refeita sobre o commit final**, com os comandos da seção 5, e este relatório atualizado.
+> Análise refeita em 31/10/2026 sobre o commit `cccdc6d` da `main` (merge do PR #160), com a imagem reconstruída com `docker build --pull`. A primeira análise, de 28/10/2026 (commit `a4f2f03`), levou ao ajuste do Dockerfile descrito na seção 4.1. **Na entrega, a análise deve ser refeita sobre o commit final**, com os comandos da seção 5, e este relatório atualizado.
 
 ## 1. Resultado
 
 | Ferramenta | Versão | Alvo | Crítico | Alto | Médio | Baixo |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
 | pip-audit | 2.10.1 | 34 dependências de produção (do `uv.lock`, com hashes) e o ambiente completo | 0 | 0 | 0 | 0 |
-| Bandit | 1.9.4 | `src/` e `migrations/` (4.124 linhas), em todos os níveis de severidade e confiança | 0 | 0 | 0 | 0 |
-| Trivy (`image`) | 0.57.1 | Imagem da aplicação (`python:3.12-slim`, Debian 13.7) | 0 | 44 | 58 | 61 |
+| Bandit | 1.9.4 | `src/` e `migrations/` (6.356 linhas), em todos os níveis de severidade e confiança | 0 | 0 | 0 | 0 |
+| Trivy (`image`) | 0.57.1 | Imagem da aplicação (`python:3.12-slim`, Debian 13.7) | 0 | 44 | 60 | 61 |
 | Trivy (`config`) | 0.57.1 | `Dockerfile` | 0 | 0 | 0 | 1 |
 
 **Nenhum achado crítico.** Os achados altos e médios da imagem estão todos em pacotes do sistema operacional da imagem base, **sem correção publicada pelo Debian**, e têm a justificativa da seção 4.2. O achado baixo do `Dockerfile` está justificado na seção 4.3. Além disso, há 1 achado de severidade desconhecida (`UNKNOWN`) na imagem, também sem correção.
@@ -37,7 +37,7 @@ A aplicação roda pelo `.venv` criado no estágio de build, que não tem `pip`;
 
 ### 4.2. Justificado: pacotes do sistema operacional
 
-Os 164 achados restantes estão em pacotes do Debian 13.7 da imagem base. **Nenhum tem versão corrigida publicada** (162 com status `affected` e 2 com `fix_deferred`), então não há atualização a aplicar.
+Os 166 achados restantes estão em pacotes do Debian 13.7 da imagem base. **Nenhum tem versão corrigida publicada** (164 com status `affected` e 2 com `fix_deferred`), então não há atualização a aplicar.
 
 Os 44 achados altos correspondem a **8 CVEs** distintos, repetidos nos vários pacotes que vêm do mesmo código-fonte:
 
@@ -49,7 +49,7 @@ Os 44 achados altos correspondem a **8 CVEs** distintos, repetidos nos vários p
 | CVE-2026-16742 | systemd | 2 | Escalada de privilégio no `systemd-homed` | O container não executa systemd; só as bibliotecas `libsystemd0` e `libudev1` estão na imagem |
 | CVE-2026-9538 | perl (Archive::Tar) | 1 | Negação de serviço com arquivo tar malformado | A aplicação não usa Perl nem extrai arquivos tar; o Debian adiou a correção (`fix_deferred`) |
 
-Os 58 achados médios, os 61 baixos e o 1 de severidade desconhecida estão nos mesmos grupos de pacotes de base (`libc6`, `libsystemd0`, `tar`, `coreutils`, `libsqlite3-0`, `passwd`, `perl-base` e outros), todos sem correção publicada, e seguem a mesma justificativa: são utilitários do sistema que a aplicação não executa.
+Os 60 achados médios, os 61 baixos e o 1 de severidade desconhecida estão nos mesmos grupos de pacotes de base (`libc6`, `libsystemd0`, `tar`, `coreutils`, `libsqlite3-0`, `passwd`, `perl-base` e outros), todos sem correção publicada, e seguem a mesma justificativa: são utilitários do sistema que a aplicação não executa.
 
 Medidas que reduzem a superfície de ataque da imagem:
 
@@ -59,7 +59,7 @@ Medidas que reduzem a superfície de ataque da imagem:
 - `pip` removido da imagem final (seção 4.1);
 - `.env` e segredos fora da imagem (`.dockerignore`) e lidos do ambiente (RNF-06).
 
-**Acompanhamento:** na reconstrução para a entrega, a imagem base `python:3.12-slim` traz as correções que o Debian tiver publicado até lá, e a nova varredura atualiza esta seção.
+**Acompanhamento:** a reanálise de 31/10/2026 manteve os mesmos 8 CVEs altos, sem correção publicada, e acrescentou 2 achados médios na imagem base. Na reconstrução para a entrega, a imagem base `python:3.12-slim` traz as correções que o Debian tiver publicado até lá, e a nova varredura atualiza esta seção.
 
 ### 4.3. Justificado: configuração do `Dockerfile`
 

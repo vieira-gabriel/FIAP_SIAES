@@ -10,6 +10,12 @@ Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recente
 
 **Motivo:** a revisão encontrou 15 rotas cujo `422` aparecia no Swagger com o corpo `HTTPValidationError` do FastAPI, enquanto a API devolve `ErroResponse`, e o `500` não aparecia em nenhuma. O `/docs` precisa corresponder ao comportamento real (RNF-16).
 
+## 2026-10-31 — PR da issue #113 (medição de desempenho com Locust)
+
+**O que mudou:** o cenário do teste de desempenho (10 usuários por 60 s, rotas de leitura e abertura de OS, sem as rotas públicas) saiu da seção 8.2 e entrou na 8.1 do guia. Nova pasta `tests/desempenho/` (tabela da seção 3 do guia e de `docs/estrutura-de-pastas.md`), com o `locustfile.py`, e o Locust como dependência de desenvolvimento. A evidência fica em `docs/evidencias/desempenho.md` e `docs/evidencias/desempenho/`.
+
+**Motivo:** o RNF-10 não define as "condições normais de operação local", e o item estava em aberto. As rotas públicas ficam fora porque o limite do RNF-05 as bloquearia numa carga vinda de um só IP.
+
 ## 2026-10-31 — PR da issue #112 (revisão de SQL Injection, IDOR e XSS)
 
 **O que mudou:** a decisão "Higienização do motivo contra XSS" da seção 8.1 do guia passou a "Higienização dos textos livres contra XSS" e cobre também `nome`, `email`, `telefone`, `marca`, `modelo`, `codigo`, `descricao` e `codigo_referencia`, recusados com `400` quando têm `<`. A regra mora em `domain/value_objects/texto_livre.py`, e a tabela da seção 3 do guia (e a de `docs/estrutura-de-pastas.md`) ganhou a linha "Regra de validação compartilhada pelas entidades" para esse tipo de arquivo.

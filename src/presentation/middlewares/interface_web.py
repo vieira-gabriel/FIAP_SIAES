@@ -8,15 +8,15 @@ que a política das páginas recusaria. Sem `'unsafe-inline'`, um texto vindo da
 ao HTML como marcação não executa script (RNF-04).
 """
 
-from collections.abc import Awaitable, Callable
+import os
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Response
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.types import Scope
 
 _PASTA_WEB = Path(__file__).resolve().parent.parent / "web"
-_PREFIXOS = ("/oficina", "/cliente", "/comum")
 
 CABECALHOS_DE_SEGURANCA = {
     "Content-Security-Policy": (
@@ -31,27 +31,28 @@ CABECALHOS_DE_SEGURANCA = {
 }
 
 
+class _ArquivosDaInterface(StaticFiles):
+    # Os cabeçalhos entram só nas respostas da interface; um middleware HTTP passaria por todas
+    # as rotas da API (RNF-10) para depois descartar quase todas.
+    def file_response(
+        self,
+        full_path: os.PathLike[str] | str,
+        stat_result: os.stat_result,
+        scope: Scope,
+        status_code: int = 200,
+    ) -> Response:
+        resposta = super().file_response(full_path, stat_result, scope, status_code)
+        resposta.headers.update(CABECALHOS_DE_SEGURANCA)
+        return resposta
+
+
 def registrar_interface_web(app: FastAPI) -> None:
-    app.mount("/comum", StaticFiles(directory=_PASTA_WEB / "comum"), name="comum")
-    app.mount("/oficina", StaticFiles(directory=_PASTA_WEB / "oficina", html=True), name="oficina")
-    app.mount("/cliente", StaticFiles(directory=_PASTA_WEB / "cliente", html=True), name="cliente")
+    app.mount("/comum", _ArquivosDaInterface(directory=_PASTA_WEB / "comum"), name="comum")
+    for frente in ("oficina", "cliente"):
+        pasta = _PASTA_WEB / frente
+        app.mount(f"/{frente}", _ArquivosDaInterface(directory=pasta, html=True), name=frente)
     app.add_api_route("/", _ir_para_a_oficina, include_in_schema=False)
-    app.middleware("http")(_aplicar_cabecalhos_de_seguranca)
 
 
 async def _ir_para_a_oficina() -> RedirectResponse:
     return RedirectResponse("/oficina/")
-
-
-async def _aplicar_cabecalhos_de_seguranca(
-    request: Request, proximo: Callable[[Request], Awaitable[Response]]
-) -> Response:
-    resposta = await proximo(request)
-    if _e_da_interface(request.url.path):
-        resposta.headers.update(CABECALHOS_DE_SEGURANCA)
-    return resposta
-
-
-def _e_da_interface(caminho: str) -> bool:
-    # Compara o segmento inteiro: "/cliente" não pode valer para a rota da API "/clientes".
-    return any(caminho == prefixo or caminho.startswith(f"{prefixo}/") for prefixo in _PREFIXOS)

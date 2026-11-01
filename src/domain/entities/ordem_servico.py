@@ -253,21 +253,33 @@ class OrdemServico:
         )
         self._domain_events.append(OrcamentoFinalizadoEvent(os_id=self.id))
 
-    def aprovar_orcamento(self) -> None:
-        """Com peças pendentes a OS espera a reposição; sem elas, aguarda a execução (RF-26)."""
+    def aprovar_orcamento(self, usuario_id: UUID | None = None) -> None:
+        """Com peças pendentes a OS espera a reposição; sem elas, aguarda a execução (RF-26).
+
+        Sem `usuario_id`, o próprio cliente decidiu pela rota pública; com ele, o funcionário
+        registrou no balcão a decisão do cliente e fica no histórico (RF-24).
+        """
         destino = (
             StatusOS.AGUARDANDO_PECA
             if self._nomes_das_pecas_pendentes()
             else StatusOS.AGUARDANDO_EXECUCAO
         )
+        origem = _origem_da_decisao(usuario_id)
         self._mudar_status(
-            destino, de={StatusOS.AGUARDANDO_APROVACAO}, origem=OrigemTransicao.CLIENTE
+            destino, de={StatusOS.AGUARDANDO_APROVACAO}, origem=origem, usuario_id=usuario_id
         )
 
-    def rejeitar_orcamento(self) -> None:
-        """Cancela a OS e descarta as pendências; as reservadas voltam ao estoque pelo estorno."""
+    def rejeitar_orcamento(self, usuario_id: UUID | None = None) -> None:
+        """Cancela a OS e descarta as pendências; as reservadas voltam ao estoque pelo estorno.
+
+        O `usuario_id` segue a mesma regra da aprovação.
+        """
+        origem = _origem_da_decisao(usuario_id)
         self._mudar_status(
-            StatusOS.CANCELADA, de={StatusOS.AGUARDANDO_APROVACAO}, origem=OrigemTransicao.CLIENTE
+            StatusOS.CANCELADA,
+            de={StatusOS.AGUARDANDO_APROVACAO},
+            origem=origem,
+            usuario_id=usuario_id,
         )
         self._descartar_pendencias()
         self._acumular_os_cancelada(baixa_ja_realizada=False)
@@ -487,6 +499,13 @@ def _registrada(data: datetime | None, descricao: str) -> datetime:
 def _exigir_usuario(usuario_id: UUID) -> None:
     if not isinstance(usuario_id, UUID):
         raise OrdemServicoInvalida("o usuário é obrigatório")
+
+
+def _origem_da_decisao(usuario_id: UUID | None) -> OrigemTransicao:
+    if usuario_id is None:
+        return OrigemTransicao.CLIENTE
+    _exigir_usuario(usuario_id)
+    return OrigemTransicao.USUARIO
 
 
 def _somar(valores: Iterable[Valor]) -> Valor:

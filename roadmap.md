@@ -374,8 +374,8 @@ Tarefas da fase:
 
 ### Documentação DDD
 
-- [ ] Conferir se o board, os PDFs exportados e os diagramas correspondem ao código final
-- [ ] Atualizar o mapeamento entre documentação e código na linguagem ubíqua
+- [x] Conferir se o board, os PDFs exportados e os diagramas correspondem ao código final (issue #118). Refazer se o código mudar até a entrega
+- [x] Atualizar o mapeamento entre documentação e código na linguagem ubíqua (issue #118)
 
 ### Vídeo
 

@@ -10,6 +10,24 @@ Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recente
 
 **Motivo:** o RNF-10 não define as "condições normais de operação local", e o item estava em aberto. As rotas públicas ficam fora porque o limite do RNF-05 as bloquearia numa carga vinda de um só IP.
 
+## 2026-10-31 — PR da issue #112 (revisão de SQL Injection, IDOR e XSS)
+
+**O que mudou:** a decisão "Higienização do motivo contra XSS" da seção 8.1 do guia passou a "Higienização dos textos livres contra XSS" e cobre também `nome`, `email`, `telefone`, `marca`, `modelo`, `codigo`, `descricao` e `codigo_referencia`, recusados com `400` quando têm `<`. A regra mora em `domain/value_objects/texto_livre.py`, e a tabela da seção 3 do guia (e a de `docs/estrutura-de-pastas.md`) ganhou a linha "Regra de validação compartilhada pelas entidades" para esse tipo de arquivo.
+
+**Motivo:** o RNF-04 manda higienizar "todos os campos de texto livre", mas só o motivo do cancelamento era verificado. A revisão da issue #112 encontrou os demais campos aceitando `<script>` e devolvendo-o na API; a escolha de recusar (e não escapar) segue a decisão do grupo na issue #95.
+
+## 2026-10-31 — PR da issue #110 (evidência de cobertura)
+
+**O que mudou:** nova pasta `docs/evidencias/`, com a evidência da cobertura de `domain/` e `application/` (`cobertura.md` e `cobertura.txt`). A tabela da seção 3 do guia e a tabela de pastas de `docs/estrutura-de-pastas.md` ganharam a pasta; a pendência "evidência da medição de cobertura" saiu da lista de `docs/estrutura-de-pastas.md`.
+
+**Motivo:** a RNF-14 e a issue #110 pedem a evidência salva em um local combinado, e nenhuma pasta existente serve (`docs/security/` é do RNF-06 e RNF-07). A mesma pasta receberá o relatório do teste de desempenho (RNF-10).
+
+## 2026-10-31 — PR da issue #109 (relatório de tempos médios)
+
+**O que mudou:** a seção 8.1 do guia ganhou a decisão "Relatório de tempos médios (RF-27)": `GET /relatorios/tempos-medios`, só para o Gerente, agrupado por mês da finalização (UTC), com os tempos calculados pela `OrdemServico` e a média feita em Python pelo caso de uso `GerarRelatorioDeTempos`. A porta `OrdemServicoRepository` ganhou `listar_finalizadas`.
+
+**Motivo:** o RF-27 pede os tempos "agrupados por período" sem definir a granularidade, o critério de pertencer ao período nem como tratar a OS que não esperou peça. A escolha do mês da finalização torna a métrica estável (só existe depois da finalização), e a média de espera considera só as OS que esperaram.
+
 ## 2026-10-31 — PR da issue #102 (rejeição do orçamento pelo cliente)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Rejeição do orçamento pelo cliente (RF-26, RF-18)": `POST /acompanhamento/rejeicao`, sem JWT, e o caso de uso `RejeitarOrcamento`, que despacha o `OSCanceladaEvent` para o `EstornoReservasHandler` do cancelamento. A decisão "Repetição da transação em impasse" passou a incluir o `RejeitarOrcamento`. No C4, o `RejeitarOrcamento` entrou no diagrama de componentes.

@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 from domain.exceptions import VeiculoInvalido
 from domain.value_objects.placa import Placa
+from domain.value_objects.texto_livre import exigir_sem_marcacao
 
 ANO_MINIMO = 1900
 
@@ -47,6 +48,7 @@ class Veiculo:
             raise VeiculoInvalido("a marca é obrigatória")
         if not modelo:
             raise VeiculoInvalido("o modelo é obrigatório")
+        exigir_sem_marcacao(VeiculoInvalido, marca=marca, modelo=modelo)
         _validar_ano(ano)
         self.placa, self.marca, self.modelo, self.ano = placa, marca, modelo, ano
 

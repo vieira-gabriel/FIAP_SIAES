@@ -40,7 +40,11 @@ Medição sobre a aplicação do commit `cccdc6d` (`main`, merge do PR #160), em
 | p99 | 210 ms |
 | Máximo | 240 ms (um login, que calcula o bcrypt) |
 
-A rota mais lenta é a listagem de OS (p95 de 64 ms). O relatório completo está em [desempenho/relatorio-locust.html](desempenho/relatorio-locust.html), e a tabela em [desempenho/locust_stats.csv](desempenho/locust_stats.csv). O p95 ficou 8 vezes abaixo do limite.
+A rota mais lenta é a listagem de OS (p95 de 64 ms). O relatório completo está em [desempenho/relatorio-locust.html](desempenho/relatorio-locust.html). O p95 ficou 8 vezes abaixo do limite.
+
+## Limitação
+
+A abertura de OS é a única escrita medida. As operações que bloqueiam a OS e o estoque (`FinalizarOrcamento`, `ReporPeca` e `CancelarOS`, com `SELECT ... FOR UPDATE` e a repetição em impasse) ficam fora do cenário, e o p95 acima não diz nada sobre elas. O RNF-10 está medido para a leitura e a abertura de OS.
 
 ## Como reproduzir
 
@@ -52,7 +56,7 @@ uv sync
 set -a; . ./.env; set +a
 uv run locust -f tests/desempenho/locustfile.py --headless --host http://localhost:8000 \
   --users 10 --spawn-rate 5 --run-time 60s \
-  --html docs/evidencias/desempenho/relatorio-locust.html --csv docs/evidencias/desempenho/locust
+  --html docs/evidencias/desempenho/relatorio-locust.html
 ```
 
 O teste abre OS no banco de desenvolvimento do Compose. Para voltar ao banco limpo, use `docker compose down -v`. Sem `--headless`, o Locust abre a interface em `http://localhost:8089`.

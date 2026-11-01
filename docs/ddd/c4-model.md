@@ -110,7 +110,9 @@ flowchart TD
         RouterOS["🛠️ routers/ordens_servico.py\nRotas administrativas de OS (Criar, Listar, Transicionar)."]
         RouterClientes["👤 routers/clientes.py\nRotas de CRUD de Clientes."]
         RouterVeiculos["🚗 routers/veiculos.py\nRotas de CRUD de Veículos."]
-        RouterEstoque["📦 routers/estoque.py\nRotas de gestão e entrada de estoque de peças."]
+        RouterUsuarios["👥 routers/usuarios.py\nRotas de gestão de usuários, só do Gerente."]
+        RouterServicos["🔧 routers/servicos.py\nRotas do catálogo de serviços."]
+        RouterEstoque["📦 routers/pecas.py\nRotas de gestão de peças, reposição e ajuste do estoque."]
         RouterAcompanhamento["📲 routers/acompanhamento_publico.py\nRota desautenticada de consulta por número da OS e CPF/CNPJ."]
         
         Dependencies["🛡️ middlewares/dependencies.py\nobter_usuario_autenticado e exigir_perfis validam o token Bearer\ne a claim 'role' (Atendente, Mecanico, Gerente)."]
@@ -128,7 +130,7 @@ flowchart TD
         ConsultarOSPublica["⚙️ ConsultarOSPublica"]
         LocalizarOSDoTitular["⚙️ LocalizarOSDoTitular\nNúmero da OS + CPF/CNPJ do titular."]
         
-        Ports["🔌 Portas de Serviço (application/ports/)\nTokenService, PasswordHasher"]
+        Ports["🔌 Portas de Serviço (application/ports/)\nTokenService, PasswordHasher,\nUnidadeDeTrabalho, VerificadorDoBanco"]
         EventDispatcher["⚡ EventDispatcher (In-Memory)\nBarramento síncrono para eventos de domínio."]
         ReservaHandler["📦 ReservaPecasHandler\nEscuta OrcamentoFinalizadoEvent e reserva as peças da OS."]
         EstornoHandler["📦 EstornoReservasHandler\nEscuta OSCanceladaEvent e estorna as reservas da OS."]
@@ -142,7 +144,7 @@ flowchart TD
         Entities["👤 Entidades\nCliente, Veiculo, Usuario, Servico, Peca."]
         VOs["💎 Value Objects\nDocumento, CPF, CNPJ, Placa, Valor, NumeroOS, Orcamento,\nStatusOS, PerfilUsuario, OrigemTransicao."]
         DomainEvents["🟧 Eventos de Domínio\nOrcamentoFinalizadoEvent, OSCanceladaEvent,\nExecucaoIniciadaEvent, SaldoPecaAtualizadoEvent."]
-        Repositories["🔌 Portas de Repositório (ABCs)\nOrdemServicoRepository, EstoqueRepository, UsuarioRepository,\nClienteRepository, VeiculoRepository."]
+        Repositories["🔌 Portas de Repositório (ABCs)\nOrdemServicoRepository, EstoqueRepository, UsuarioRepository,\nClienteRepository, VeiculoRepository, ServicoRepository,\nPecaRepository."]
     end
 
     subgraph INFRASTRUCTURE ["4. Camada de Infraestrutura (src/infrastructure/)"]
@@ -158,6 +160,8 @@ flowchart TD
     Dependencies --> RouterClientes
     Dependencies --> RouterVeiculos
     Dependencies --> RouterEstoque
+    Dependencies --> RouterUsuarios
+    Dependencies --> RouterServicos
     RateLimit --> RouterAcompanhamento
     
     RouterOS --> CriarOS
@@ -518,7 +522,7 @@ src/
 ├── presentation/                  # Nível 3 (Camada de Entrada, Routers HTTP & Middlewares)
 │   ├── main.py                    # Criação do app FastAPI e registro dos routers
 │   ├── container.py               # Montagem das dependências (único ponto que importa infrastructure)
-│   ├── routers/                   # Routers FastAPI, um arquivo por recurso (autenticacao, ordens_servico, clientes, estoque, acompanhamento_publico)
+│   ├── routers/                   # Routers FastAPI, um arquivo por recurso (autenticacao, usuarios, clientes, veiculos, servicos, pecas, ordens_servico, acompanhamento_publico, saude)
 │   ├── middlewares/               # JWT Auth & Rate Limiting Guards (Depends / Security)
 │   └── schemas/                   # Pydantic DTOs, um arquivo por recurso (Validação de Entrada/Saída HTTP)
 ├── application/                   # Nível 3 (Camada de Aplicação & Casos de Uso)

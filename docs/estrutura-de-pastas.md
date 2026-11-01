@@ -72,7 +72,7 @@ A pasta `src/api/` foi removida, pois a RNF-01 nomeia a camada de entrada como `
 
 | Caminho | Origem na Documentação |
 | :--- | :--- |
-| `src/domain/value_objects/` | Linguagem Ubíqua §2 (CPF, CNPJ, Documento, Placa, Valor, StatusOS) e §4 — Objeto de Valor (`src/domain/value_objects/cpf.py` e `src/domain/value_objects/cnpj.py`, classes separadas por decisão do grupo na issue #14, com a base abstrata comum em `src/domain/value_objects/documento.py`) |
+| `src/domain/value_objects/` | Linguagem Ubíqua §2 (CPF, CNPJ, Documento, Placa, Valor, StatusOS) e §4 — Objeto de Valor (`src/domain/value_objects/cpf.py` e `src/domain/value_objects/cnpj.py`, classes separadas por decisão do grupo na issue #14, com a base abstrata comum em `src/domain/value_objects/documento.py`). Também fica aqui a regra de validação que várias entidades compartilham, `src/domain/value_objects/texto_livre.py` (`exigir_sem_marcacao`, issue #112) |
 | `src/domain/repositories/ordem_servico_repository.py` | Linguagem Ubíqua §4 — Porta de Repositório (Interface Abstrata); RNF-02 — isolamento do domínio |
 | `tests/integration/` | RNF-13 — testes de integração dos fluxos principais |
 | `tests/desempenho/` | RNF-10 — cenário do Locust para medir o p95 (issue #113) |
@@ -80,6 +80,7 @@ A pasta `src/api/` foi removida, pois a RNF-01 nomeia a camada de entrada como `
 | `src/domain/events/`, `src/application/events/`, `src/application/handlers/` e `src/infrastructure/database/` | Seção 6 do modelo C4, aprovadas pelo grupo na issue #9 |
 | `src/presentation/middlewares/` | Seção 6 do modelo C4, aprovada pelo grupo na issue #9; substitui `src/presentation/auth/` |
 | `docs/security/` | RNF-07 — relatório de análise de vulnerabilidades |
+| `docs/evidencias/` | RNF-14 e RNF-10 — evidências de cobertura de testes e de desempenho, para o README e o vídeo (issue #110) |
 | `.github/workflows/` | Guia de desenvolvimento, seção 8.1 — CI no GitHub Actions (issue #29) |
 
 A porta do repositório no domínio é o que permite à camada `application` depender de uma abstração, e não da implementação em PostgreSQL, conforme exige a RNF-02.
@@ -123,9 +124,6 @@ Pontos de atenção:
 
 A pasta `migrations/` do Alembic (guia, seção 8.1) fica na raiz do projeto, junto com o `alembic.ini`, e foi criada na issue #25 com a revisão de base `0001_schema_base`, vazia; as tabelas entram com cada entidade (da `0002` à `0007`: `usuarios`, `clientes`, `servicos`, `veiculos`, `pecas`, `estoque_pecas` e as tabelas da OS, `ordens_servico`, `itens_servico`, `itens_peca` e `historico_status_os`). `src/infrastructure/config.py` (configuração) e `src/presentation/container.py` (montagem das dependências), decididos na issue #9, foram criados na issue #22; o container monta a engine, a fábrica de sessões, os serviços de token e de hash e o verificador do banco (issue #26). O login já está ligado: o container oferece `obter_autenticar_usuario` e executa a carga inicial de usuários na subida; as funções `obter_<caso_de_uso>` dos cadastros de usuários, clientes, veículos, serviços e peças também já existem, e as demais entram com os casos de uso do fluxo da OS.
 
-A autenticação JWT (seção 5), a configuração do PostgreSQL (RNF-08) e o `Dockerfile` com o `docker-compose.yml` (RNF-15) já estão implementados. Permanecem pendentes, por dependerem de implementação:
-
-* os handlers de `application/handlers/` que reagem aos eventos de domínio, de que existem o `reserva_pecas_handler.py` e o `alocacao_pecas_pendentes_handler.py`; faltam os do estorno e da baixa (Fase 5);
-* a evidência da medição de cobertura (RNF-14), que a Fase 7 registra.
+A autenticação JWT (seção 5), a configuração do PostgreSQL (RNF-08) e o `Dockerfile` com o `docker-compose.yml` (RNF-15) já estão implementados.
 
 As portas e os adaptadores de usuário, cliente, veículo, serviço, peça, estoque e OS já existem; os modelos da OS ficam em `infrastructure/database/ordem_servico_model.py` (issue #88). Os relatórios de segredos (RNF-06) e de vulnerabilidades (RNF-07) estão em `docs/security/`.

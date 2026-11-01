@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 
 from domain.exceptions import AlteracaoDoProprioAcesso, UsuarioInvalido
 from domain.value_objects.perfil_usuario import PerfilUsuario
+from domain.value_objects.texto_livre import exigir_sem_marcacao
 
 
 @dataclass(eq=False)
@@ -70,6 +71,7 @@ def _nome_e_email_validos(nome: str, email: str) -> tuple[str, str]:
         raise UsuarioInvalido("o nome é obrigatório")
     if "@" not in email:
         raise UsuarioInvalido("o e-mail é obrigatório e deve conter '@'")
+    exigir_sem_marcacao(UsuarioInvalido, nome=nome, email=email)
     return nome, email
 
 

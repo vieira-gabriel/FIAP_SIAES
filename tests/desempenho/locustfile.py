@@ -12,6 +12,7 @@ import random
 
 import requests
 from locust import HttpUser, between, events, task
+from locust.exception import StopUser
 
 LIMITE_P95_MS = 500
 QUANTIDADE_DE_OS = 30
@@ -89,10 +90,18 @@ class UsuarioDaOficina(HttpUser):
     wait_time = between(0.5, 1.5)
 
     def on_start(self):
-        resposta = self.client.post(
-            "/auth/login", json={"email": EMAIL_DO_GERENTE, "senha": SENHA_DO_GERENTE}
-        )
-        self.client.headers["Authorization"] = f"Bearer {resposta.json()['access_token']}"
+        with self.client.post(
+            "/auth/login",
+            json={"email": EMAIL_DO_GERENTE, "senha": SENHA_DO_GERENTE},
+            catch_response=True,
+        ) as resposta:
+            logou = resposta.status_code == 200
+            if logou:
+                self.client.headers["Authorization"] = f"Bearer {resposta.json()['access_token']}"
+            else:
+                resposta.failure(f"Login do usuário simulado falhou: {resposta.status_code}")
+        if not logou:
+            raise StopUser
 
     @task(5)
     def listar_ordens_de_servico(self):

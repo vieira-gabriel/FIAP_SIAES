@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 
 from domain.exceptions import ClienteInvalido
 from domain.value_objects.documento import Documento
+from domain.value_objects.texto_livre import exigir_sem_marcacao
 
 
 @dataclass(eq=False)
@@ -44,4 +45,5 @@ class Cliente:
             raise ClienteInvalido("o e-mail é obrigatório e deve conter '@'")
         if not telefone:
             raise ClienteInvalido("o telefone é obrigatório")
+        exigir_sem_marcacao(ClienteInvalido, nome=nome, email=email, telefone=telefone)
         self.nome, self.documento, self.email, self.telefone = nome, documento, email, telefone

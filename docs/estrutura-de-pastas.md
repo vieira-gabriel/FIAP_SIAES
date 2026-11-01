@@ -42,8 +42,12 @@ src/
     │   └── autenticacao.py
     ├── schemas/
     │   └── autenticacao.py
-    └── middlewares/
-        └── dependencies.py
+    ├── middlewares/
+    │   └── dependencies.py
+    └── web/
+        ├── comum/
+        ├── oficina/
+        └── cliente/
 tests/
 ├── unit/
 └── integration/
@@ -78,6 +82,7 @@ A pasta `src/api/` foi removida, pois a RNF-01 nomeia a camada de entrada como `
 | `src/presentation/routers/` | Decisão do grupo no fechamento da Fase 0: rotas FastAPI, um arquivo por recurso |
 | `src/domain/events/`, `src/application/events/`, `src/application/handlers/` e `src/infrastructure/database/` | Seção 6 do modelo C4, aprovadas pelo grupo na issue #9 |
 | `src/presentation/middlewares/` | Seção 6 do modelo C4, aprovada pelo grupo na issue #9; substitui `src/presentation/auth/` |
+| `src/presentation/web/` | Interface web (POC da branch `feat/interface-web`, ainda sem aprovação do grupo): páginas estáticas da Frente da Loja (`oficina/`) e da Frente do Cliente (`cliente/`), com os módulos comuns em `comum/`. Fica em `presentation` porque é entrada do usuário e só fala com a API |
 | `docs/security/` | RNF-07 — relatório de análise de vulnerabilidades |
 | `.github/workflows/` | Guia de desenvolvimento, seção 8.1 — CI no GitHub Actions (issue #29) |
 

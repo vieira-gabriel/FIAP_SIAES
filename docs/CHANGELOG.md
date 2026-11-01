@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-31 — Branch local `feat/interface-web` (POC da interface web, sem PR)
+
+**O que mudou:** a pasta `src/presentation/web/` entrou na árvore da seção 2 do guia, na tabela da seção 3 e em `docs/estrutura-de-pastas.md`, junto com o módulo `presentation/middlewares/interface_web.py`, que entrega as páginas e aplica os cabeçalhos de segurança delas. A seção 8.1 ganhou as decisões "Interface web (POC)" e "Decisão do orçamento no balcão (RF-26, RF-24)", e a decisão "Repetição da transação em impasse" passou a incluir o `RejeitarOrcamentoNoBalcao`.
+
+**Motivo:** a oficina e o cliente usavam o sistema só pelo Swagger. A POC oferece telas para os dois lados sem dependência nova nem serviço novo no Compose, e foi feita para o grupo avaliar; a pasta nova ainda depende da aprovação do grupo (guia, seção 3).
+
 ## 2026-10-31 — PR da issue #109 (relatório de tempos médios)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Relatório de tempos médios (RF-27)": `GET /relatorios/tempos-medios`, só para o Gerente, agrupado por mês da finalização (UTC), com os tempos calculados pela `OrdemServico` e a média feita em Python pelo caso de uso `GerarRelatorioDeTempos`. A porta `OrdemServicoRepository` ganhou `listar_finalizadas`.

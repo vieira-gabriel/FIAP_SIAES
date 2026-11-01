@@ -107,9 +107,9 @@ Apenas as transições abaixo são permitidas pelo agregado `OrdemServico`; qual
 | - | `RECEBIDA` | Abrir OS | Atendente, Gerente | RF-13 |
 | `RECEBIDA` | `EM_DIAGNOSTICO` | `atribuir_mecanico` | Mecânico, Gerente | RF-16 |
 | `EM_DIAGNOSTICO` | `AGUARDANDO_APROVACAO` | `finalizar_orcamento` | Mecânico, Gerente | RF-17, RF-18 |
-| `AGUARDANDO_APROVACAO` | `AGUARDANDO_EXECUCAO` | `aprovar_orcamento` (sem peças pendentes) | Cliente | RF-26 |
-| `AGUARDANDO_APROVACAO` | `AGUARDANDO_PECA` | `aprovar_orcamento` (com peças pendentes) | Cliente | RF-26 |
-| `AGUARDANDO_APROVACAO` | `CANCELADA` | `rejeitar_orcamento` | Cliente | RF-26, RF-18 |
+| `AGUARDANDO_APROVACAO` | `AGUARDANDO_EXECUCAO` | `aprovar_orcamento` (sem peças pendentes) | Cliente; Atendente e Gerente, no balcão | RF-26 |
+| `AGUARDANDO_APROVACAO` | `AGUARDANDO_PECA` | `aprovar_orcamento` (com peças pendentes) | Cliente; Atendente e Gerente, no balcão | RF-26 |
+| `AGUARDANDO_APROVACAO` | `CANCELADA` | `rejeitar_orcamento` | Cliente; Atendente e Gerente, no balcão | RF-26, RF-18 |
 | `AGUARDANDO_PECA` | `AGUARDANDO_EXECUCAO` | `liberar_para_execucao` | Sistema | RF-19 |
 | `AGUARDANDO_EXECUCAO` | `EM_EXECUCAO` | `iniciar_execucao` | Mecânico atribuído, Gerente | RF-20 |
 | `EM_EXECUCAO` | `FINALIZADA` | `concluir_manutencao(usuario)` | Mecânico atribuído, Gerente | RF-21 |

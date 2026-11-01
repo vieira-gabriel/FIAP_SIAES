@@ -150,6 +150,17 @@ docker compose down
 docker compose down -v
 ```
 
+## Interface web
+
+Com a aplicação no ar, a interface fica no próprio endereço da API:
+
+| Endereço | Quem usa | O que oferece |
+| :--- | :--- | :--- |
+| **http://localhost:8000/oficina/** | Atendente, Mecânico e Gerente, com o mesmo login da API | Quadro das OS por status, abertura da OS com cadastro do cliente e do veículo, diagnóstico e orçamento, aprovação ou rejeição registrada no balcão, execução, entrega, cancelamento, clientes e veículos, serviços, peças e estoque, usuários e relatório de tempos médios. O menu e os botões mudam conforme o perfil |
+| **http://localhost:8000/cliente/** | Cliente da oficina, sem login | Consulta da OS pelo número e pelo CPF/CNPJ do titular, com a aprovação ou a rejeição do orçamento |
+
+O detalhe de cada OS traz o link de acompanhamento do cliente (`/cliente/#numero=...`), que já preenche o número da OS. As páginas são HTML, CSS e JavaScript sem etapa de build, em `src/presentation/web/`.
+
 ## Swagger e autenticação
 
 A documentação interativa da API (OpenAPI/Swagger) fica em **http://localhost:8000/docs**.

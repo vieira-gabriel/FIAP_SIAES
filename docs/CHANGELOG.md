@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-10-31 — PR da issue #113 (medição de desempenho com Locust)
+
+**O que mudou:** o cenário do teste de desempenho (10 usuários por 60 s, rotas de leitura e abertura de OS, sem as rotas públicas) saiu da seção 8.2 e entrou na 8.1 do guia. Nova pasta `tests/desempenho/` (tabela da seção 3 do guia e de `docs/estrutura-de-pastas.md`), com o `locustfile.py`, e o Locust como dependência de desenvolvimento. A evidência fica em `docs/evidencias/desempenho.md` e `docs/evidencias/desempenho/`.
+
+**Motivo:** o RNF-10 não define as "condições normais de operação local", e o item estava em aberto. As rotas públicas ficam fora porque o limite do RNF-05 as bloquearia numa carga vinda de um só IP.
+
 ## 2026-10-31 — PR da issue #102 (rejeição do orçamento pelo cliente)
 
 **O que mudou:** a seção 8.1 do guia ganhou a decisão "Rejeição do orçamento pelo cliente (RF-26, RF-18)": `POST /acompanhamento/rejeicao`, sem JWT, e o caso de uso `RejeitarOrcamento`, que despacha o `OSCanceladaEvent` para o `EstornoReservasHandler` do cancelamento. A decisão "Repetição da transação em impasse" passou a incluir o `RejeitarOrcamento`. No C4, o `RejeitarOrcamento` entrou no diagrama de componentes.

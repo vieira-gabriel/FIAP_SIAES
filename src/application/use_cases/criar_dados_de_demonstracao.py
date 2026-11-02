@@ -156,8 +156,9 @@ _ENTREGUE_APOS_ESPERAR_PECA = (
 _CANCELADA = (*_AGUARDANDO_APROVACAO, _Etapa(StatusOS.CANCELADA, 8, OrigemTransicao.CLIENTE))
 
 # Uma OS em cada status (Linguagem Ubíqua §5), da mais antiga para a mais nova, que é a ordem
-# em que o saldo é reservado (RF-18). As duas entregues caem em meses diferentes, e uma delas
-# esperou peça, para o relatório de tempos médios ter o que agrupar (RF-27).
+# em que o saldo é reservado (RF-18). As duas entregues são finalizadas com 22 dias de diferença,
+# o que em geral as põe em meses diferentes, e uma delas esperou peça, para o relatório de tempos
+# médios ter o que agrupar (RF-27).
 _ORDENS = (
     _OSDeDemonstracao(3, timedelta(days=40), _ENTREGUE, ("SRV-ALINHA",)),
     _OSDeDemonstracao(

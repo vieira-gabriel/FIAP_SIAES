@@ -191,14 +191,50 @@ As senhas não têm valor fixo no repositório: cada uma vem do `.env` (RNF-06).
 
 Com `SEED_DEMO=true`, a carga inicial também preenche o banco para a demonstração:
 
-| Dado | O que é criado |
-| :--- | :--- |
-| Serviços | 5 serviços, de troca de óleo a troca de amortecedores |
-| Peças | Filtro de óleo (15 unidades), pastilha de freio (6) e amortecedor dianteiro (sem saldo, para a OS que o pede esperar a reposição) |
-| Clientes e veículos | 4 pessoas físicas e 1 pessoa jurídica, cada uma com um veículo |
-| Ordens de serviço | 10 OS, ao menos uma em cada status, com datas e histórico dos últimos 40 dias, para o quadro e o relatório de tempos médios terem o que mostrar |
+**Serviços**
 
-As reservas das peças seguem o estoque. Serviço e peça já cadastrados com o mesmo código são mantidos, e as OS só são criadas se o banco não tiver nenhuma; para recriá-las, recomece o banco com `docker compose down -v`.
+| Código | Nome | Valor base | Tempo estimado |
+| :--- | :--- | ---: | ---: |
+| `SRV-OLEO` | Troca de óleo e filtro | R$ 120,00 | 40 min |
+| `SRV-FREIO` | Revisão dos freios | R$ 180,00 | 90 min |
+| `SRV-ALINHA` | Alinhamento e balanceamento | R$ 150,00 | 60 min |
+| `SRV-ELETRICA` | Diagnóstico elétrico | R$ 200,00 | 120 min |
+| `SRV-SUSPENSAO` | Troca de amortecedores | R$ 350,00 | 180 min |
+
+**Peças e estoque**, com as quantidades depois das reservas das OS:
+
+| Código | Nome | Preço unitário | Prazo de reposição | Física | Reservada | Saldo disponível |
+| :--- | :--- | ---: | ---: | ---: | ---: | ---: |
+| `FLT-OLEO-01` | Filtro de óleo | R$ 45,00 | 2 dias | 15 | 1 | 14 |
+| `PST-FREIO-02` | Pastilha de freio dianteira | R$ 160,00 | 3 dias | 6 | 2 | 4 |
+| `AMT-DIANT-03` | Amortecedor dianteiro | R$ 420,00 | 7 dias | 0 | 0 | 0 |
+
+**Clientes e veículos**
+
+| Cliente | CPF/CNPJ | E-mail | Telefone | Veículo |
+| :--- | :--- | :--- | :--- | :--- |
+| Ana Souza | 529.982.247-25 | `ana.souza@exemplo.com` | 11912345678 | `ABC1D23`, Volkswagen Gol 2018 |
+| Bruno Lima | 111.444.777-35 | `bruno.lima@exemplo.com` | 11923456789 | `BRA2E19`, Fiat Argo 2021 |
+| Carla Mendes | 390.533.447-05 | `carla@exemplo.com` | 21934567890 | `CDE3F45`, Chevrolet Onix 2020 |
+| Daniel Rocha | 987.654.321-00 | `daniel@exemplo.com` | 31945678901 | `DEF4567`, Toyota Corolla 2016 |
+| Transportes Rápidos Ltda | 11.222.333/0001-81 | `frota@exemplo.com` | 1134567890 | `FRT5G67`, Mercedes-Benz Sprinter 2022 |
+
+**Ordens de serviço**, da mais antiga para a mais nova. A abertura é contada a partir da subida da aplicação; o Atendente e o Mecânico de demonstração aparecem no histórico.
+
+| Abertura | Status | Cliente e veículo | Serviços | Peças | Total |
+| :--- | :--- | :--- | :--- | :--- | ---: |
+| 40 dias antes | `ENTREGUE` | Daniel Rocha, `DEF4567` | Alinhamento e balanceamento | — | R$ 150,00 |
+| 20 dias antes | `ENTREGUE`, depois de 67 h em `AGUARDANDO_PECA` | Transportes Rápidos, `FRT5G67` | Troca de amortecedores, alinhamento e balanceamento | 2 amortecedores (baixados) | R$ 1.340,00 |
+| 6 dias antes | `FINALIZADA` | Ana Souza, `ABC1D23` | Troca de óleo e filtro | 1 filtro de óleo (baixado) | R$ 165,00 |
+| 4 dias antes | `CANCELADA` (orçamento rejeitado pelo cliente) | Carla Mendes, `CDE3F45` | Diagnóstico elétrico | — | R$ 200,00 |
+| 3 dias antes | `EM_EXECUCAO` | Bruno Lima, `BRA2E19` | Revisão dos freios | 1 pastilha (baixada) | R$ 340,00 |
+| 2 dias antes | `AGUARDANDO_PECA` | Daniel Rocha, `DEF4567` | Troca de amortecedores | 2 amortecedores (pendentes) | R$ 1.190,00 |
+| 40 horas antes | `AGUARDANDO_EXECUCAO` | Transportes Rápidos, `FRT5G67` | Revisão dos freios, troca de óleo e filtro | 1 pastilha e 1 filtro de óleo (reservados) | R$ 505,00 |
+| 26 horas antes | `AGUARDANDO_APROVACAO` | Ana Souza, `ABC1D23` | Revisão dos freios | 1 pastilha (reservada) | R$ 340,00 |
+| 5 horas antes | `EM_DIAGNOSTICO` | Carla Mendes, `CDE3F45` | Troca de óleo e filtro | 1 filtro de óleo (sem reserva até o orçamento) | — |
+| 1 hora antes | `RECEBIDA` | Bruno Lima, `BRA2E19` | — | — | — |
+
+As duas OS entregues são finalizadas com 22 dias de diferença, e uma delas esperou peça, para o relatório de tempos médios ter o que mostrar. As reservas das peças seguem o estoque. Serviço e peça já cadastrados com o mesmo código são mantidos, e as OS só são criadas se o banco não tiver nenhuma; para recriá-las, recomece o banco com `docker compose down -v`.
 
 ## Testes
 

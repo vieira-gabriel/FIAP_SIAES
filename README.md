@@ -45,15 +45,7 @@ Os requisitos completos estão em [`docs/requisitos-funcionais.md`](docs/requisi
 
 ## Arquitetura
 
-O sistema é um **monólito em camadas** (RNF-01) modelado com **Domain-Driven Design**. O domínio fica isolado em Python puro, sem framework web, ORM nem biblioteca de JWT (RNF-02).
-
-```text
-src/
-├── domain/           Regras de negócio: entidades, agregados, objetos de valor, eventos e portas de repositório
-├── application/      Casos de uso que orquestram o domínio, portas de serviços técnicos e Event Dispatcher
-├── infrastructure/   Adaptadores: PostgreSQL (SQLAlchemy), JWT, bcrypt e configuração
-└── presentation/     API FastAPI: rotas, DTOs, autenticação das rotas, tratamento de erros e interface web
-```
+O sistema é um **monólito em camadas** (RNF-01) modelado com **Domain-Driven Design**. O domínio fica isolado em Python puro, sem framework web, ORM nem biblioteca de JWT (RNF-02). As quatro camadas (`domain`, `application`, `infrastructure` e `presentation`) estão descritas em [Estrutura de diretórios](#estrutura-de-diretórios).
 
 - **Regra de dependência:** as dependências apontam sempre para dentro, em direção ao domínio. O domínio não conhece as outras camadas, e os casos de uso dependem de interfaces (portas), não das implementações.
 - **Portas e adaptadores:** cada dependência externa (banco, token, hash de senha) é uma interface no domínio ou na aplicação, com a implementação em `infrastructure/`. Só o `presentation/container.py` conhece as implementações e as monta.
@@ -62,6 +54,55 @@ src/
 - **Transações:** cada operação crítica roda em uma única unidade de trabalho, com rollback completo em caso de falha (RNF-08).
 
 A arquitetura está documentada nos quatro níveis do [modelo C4](docs/ddd/c4-model.md) (contexto, contêineres, componentes e diagrama de classes). As regras de onde colocar cada parte do código estão no [guia de desenvolvimento](docs/guia-de-desenvolvimento.md).
+
+## Estrutura de diretórios
+
+```text
+.
+├── src/
+│   ├── domain/               Regras de negócio puras (Python puro)
+│   │   ├── entities/             Entidades e raízes de agregado
+│   │   ├── value_objects/        Objetos de valor imutáveis e enumerações
+│   │   ├── events/               Eventos de domínio, um arquivo por evento
+│   │   ├── repositories/         Portas (interfaces ABC) de persistência
+│   │   └── exceptions.py         Exceções de regra de negócio
+│   ├── application/          Orquestração dos casos de uso
+│   │   ├── use_cases/            Um arquivo por caso de uso
+│   │   ├── ports/                Interfaces de serviços técnicos (token, hash de senha, unidade de trabalho)
+│   │   ├── events/               Event Dispatcher síncrono em memória
+│   │   └── handlers/             Handlers que reagem aos eventos de domínio
+│   ├── infrastructure/       Detalhes técnicos (banco, bibliotecas externas)
+│   │   ├── config.py             Leitura e validação das variáveis de ambiente
+│   │   ├── database/             Engine, sessão, unidade de trabalho e modelos do SQLAlchemy
+│   │   ├── repositories/         Implementações das portas de repositório (PostgreSQL)
+│   │   └── security/             Implementações de JWT e hash de senha
+│   └── presentation/         Entrada HTTP
+│       ├── main.py               Criação do app FastAPI e registro dos routers
+│       ├── container.py          Montagem das dependências (único ponto que importa infrastructure)
+│       ├── routers/              Rotas FastAPI, um arquivo por recurso
+│       ├── schemas/              DTOs de entrada e saída, um arquivo por recurso
+│       ├── middlewares/          Validação do token, rate limiting, tratamento de erros e entrega da interface web
+│       └── web/                  Páginas da interface web (HTML, CSS e JavaScript)
+├── migrations/               Migrations do Alembic
+├── tests/
+│   ├── unit/                 Testes sem banco e sem HTTP
+│   ├── integration/          Testes dos fluxos de ponta a ponta, com PostgreSQL
+│   └── desempenho/           Cenário do Locust (RNF-10)
+├── docs/
+│   ├── ddd/                  Event Storming, Linguagem Ubíqua e modelo C4
+│   ├── evidencias/           Cobertura de testes e teste de desempenho
+│   └── security/             Análise de vulnerabilidades e revisão de segredos
+├── .github/workflows/        Pipeline de CI
+├── .env.example              Variáveis de ambiente, sem valores reais
+├── Dockerfile                Imagem multi-stage da aplicação
+├── docker-compose.yml        Serviços app e db
+├── docker-compose.testes.yml Publicação do banco em 127.0.0.1 para os testes de integração
+├── alembic.ini               Configuração do Alembic
+├── pyproject.toml            Dependências (uv) e configuração do pytest e do Ruff
+└── uv.lock                   Versões travadas das dependências
+```
+
+O motivo de cada pasta e a regra de dependência entre as camadas estão no [guia de desenvolvimento](docs/guia-de-desenvolvimento.md) e em [`docs/estrutura-de-pastas.md`](docs/estrutura-de-pastas.md).
 
 ## Tecnologias
 

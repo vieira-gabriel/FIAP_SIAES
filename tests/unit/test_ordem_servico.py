@@ -729,6 +729,54 @@ def test_transicao_ou_motivo_recusados_nao_descartam_as_pendencias():
     assert os.pecas[0].quantidade_pendente == 1
 
 
+def test_decisao_do_cliente_grava_a_origem_cliente_sem_usuario():
+    aprovada = criar_os(status=StatusOS.AGUARDANDO_APROVACAO)
+    rejeitada = criar_os(status=StatusOS.AGUARDANDO_APROVACAO)
+
+    aprovada.aprovar_orcamento()
+    rejeitada.rejeitar_orcamento()
+
+    for os in (aprovada, rejeitada):
+        assert (os.historico[-1].origem, os.historico[-1].usuario_id) == (
+            OrigemTransicao.CLIENTE,
+            None,
+        )
+
+
+def test_decisao_registrada_no_balcao_grava_o_funcionario():
+    aprovada = criar_os(status=StatusOS.AGUARDANDO_APROVACAO)
+    rejeitada = criar_os(status=StatusOS.AGUARDANDO_APROVACAO)
+
+    aprovada.aprovar_orcamento(USUARIO_ID)
+    rejeitada.rejeitar_orcamento(USUARIO_ID)
+
+    assert aprovada.status is StatusOS.AGUARDANDO_EXECUCAO
+    assert rejeitada.status is StatusOS.CANCELADA
+    for os in (aprovada, rejeitada):
+        assert (os.historico[-1].origem, os.historico[-1].usuario_id) == (
+            OrigemTransicao.USUARIO,
+            USUARIO_ID,
+        )
+
+
+def test_rejeicao_no_balcao_emite_o_cancelamento_para_o_estorno():
+    os = criar_os(status=StatusOS.AGUARDANDO_APROVACAO)
+
+    os.rejeitar_orcamento(USUARIO_ID)
+
+    assert [type(evento) for evento in os.collect_domain_events()] == [OSCanceladaEvent]
+
+
+@pytest.mark.parametrize("decidir", ["aprovar_orcamento", "rejeitar_orcamento"])
+def test_decisao_no_balcao_recusa_usuario_que_nao_e_uuid(decidir):
+    os = criar_os(status=StatusOS.AGUARDANDO_APROVACAO)
+
+    with pytest.raises(OrdemServicoInvalida):
+        getattr(os, decidir)("atendente")
+
+    assert os.status is StatusOS.AGUARDANDO_APROVACAO
+
+
 @pytest.mark.parametrize("status", fora_de(StatusOS.AGUARDANDO_APROVACAO))
 def test_rejeitar_orcamento_so_a_partir_de_aguardando_aprovacao(status):
     os = criar_os(status=status)

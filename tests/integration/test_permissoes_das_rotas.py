@@ -58,6 +58,8 @@ ROTAS: list[tuple[str, str, frozenset[PerfilUsuario]]] = [
     ("POST", "/ordens-servico/{id}/pecas", frozenset({MECANICO, GERENTE})),
     ("DELETE", "/ordens-servico/{id}/pecas/{peca_id}", frozenset({MECANICO, GERENTE})),
     ("POST", "/ordens-servico/{id}/orcamento", frozenset({MECANICO, GERENTE})),
+    ("POST", "/ordens-servico/{id}/orcamento/aprovacao", frozenset({ATENDENTE, GERENTE})),
+    ("POST", "/ordens-servico/{id}/orcamento/rejeicao", frozenset({ATENDENTE, GERENTE})),
     ("POST", "/ordens-servico/{id}/cancelamento", frozenset({GERENTE})),
     ("POST", "/ordens-servico/{id}/execucao", frozenset({MECANICO, GERENTE})),
     ("POST", "/ordens-servico/{id}/conclusao", frozenset({MECANICO, GERENTE})),

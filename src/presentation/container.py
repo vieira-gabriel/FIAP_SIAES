@@ -15,6 +15,7 @@ from application.ports.verificador_do_banco import VerificadorDoBanco
 from application.use_cases.ajustar_quantidade_fisica_da_peca import AjustarQuantidadeFisicaDaPeca
 from application.use_cases.alterar_senha_do_usuario import AlterarSenhaDoUsuario
 from application.use_cases.aprovar_orcamento import AprovarOrcamento
+from application.use_cases.aprovar_orcamento_no_balcao import AprovarOrcamentoNoBalcao
 from application.use_cases.atribuir_mecanico import AtribuirMecanico
 from application.use_cases.atualizar_cliente import AtualizarCliente
 from application.use_cases.atualizar_peca import AtualizarPeca
@@ -58,6 +59,7 @@ from application.use_cases.listar_veiculos import ListarVeiculos
 from application.use_cases.localizar_os_do_titular import LocalizarOSDoTitular
 from application.use_cases.reativar_usuario import ReativarUsuario
 from application.use_cases.rejeitar_orcamento import RejeitarOrcamento
+from application.use_cases.rejeitar_orcamento_no_balcao import RejeitarOrcamentoNoBalcao
 from application.use_cases.remover_peca_da_os import RemoverPecaDaOS
 from application.use_cases.remover_servico_da_os import RemoverServicoDaOS
 from application.use_cases.repor_peca import ReporPeca
@@ -365,6 +367,17 @@ obter_concluir_manutencao = _por_requisicao(
 )
 obter_entregar_veiculo = _por_requisicao(
     lambda sessao, _: EntregarVeiculo(PostgresOrdemServicoRepository(sessao))
+)
+obter_aprovar_orcamento_no_balcao = _por_requisicao(
+    lambda sessao, _: AprovarOrcamentoNoBalcao(PostgresOrdemServicoRepository(sessao))
+)
+obter_rejeitar_orcamento_no_balcao = _por_requisicao(
+    lambda sessao, estado: com_repeticao_em_impasse(
+        RejeitarOrcamentoNoBalcao(
+            PostgresOrdemServicoRepository(sessao), _eventos_da_requisicao(sessao, estado)
+        ),
+        sessao,
+    )
 )
 obter_detalhar_ordem_servico = _por_requisicao(
     lambda sessao, _: DetalharOrdemServico(

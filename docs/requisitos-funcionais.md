@@ -292,14 +292,15 @@ O sistema deve disponibilizar um endpoint público (sem exigência de JWT) permi
 
 ##### **RF-26** - Aprovação ou Rejeição de Orçamento pelo Cliente
 ###### Descrição do Domínio
-O sistema deve permitir que o cliente aprove ou rejeite o orçamento exibido no portal público de acompanhamento, identificando-se da mesma forma que no RF-25.
+O sistema deve permitir que o cliente aprove ou rejeite o orçamento exibido no portal público de acompanhamento, identificando-se da mesma forma que no RF-25. Quando o cliente decide pessoalmente na oficina, o Atendente ou o Gerente registra a decisão dele no balcão.
 ###### Perfis de Acesso
-`Cliente` (Acesso Público)
+`Cliente` (Acesso Público); `Atendente` e `Gerente`, no registro da decisão dada no balcão
 ###### Critério de Aceite / Validação
 * Permitir a aprovação ou a rejeição apenas quando a OS estiver em `AGUARDANDO_APROVACAO`.
 * Se aprovado sem peças pendentes: transicionar o status para `AGUARDANDO_EXECUCAO`.
 * Se aprovado com peças pendentes: transicionar o status para `AGUARDANDO_PECA`; a OS segue para `AGUARDANDO_EXECUCAO` quando as peças forem repostas (RF-19).
 * Se rejeitado: transicionar o status para `CANCELADA` e acionar o estorno automático das reservas (RF-18).
+* Pelo portal, o histórico (RF-24) grava a origem `CLIENTE`, sem usuário; no balcão, grava a origem `USUARIO` com o funcionário que registrou a decisão.
 
 ---
 

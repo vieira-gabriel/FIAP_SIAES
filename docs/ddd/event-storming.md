@@ -183,6 +183,7 @@ Os nomes do board diferem dos termos da Linguagem Ubíqua em alguns pontos. No c
 | Atribuição do mecânico no início da execução | O evento "Serviço iniciado" dispara a política "Atribui mecânico à OS", que gera "Mecânico atribuído" | RF-16 atribui o mecânico no início do diagnóstico, e RF-20 permite iniciar a execução apenas ao mecânico atribuído ou ao Gerente | Os requisitos prevalecem |
 | Gerente na abertura e no diagnóstico | "Abrir OS" tem só o Atendente e "Inicia diagnóstico" tem só o Mecânico | RF-13 e RF-16 incluem o Gerente | Os requisitos prevalecem |
 | Agregado de estoque | O agregado `EstoquePeca` aparece só na área "Ciclo de vida da OS aprovada"; nas áreas "Criação de ordem de serviço" e "Peças", a reserva e a atualização de saldo não indicam o agregado | A Linguagem Ubíqua (§1) define o agregado `EstoquePeca` | A Linguagem Ubíqua prevalece |
+| Decisão do orçamento no balcão | "Aprova / reprova OS" tem só o Cliente | RF-26 permite que o Atendente ou o Gerente registre a decisão que o cliente deu pessoalmente na oficina, com origem `USUARIO` no histórico (RF-24) | Os requisitos prevalecem |
 | "Atualizar status da OS" | Comando sem política de permissão | RF-16 a RF-22 definem quem faz cada transição; não há alteração arbitrária de status (RF-23) | A máquina de estados da Linguagem Ubíqua (§5) prevalece |
 
 ## 7. Catálogo de Eventos de Domínio

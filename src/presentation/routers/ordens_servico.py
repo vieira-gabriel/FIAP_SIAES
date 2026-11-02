@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 
 from application.ports.token_service import UsuarioAutenticado
+from application.use_cases.aprovar_orcamento_no_balcao import AprovarOrcamentoNoBalcao
 from application.use_cases.atribuir_mecanico import AtribuirMecanico
 from application.use_cases.cancelar_os import CancelarOS
 from application.use_cases.concluir_manutencao import ConcluirManutencao
@@ -20,6 +21,7 @@ from application.use_cases.incluir_peca_na_os import IncluirPecaNaOS
 from application.use_cases.incluir_servico_na_os import IncluirServicoNaOS
 from application.use_cases.iniciar_execucao import IniciarExecucao
 from application.use_cases.listar_ordens_servico import CriteriosDaListagem, ListarOrdensServico
+from application.use_cases.rejeitar_orcamento_no_balcao import RejeitarOrcamentoNoBalcao
 from application.use_cases.remover_peca_da_os import RemoverPecaDaOS
 from application.use_cases.remover_servico_da_os import RemoverServicoDaOS
 from domain.value_objects.documento import Documento
@@ -27,6 +29,7 @@ from domain.value_objects.perfil_usuario import PerfilUsuario
 from domain.value_objects.placa import Placa
 from domain.value_objects.status_os import StatusOS
 from presentation.container import (
+    obter_aprovar_orcamento_no_balcao,
     obter_atribuir_mecanico,
     obter_cancelar_os,
     obter_concluir_manutencao,
@@ -38,6 +41,7 @@ from presentation.container import (
     obter_incluir_servico_na_os,
     obter_iniciar_execucao,
     obter_listar_ordens_servico,
+    obter_rejeitar_orcamento_no_balcao,
     obter_remover_peca_da_os,
     obter_remover_servico_da_os,
 )
@@ -78,6 +82,8 @@ _EXECUCAO = exigir_perfis(PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
 _CONCLUSAO = exigir_perfis(PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
 # RF-22: a entrega é da equipe de atendimento; o Mecânico não pode.
 _ENTREGA = exigir_perfis(PerfilUsuario.ATENDENTE, PerfilUsuario.GERENTE)
+# RF-26: a decisão que o cliente dá no balcão é registrada pela equipe de atendimento.
+_BALCAO = exigir_perfis(PerfilUsuario.ATENDENTE, PerfilUsuario.GERENTE)
 # RF-14, RF-15: a consulta é de todos os perfis.
 _CONSULTA = exigir_perfis(PerfilUsuario.ATENDENTE, PerfilUsuario.MECANICO, PerfilUsuario.GERENTE)
 
@@ -431,3 +437,38 @@ async def entregar_veiculo(
     """A OS passa de `FINALIZADA` para `ENTREGUE`, estado final, só para Atendente e Gerente
     (RF-22)."""
     return OSItensResponse.de_entidade(await entregar.executar(id, usuario.usuario_id))
+
+
+_DECISAO_RECUSADA = {
+    status.HTTP_404_NOT_FOUND: {"model": ErroResponse, "description": "OS não encontrada."},
+    status.HTTP_422_UNPROCESSABLE_CONTENT: {
+        "model": ErroResponse,
+        "description": "A OS não está em `AGUARDANDO_APROVACAO`.",
+    },
+}
+
+
+@router.post("/{id}/orcamento/aprovacao", responses=_DECISAO_RECUSADA)
+async def aprovar_orcamento_no_balcao(
+    id: UUID,
+    usuario: Annotated[UsuarioAutenticado, Depends(_BALCAO)],
+    aprovar: Annotated[
+        AprovarOrcamentoNoBalcao, Depends(obter_aprovar_orcamento_no_balcao, scope="function")
+    ],
+) -> OSItensResponse:
+    """Registra a aprovação que o cliente deu no balcão, com o funcionário no histórico: a OS vai
+    a `AGUARDANDO_EXECUCAO`, ou a `AGUARDANDO_PECA` com peça pendente (RF-26)."""
+    return OSItensResponse.de_entidade(await aprovar.executar(id, usuario.usuario_id))
+
+
+@router.post("/{id}/orcamento/rejeicao", responses=_DECISAO_RECUSADA)
+async def rejeitar_orcamento_no_balcao(
+    id: UUID,
+    usuario: Annotated[UsuarioAutenticado, Depends(_BALCAO)],
+    rejeitar: Annotated[
+        RejeitarOrcamentoNoBalcao, Depends(obter_rejeitar_orcamento_no_balcao, scope="function")
+    ],
+) -> OSItensResponse:
+    """Registra a rejeição que o cliente deu no balcão: a OS é cancelada e as peças reservadas
+    voltam ao estoque (RF-26, RF-18)."""
+    return OSItensResponse.de_entidade(await rejeitar.executar(id, usuario.usuario_id))

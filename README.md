@@ -93,9 +93,13 @@ A arquitetura está documentada nos quatro níveis do [modelo C4](docs/ddd/c4-mo
 │   ├── evidencias/           Cobertura de testes e teste de desempenho
 │   └── security/             Análise de vulnerabilidades e revisão de segredos
 ├── .github/workflows/        Pipeline de CI
+├── .env.example              Variáveis de ambiente, sem valores reais
 ├── Dockerfile                Imagem multi-stage da aplicação
 ├── docker-compose.yml        Serviços app e db
-└── pyproject.toml            Dependências (uv) e configuração do pytest e do Ruff
+├── docker-compose.testes.yml Publicação do banco em 127.0.0.1 para os testes de integração
+├── alembic.ini               Configuração do Alembic
+├── pyproject.toml            Dependências (uv) e configuração do pytest e do Ruff
+└── uv.lock                   Versões travadas das dependências
 ```
 
 O motivo de cada pasta e a regra de dependência entre as camadas estão no [guia de desenvolvimento](docs/guia-de-desenvolvimento.md) e em [`docs/estrutura-de-pastas.md`](docs/estrutura-de-pastas.md).

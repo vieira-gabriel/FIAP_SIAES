@@ -45,8 +45,8 @@ O sistema deve permitir que o Gerente cadastre, consulte, atualize e desative ac
 * Apenas o perfil Gerente pode criar novas contas de funcionários e definir seus perfis (`role`).
 * Armazenar senhas exclusivamente na forma de hash criptográfico (bcrypt).
 * Executar a criação automatizada do usuário Gerente padrão via *seed data* no banco de dados na subida do container, com a senha lida da variável de ambiente `ADMIN_PASSWORD`. A aplicação não deve iniciar se a variável estiver ausente; nenhuma senha tem valor fixo no repositório (RNF-06).
-* Quando a variável `SEED_DEMO` for `true`, criar também os usuários de demonstração `atendente@oficina.com` (Atendente) e `mecanico@oficina.com` (Mecânico), com senhas lidas das variáveis `DEMO_ATENDENTE_PASSWORD` e `DEMO_MECANICO_PASSWORD`.
-* A carga inicial não deve duplicar usuários já existentes quando o container for reiniciado.
+* Quando a variável `SEED_DEMO` for `true`, criar também os usuários de demonstração `atendente@oficina.com` (Atendente) e `mecanico@oficina.com` (Mecânico), com senhas lidas das variáveis `DEMO_ATENDENTE_PASSWORD` e `DEMO_MECANICO_PASSWORD`, e os dados de demonstração: 5 serviços, 3 peças com estoque, 5 clientes com um veículo cada e ao menos uma OS em cada status, com datas passadas. Serviço e peça já cadastrados com o mesmo código são mantidos, e as OS só são criadas se o banco não tiver nenhuma.
+* A carga inicial não deve duplicar usuários nem dados de demonstração já existentes quando o container for reiniciado.
 
 ---
 

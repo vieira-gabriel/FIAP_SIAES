@@ -26,10 +26,10 @@ class _UsuarioDaCargaInicial:
 _GERENTE_PADRAO = _UsuarioDaCargaInicial(
     "Administrador", "admin@oficina.com", PerfilUsuario.GERENTE
 )
-_ATENDENTE_DE_DEMONSTRACAO = _UsuarioDaCargaInicial(
+ATENDENTE_DE_DEMONSTRACAO = _UsuarioDaCargaInicial(
     "Atendente de Demonstração", "atendente@oficina.com", PerfilUsuario.ATENDENTE
 )
-_MECANICO_DE_DEMONSTRACAO = _UsuarioDaCargaInicial(
+MECANICO_DE_DEMONSTRACAO = _UsuarioDaCargaInicial(
     "Mecânico de Demonstração", "mecanico@oficina.com", PerfilUsuario.MECANICO
 )
 
@@ -48,9 +48,9 @@ class CriarCargaInicial:
     async def executar(self, senhas: SenhasDaCargaInicial) -> None:
         await self._criar_se_ausente(_GERENTE_PADRAO, senhas.gerente)
         if senhas.atendente is not None:
-            await self._criar_se_ausente(_ATENDENTE_DE_DEMONSTRACAO, senhas.atendente)
+            await self._criar_se_ausente(ATENDENTE_DE_DEMONSTRACAO, senhas.atendente)
         if senhas.mecanico is not None:
-            await self._criar_se_ausente(_MECANICO_DE_DEMONSTRACAO, senhas.mecanico)
+            await self._criar_se_ausente(MECANICO_DE_DEMONSTRACAO, senhas.mecanico)
 
     async def _criar_se_ausente(self, dados: _UsuarioDaCargaInicial, senha: str) -> None:
         if await self._usuarios.buscar_por_email(dados.email) is not None:

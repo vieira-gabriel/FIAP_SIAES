@@ -118,12 +118,16 @@ def fabrica_de_sessoes(conexao: AsyncConnection) -> async_sessionmaker[AsyncSess
 @pytest.fixture
 async def cliente_http(
     fabrica_de_sessoes: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncIterator[AsyncClient]:
     """Cliente da aplicação real, com o ciclo de vida executado no mesmo loop do teste.
 
     A fábrica de sessões do container é trocada pela do teste, para as rotas gravarem dentro da
     transação que é desfeita no final.
     """
+    # A carga inicial do ciclo de vida grava fora da transação do teste; com o `SEED_DEMO=true`
+    # de um `.env` local, os dados de demonstração ficariam no banco e colidiriam com os testes.
+    monkeypatch.setenv("SEED_DEMO", "false")
     async with app.router.lifespan_context(app):
         app.state.fabrica_de_sessoes = fabrica_de_sessoes
         transporte = ASGITransport(app=app)

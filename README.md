@@ -138,7 +138,7 @@ As demais variáveis já vêm com valores que funcionam no Docker Compose.
 docker compose up --build
 ```
 
-Na subida, o container `app` aplica as migrations do banco e cria o Gerente padrão (e os usuários de demonstração, com `SEED_DEMO=true`). A aplicação está pronta quando os dois serviços aparecem como `healthy` em `docker compose ps` e o `http://localhost:8000/health` responde `{"status": "online", "banco": "disponivel", ...}`.
+Na subida, o container `app` aplica as migrations do banco e cria o Gerente padrão (e os usuários e os dados de demonstração, com `SEED_DEMO=true`). A aplicação está pronta quando os dois serviços aparecem como `healthy` em `docker compose ps` e o `http://localhost:8000/health` responde `{"status": "online", "banco": "disponivel", ...}`.
 
 **Para parar:**
 
@@ -188,6 +188,17 @@ A carga inicial (RF-03) sempre cria o Gerente padrão. Com `SEED_DEMO=true` no `
 | `mecanico@oficina.com` | Mecânico | Valor de `DEMO_MECANICO_PASSWORD` | `SEED_DEMO=true` |
 
 As senhas não têm valor fixo no repositório: cada uma vem do `.env` (RNF-06). Um usuário que já existe não é recriado nem tem a senha trocada quando o container reinicia; para mudar a senha depois da primeira subida, use as rotas de gestão de usuários com o Gerente ou recomece o banco com `docker compose down -v`.
+
+Com `SEED_DEMO=true`, a carga inicial também preenche o banco para a demonstração:
+
+| Dado | O que é criado |
+| :--- | :--- |
+| Serviços | 5 serviços, de troca de óleo a troca de amortecedores |
+| Peças | Filtro de óleo (15 unidades), pastilha de freio (6) e amortecedor dianteiro (sem saldo, para a OS que o pede esperar a reposição) |
+| Clientes e veículos | 4 pessoas físicas e 1 pessoa jurídica, cada uma com um veículo |
+| Ordens de serviço | 10 OS, ao menos uma em cada status, com datas e histórico dos últimos 40 dias, para o quadro e o relatório de tempos médios terem o que mostrar |
+
+As reservas das peças seguem o estoque. Serviço e peça já cadastrados com o mesmo código são mantidos, e as OS só são criadas se o banco não tiver nenhuma; para recriá-las, recomece o banco com `docker compose down -v`.
 
 ## Testes
 

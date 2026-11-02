@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator, Callable
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +33,7 @@ from application.use_cases.cancelar_os import CancelarOS
 from application.use_cases.concluir_manutencao import ConcluirManutencao
 from application.use_cases.consultar_os_publica import ConsultarOSPublica
 from application.use_cases.criar_carga_inicial import CriarCargaInicial, SenhasDaCargaInicial
+from application.use_cases.criar_dados_de_demonstracao import CriarDadosDeDemonstracao
 from application.use_cases.criar_os import CriarOS
 from application.use_cases.desativar_usuario import DesativarUsuario
 from application.use_cases.detalhar_cliente import DetalharCliente
@@ -113,6 +115,7 @@ def montar_dependencias(app: FastAPI) -> None:
     app.state.password_hasher = BcryptPasswordHasher()
     app.state.verificador_do_banco = VerificadorDoBancoSqlAlchemy(engine)
     app.state.senhas_da_carga_inicial = _senhas_da_carga_inicial(configuracao)
+    app.state.seed_demo = configuracao.seed_demo
     app.state.fabricas_de_handlers = _fabricas_de_handlers()
     configurar_limite_publico(configuracao.rate_limit_publico)
 
@@ -124,6 +127,18 @@ async def executar_carga_inicial(app: FastAPI) -> None:
             PostgresUsuarioRepository(unidade.sessao), app.state.password_hasher
         )
         await carga_inicial.executar(app.state.senhas_da_carga_inicial)
+        if app.state.seed_demo:
+            sessao = unidade.sessao
+            dados_de_demonstracao = CriarDadosDeDemonstracao(
+                PostgresUsuarioRepository(sessao),
+                PostgresServicoRepository(sessao),
+                PostgresPecaRepository(sessao),
+                PostgresEstoqueRepository(sessao),
+                PostgresClienteRepository(sessao),
+                PostgresVeiculoRepository(sessao),
+                PostgresOrdemServicoRepository(sessao),
+            )
+            await dados_de_demonstracao.executar(datetime.now(UTC))
 
 
 async def encerrar_dependencias(app: FastAPI) -> None:

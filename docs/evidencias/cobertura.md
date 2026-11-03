@@ -12,7 +12,7 @@ Medição feita em 03/11/2026 sobre o commit `f76907d` (`main` no `f8edaf1` mais
 | `src/application` | 66 | 1178 | 0 | **100%** |
 | **Total** | 109 | 2388 | 0 | **100%** |
 
-1871 testes passando (1248 unitários e 623 de integração), com a meta de 80% atingida (`--cov-fail-under=80`). O relatório completo, arquivo por arquivo, está em [cobertura.txt](cobertura.txt).
+1872 testes passando (1249 unitários e 623 de integração), com a meta de 80% atingida (`--cov-fail-under=80`). O relatório completo, arquivo por arquivo, está em [cobertura.txt](cobertura.txt).
 
 ## Como reproduzir
 

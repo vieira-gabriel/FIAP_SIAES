@@ -206,7 +206,9 @@ class CriarDadosDeDemonstracao:
     gravam sempre o instante atual e o histórico gravado não pode ser alterado (RF-24). As
     reservas seguem o RF-18: a OS que espera aprovação, peça ou execução reserva o saldo pela
     ordem de abertura, e a OS que já iniciou a execução teve a baixa feita antes, fora do saldo
-    atual. Serviço e peça já cadastrados com o mesmo código são reaproveitados, e as OS só são
+    atual. Serviço e peça já cadastrados com o mesmo código são reaproveitados, assim como o
+    cliente com o mesmo documento e o veículo dele com a mesma placa; a OS de um veículo cuja
+    placa pertence a outro cliente não é criada. As OS só são
     criadas se o banco não tiver nenhuma, para a reinicialização não duplicar nem desfazer nada.
     """
 
@@ -241,6 +243,8 @@ class CriarDadosDeDemonstracao:
             codigo: await self._estoques.buscar_por_peca(peca.id) for codigo, peca in pecas.items()
         }
         for dados in _ORDENS:
+            if dados.veiculo not in veiculos:
+                continue
             cliente, veiculo = veiculos[dados.veiculo]
             itens_de_servico = [
                 ItemServico.a_partir_de(servicos[codigo]) for codigo in dados.servicos
@@ -287,15 +291,16 @@ class CriarDadosDeDemonstracao:
         )
         return peca
 
-    async def _veiculos_cadastrados(self) -> list[tuple[Cliente, Veiculo]]:
+    async def _veiculos_cadastrados(self) -> dict[int, tuple[Cliente, Veiculo]]:
+        """Fica de fora o veículo cuja placa já está cadastrada para outro cliente, para nenhuma
+        OS juntar o cliente da demonstração ao veículo de outra pessoa."""
         clientes = [await self._cliente_cadastrado(dados) for dados in _CLIENTES]
-        return [
-            (
-                clientes[dados.cliente],
-                await self._veiculo_cadastrado(clientes[dados.cliente], dados),
-            )
-            for dados in _VEICULOS
-        ]
+        veiculos = {}
+        for indice, dados in enumerate(_VEICULOS):
+            cliente = clientes[dados.cliente]
+            if veiculo := await self._veiculo_cadastrado(cliente, dados):
+                veiculos[indice] = (cliente, veiculo)
+        return veiculos
 
     async def _cliente_cadastrado(self, dados: _ClienteDeDemonstracao) -> Cliente:
         documento = Documento.de_texto(dados.documento)
@@ -307,10 +312,12 @@ class CriarDadosDeDemonstracao:
         await self._clientes.salvar(cliente)
         return cliente
 
-    async def _veiculo_cadastrado(self, cliente: Cliente, dados: _VeiculoDeDemonstracao) -> Veiculo:
+    async def _veiculo_cadastrado(
+        self, cliente: Cliente, dados: _VeiculoDeDemonstracao
+    ) -> Veiculo | None:
         placa = Placa(dados.placa)
         if veiculo := await self._veiculos.buscar_por_placa(placa):
-            return veiculo
+            return veiculo if veiculo.cliente_id == cliente.id else None
         veiculo = Veiculo(
             cliente_id=cliente.id,
             placa=placa,

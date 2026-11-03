@@ -210,3 +210,26 @@ async def test_veiculo_com_a_mesma_placa_e_reaproveitado(demonstracao, clientes,
     assert len(veiculos.dados) == 5
     assert veiculos.dados[existente.id].modelo == "Uno"
     assert existente.id in {os.veiculo_id for os in ordens.dados.values()}
+
+
+async def test_veiculo_com_a_placa_de_outro_cliente_fica_sem_os(
+    demonstracao, clientes, veiculos, ordens
+):
+    outro = Cliente(
+        nome="Pedro de Fora",
+        documento=Documento.de_texto("123.456.789-09"),
+        email="pedro@fora.com",
+        telefone="11900000001",
+    )
+    await clientes.salvar(outro)
+    do_outro = Veiculo(
+        cliente_id=outro.id, placa=Placa("ABC1D23"), marca="Fiat", modelo="Uno", ano=2010
+    )
+    await veiculos.salvar(do_outro)
+
+    await demonstracao.executar(MOMENTO)
+
+    assert do_outro.id not in {os.veiculo_id for os in ordens.dados.values()}
+    assert len(ordens.dados) == 8
+    for os in ordens.dados.values():
+        assert veiculos.dados[os.veiculo_id].cliente_id == os.cliente_id

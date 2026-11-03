@@ -4,13 +4,18 @@ import pytest
 
 from application.use_cases.criar_carga_inicial import CriarCargaInicial, SenhasDaCargaInicial
 from application.use_cases.criar_dados_de_demonstracao import CriarDadosDeDemonstracao
+from domain.entities.cliente import Cliente
 from domain.entities.ordem_servico import OrdemServico
 from domain.entities.servico import Servico
+from domain.entities.veiculo import Veiculo
+from domain.value_objects.documento import Documento
 from domain.value_objects.origem_transicao import OrigemTransicao
+from domain.value_objects.placa import Placa
 from domain.value_objects.status_os import StatusOS
 from domain.value_objects.valor import Valor
 
 MOMENTO = datetime(2026, 11, 2, 12, 0, tzinfo=UTC)
+_DOCUMENTO_DA_ANA = "529.982.247-25"
 _RESERVAM_SALDO = {
     StatusOS.AGUARDANDO_APROVACAO,
     StatusOS.AGUARDANDO_PECA,
@@ -26,6 +31,17 @@ async def demonstracao(
         SenhasDaCargaInicial(gerente="senha-admin", atendente="senha-at", mecanico="senha-mec")
     )
     return CriarDadosDeDemonstracao(usuarios, servicos, pecas, estoques, clientes, veiculos, ordens)
+
+
+async def _cliente_cadastrado(clientes, nome: str, documento: str) -> Cliente:
+    cliente = Cliente(
+        nome=nome,
+        documento=Documento.de_texto(documento),
+        email="cliente@casa.com",
+        telefone="11900000000",
+    )
+    await clientes.salvar(cliente)
+    return cliente
 
 
 def _por_status(ordens) -> dict[StatusOS, list[OrdemServico]]:
@@ -169,3 +185,44 @@ async def test_servico_com_o_mesmo_codigo_e_reaproveitado(demonstracao, servicos
     assert servicos.dados[existente.id].valor_base == Valor("99.00")
     nomes = {item.nome for os in ordens.dados.values() for item in os.servicos}
     assert "Óleo da casa" in nomes
+
+
+async def test_cliente_com_o_mesmo_documento_e_reaproveitado(demonstracao, clientes, ordens):
+    existente = await _cliente_cadastrado(clientes, "Ana da Casa", _DOCUMENTO_DA_ANA)
+
+    await demonstracao.executar(MOMENTO)
+
+    assert len(clientes.dados) == 5
+    assert clientes.dados[existente.id].nome == "Ana da Casa"
+    assert existente.id in {os.cliente_id for os in ordens.dados.values()}
+
+
+async def test_veiculo_com_a_mesma_placa_e_reaproveitado(demonstracao, clientes, veiculos, ordens):
+    dono = await _cliente_cadastrado(clientes, "Ana da Casa", _DOCUMENTO_DA_ANA)
+    existente = Veiculo(
+        cliente_id=dono.id, placa=Placa("ABC1D23"), marca="Fiat", modelo="Uno", ano=2010
+    )
+    await veiculos.salvar(existente)
+
+    await demonstracao.executar(MOMENTO)
+
+    assert len(veiculos.dados) == 5
+    assert veiculos.dados[existente.id].modelo == "Uno"
+    assert existente.id in {os.veiculo_id for os in ordens.dados.values()}
+
+
+async def test_veiculo_com_a_placa_de_outro_cliente_fica_sem_os(
+    demonstracao, clientes, veiculos, ordens
+):
+    outro = await _cliente_cadastrado(clientes, "Pedro de Fora", "123.456.789-09")
+    do_outro = Veiculo(
+        cliente_id=outro.id, placa=Placa("ABC1D23"), marca="Fiat", modelo="Uno", ano=2010
+    )
+    await veiculos.salvar(do_outro)
+
+    await demonstracao.executar(MOMENTO)
+
+    assert do_outro.id not in {os.veiculo_id for os in ordens.dados.values()}
+    assert len(ordens.dados) == 8
+    for os in ordens.dados.values():
+        assert veiculos.dados[os.veiculo_id].cliente_id == os.cliente_id

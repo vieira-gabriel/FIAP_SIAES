@@ -17,6 +17,7 @@ src/application/use_cases/__init__.py                                0      0   
 src/application/use_cases/ajustar_quantidade_fisica_da_peca.py      18      0   100%
 src/application/use_cases/alterar_senha_do_usuario.py               11      0   100%
 src/application/use_cases/aprovar_orcamento.py                      13      0   100%
+src/application/use_cases/aprovar_orcamento_no_balcao.py            14      0   100%
 src/application/use_cases/atribuir_mecanico.py                      20      0   100%
 src/application/use_cases/atualizar_cliente.py                      13      0   100%
 src/application/use_cases/atualizar_peca.py                         17      0   100%
@@ -33,6 +34,7 @@ src/application/use_cases/cancelar_os.py                            17      0   
 src/application/use_cases/concluir_manutencao.py                    17      0   100%
 src/application/use_cases/consultar_os_publica.py                   14      0   100%
 src/application/use_cases/criar_carga_inicial.py                    32      0   100%
+src/application/use_cases/criar_dados_de_demonstracao.py           179      0   100%
 src/application/use_cases/criar_os.py                               64      0   100%
 src/application/use_cases/desativar_usuario.py                       9      0   100%
 src/application/use_cases/detalhar_cliente.py                        8      0   100%
@@ -47,6 +49,7 @@ src/application/use_cases/excluir_peca.py                           15      0   
 src/application/use_cases/excluir_servico.py                         9      0   100%
 src/application/use_cases/excluir_veiculo.py                         9      0   100%
 src/application/use_cases/finalizar_orcamento.py                    27      0   100%
+src/application/use_cases/gerar_relatorio_de_tempos.py              56      0   100%
 src/application/use_cases/incluir_peca_na_os.py                     19      0   100%
 src/application/use_cases/incluir_servico_na_os.py                  19      0   100%
 src/application/use_cases/iniciar_execucao.py                       20      0   100%
@@ -59,21 +62,22 @@ src/application/use_cases/listar_veiculos.py                         8      0   
 src/application/use_cases/localizar_os_do_titular.py                25      0   100%
 src/application/use_cases/reativar_usuario.py                        9      0   100%
 src/application/use_cases/rejeitar_orcamento.py                     16      0   100%
+src/application/use_cases/rejeitar_orcamento_no_balcao.py           17      0   100%
 src/application/use_cases/remover_peca_da_os.py                     14      0   100%
 src/application/use_cases/remover_servico_da_os.py                  14      0   100%
 src/application/use_cases/repor_peca.py                             18      0   100%
 src/domain/__init__.py                                               0      0   100%
 src/domain/entities/__init__.py                                      0      0   100%
-src/domain/entities/cliente.py                                      35      0   100%
+src/domain/entities/cliente.py                                      37      0   100%
 src/domain/entities/estoque_peca.py                                 82      0   100%
 src/domain/entities/historico_status_os.py                          37      0   100%
 src/domain/entities/item_peca.py                                    50      0   100%
 src/domain/entities/item_servico.py                                 24      0   100%
-src/domain/entities/ordem_servico.py                               257      0   100%
-src/domain/entities/peca.py                                         40      0   100%
-src/domain/entities/servico.py                                      39      0   100%
-src/domain/entities/usuario.py                                      52      0   100%
-src/domain/entities/veiculo.py                                      42      0   100%
+src/domain/entities/ordem_servico.py                               272      0   100%
+src/domain/entities/peca.py                                         42      0   100%
+src/domain/entities/servico.py                                      41      0   100%
+src/domain/entities/usuario.py                                      54      0   100%
+src/domain/entities/veiculo.py                                      44      0   100%
 src/domain/events/__init__.py                                        0      0   100%
 src/domain/events/domain_event.py                                    7      0   100%
 src/domain/events/execucao_iniciada_event.py                         8      0   100%
@@ -84,7 +88,7 @@ src/domain/exceptions.py                                           144      0   
 src/domain/repositories/__init__.py                                  0      0   100%
 src/domain/repositories/cliente_repository.py                       19      0   100%
 src/domain/repositories/estoque_repository.py                        9      0   100%
-src/domain/repositories/ordem_servico_repository.py                 12      0   100%
+src/domain/repositories/ordem_servico_repository.py                 15      0   100%
 src/domain/repositories/peca_repository.py                          18      0   100%
 src/domain/repositories/servico_repository.py                       18      0   100%
 src/domain/repositories/usuario_repository.py                       16      0   100%
@@ -103,7 +107,8 @@ src/domain/value_objects/perfil_usuario.py                           5      0   
 src/domain/value_objects/placa.py                                   19      0   100%
 src/domain/value_objects/quantidade_peca.py                         12      0   100%
 src/domain/value_objects/status_os.py                               11      0   100%
+src/domain/value_objects/texto_livre.py                              6      0   100%
 src/domain/value_objects/valor.py                                   33      0   100%
 ----------------------------------------------------------------------------------------------
-TOTAL                                                             2095      0   100%
+TOTAL                                                             2395      0   100%
 Required test coverage of 80% reached. Total coverage: 100.00%

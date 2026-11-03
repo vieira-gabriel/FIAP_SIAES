@@ -24,6 +24,15 @@ async def test_paginas_sao_publicas_e_em_html(cliente_http, caminho):
     assert '<script type="module"' in resposta.text
 
 
+@pytest.mark.parametrize("caminho", PAGINAS)
+async def test_paginas_declaram_icone_vazio_para_o_navegador_nao_pedir_o_favicon(
+    cliente_http, caminho
+):
+    resposta = await cliente_http.get(caminho)
+
+    assert '<link rel="icon" href="data:," />' in resposta.text
+
+
 @pytest.mark.parametrize("caminho", PAGINAS + ARQUIVOS_DAS_PAGINAS)
 async def test_paginas_e_arquivos_levam_os_cabecalhos_de_seguranca(cliente_http, caminho):
     resposta = await cliente_http.get(caminho)

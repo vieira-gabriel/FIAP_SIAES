@@ -4,15 +4,15 @@ A cobertura dos módulos críticos precisa ser de pelo menos **80%** em `src/dom
 
 ## Resultado
 
-Medição feita sobre o commit `cccdc6d` (`main`, merge do PR #160), com PostgreSQL 16 no ar:
+Medição feita em 03/11/2026 sobre o commit `a5ca784` (`main` no `f8edaf1` mais o PR desta atualização), com PostgreSQL 16 no ar:
 
 | Pasta | Arquivos | Instruções | Não cobertas | Cobertura |
 | :--- | ---: | ---: | ---: | ---: |
-| `src/domain` | 42 | 1176 | 0 | **100%** |
-| `src/application` | 62 | 919 | 0 | **100%** |
-| **Total** | 104 | 2095 | 0 | **100%** |
+| `src/domain` | 43 | 1210 | 0 | **100%** |
+| `src/application` | 66 | 1185 | 0 | **100%** |
+| **Total** | 109 | 2395 | 0 | **100%** |
 
-1724 testes passando (unitários e de integração), com a meta de 80% atingida (`--cov-fail-under=80`). O relatório completo, arquivo por arquivo, está em [cobertura.txt](cobertura.txt).
+1872 testes passando (1249 unitários e 623 de integração), com a meta de 80% atingida (`--cov-fail-under=80`). O relatório completo, arquivo por arquivo, está em [cobertura.txt](cobertura.txt).
 
 ## Como reproduzir
 

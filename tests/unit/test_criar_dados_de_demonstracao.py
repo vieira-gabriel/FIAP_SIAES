@@ -4,9 +4,13 @@ import pytest
 
 from application.use_cases.criar_carga_inicial import CriarCargaInicial, SenhasDaCargaInicial
 from application.use_cases.criar_dados_de_demonstracao import CriarDadosDeDemonstracao
+from domain.entities.cliente import Cliente
 from domain.entities.ordem_servico import OrdemServico
 from domain.entities.servico import Servico
+from domain.entities.veiculo import Veiculo
+from domain.value_objects.documento import Documento
 from domain.value_objects.origem_transicao import OrigemTransicao
+from domain.value_objects.placa import Placa
 from domain.value_objects.status_os import StatusOS
 from domain.value_objects.valor import Valor
 
@@ -169,3 +173,40 @@ async def test_servico_com_o_mesmo_codigo_e_reaproveitado(demonstracao, servicos
     assert servicos.dados[existente.id].valor_base == Valor("99.00")
     nomes = {item.nome for os in ordens.dados.values() for item in os.servicos}
     assert "Óleo da casa" in nomes
+
+
+async def test_cliente_com_o_mesmo_documento_e_reaproveitado(demonstracao, clientes, ordens):
+    existente = Cliente(
+        nome="Ana da Casa",
+        documento=Documento.de_texto("529.982.247-25"),
+        email="ana@casa.com",
+        telefone="11900000000",
+    )
+    await clientes.salvar(existente)
+
+    await demonstracao.executar(MOMENTO)
+
+    assert len(clientes.dados) == 5
+    assert clientes.dados[existente.id].nome == "Ana da Casa"
+    nomes = {os.cliente_id for os in ordens.dados.values()}
+    assert existente.id in nomes
+
+
+async def test_veiculo_com_a_mesma_placa_e_reaproveitado(demonstracao, clientes, veiculos, ordens):
+    dono = Cliente(
+        nome="Ana da Casa",
+        documento=Documento.de_texto("529.982.247-25"),
+        email="ana@casa.com",
+        telefone="11900000000",
+    )
+    await clientes.salvar(dono)
+    existente = Veiculo(
+        cliente_id=dono.id, placa=Placa("ABC1D23"), marca="Fiat", modelo="Uno", ano=2010
+    )
+    await veiculos.salvar(existente)
+
+    await demonstracao.executar(MOMENTO)
+
+    assert len(veiculos.dados) == 5
+    assert veiculos.dados[existente.id].modelo == "Uno"
+    assert existente.id in {os.veiculo_id for os in ordens.dados.values()}

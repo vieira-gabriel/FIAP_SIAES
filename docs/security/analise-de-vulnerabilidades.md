@@ -2,18 +2,18 @@
 
 Análise das dependências, do código-fonte e da imagem Docker exigida pelo RNF-07, com as ferramentas decididas na issue #5 (issue #111).
 
-> Análise refeita em 31/10/2026 sobre o commit `cccdc6d` da `main` (merge do PR #160), com a imagem reconstruída com `docker build --pull`. A primeira análise, de 28/10/2026 (commit `a4f2f03`), levou ao ajuste do Dockerfile descrito na seção 4.1. **Na entrega, a análise deve ser refeita sobre o commit final**, com os comandos da seção 5, e este relatório atualizado.
+> Análise refeita em 03/11/2026: pip-audit e Bandit sobre o commit `f8edaf1` da `main` (merge do PR #172) e o Trivy sobre a imagem reconstruída do commit `f76907d` (a `main` mais o PR desta atualização, que não muda dependências nem o `Dockerfile`). A primeira análise, de 28/10/2026 (commit `a4f2f03`), levou ao ajuste do Dockerfile descrito na seção 4.1. **Na entrega, a análise deve ser refeita sobre o commit final**, com os comandos da seção 5, e este relatório atualizado.
 
 ## 1. Resultado
 
 | Ferramenta | Versão | Alvo | Crítico | Alto | Médio | Baixo |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
 | pip-audit | 2.10.1 | 34 dependências de produção (do `uv.lock`, com hashes) e o ambiente completo | 0 | 0 | 0 | 0 |
-| Bandit | 1.9.4 | `src/` e `migrations/` (6.356 linhas), em todos os níveis de severidade e confiança | 0 | 0 | 0 | 0 |
-| Trivy (`image`) | 0.57.1 | Imagem da aplicação (`python:3.12-slim`, Debian 13.7) | 0 | 44 | 60 | 61 |
+| Bandit | 1.9.4 | `src/` e `migrations/` (7.203 linhas), em todos os níveis de severidade e confiança | 0 | 0 | 0 | 0 |
+| Trivy (`image`) | 0.57.1 | Imagem da aplicação (`python:3.12-slim`, Debian 13.7) | 0 | 45 | 72 | 61 |
 | Trivy (`config`) | 0.57.1 | `Dockerfile` | 0 | 0 | 0 | 1 |
 
-**Nenhum achado crítico.** Os achados altos e médios da imagem estão todos em pacotes do sistema operacional da imagem base, **sem correção publicada pelo Debian**, e têm a justificativa da seção 4.2. O achado baixo do `Dockerfile` está justificado na seção 4.3. Além disso, há 1 achado de severidade desconhecida (`UNKNOWN`) na imagem, também sem correção.
+**Nenhum achado crítico.** Os achados altos e médios da imagem estão todos em pacotes do sistema operacional da imagem base, **sem correção publicada pelo Debian**, e têm a justificativa da seção 4.2. O achado baixo do `Dockerfile` está justificado na seção 4.3. Além disso, há 7 achados de severidade desconhecida (`UNKNOWN`) na imagem, também sem correção.
 
 ## 2. Dependências: pip-audit
 
@@ -37,19 +37,20 @@ A aplicação roda pelo `.venv` criado no estágio de build, que não tem `pip`;
 
 ### 4.2. Justificado: pacotes do sistema operacional
 
-Os 166 achados restantes estão em pacotes do Debian 13.7 da imagem base. **Nenhum tem versão corrigida publicada** (164 com status `affected` e 2 com `fix_deferred`), então não há atualização a aplicar.
+Os 185 achados restantes estão em pacotes do Debian 13.7 da imagem base. **Nenhum tem versão corrigida publicada** (183 com status `affected` e 2 com `fix_deferred`), então não há atualização a aplicar.
 
-Os 44 achados altos correspondem a **8 CVEs** distintos, repetidos nos vários pacotes que vêm do mesmo código-fonte:
+Os 45 achados altos correspondem a **9 CVEs** distintos, repetidos nos vários pacotes que vêm do mesmo código-fonte:
 
 | CVE | Origem | Pacotes afetados | Do que se trata | Por que não afeta a aplicação |
 | :--- | :--- | :---: | :--- | :--- |
 | CVE-2026-76642, CVE-2026-78408, CVE-2026-78409, CVE-2026-78410 | util-linux | 9 | Escalada de privilégio pelos comandos `mount` e `nsenter` | A aplicação não executa `mount` nem `nsenter`, e o container roda com usuário sem privilégio (UID 10001), sem capacidade de montar sistemas de arquivos |
 | CVE-2026-54369 | acl | 1 | Escalada de privilégio por symlink nas funções da libacl | A aplicação não manipula ACLs de arquivos, e o código em `/app` pertence ao root, somente leitura para o usuário da aplicação |
+| CVE-2026-119373 | sqlite | 1 | Negação de serviço por estouro de buffer no módulo FTS5 do SQLite (busca de texto completo) | A aplicação usa PostgreSQL e não abre bancos SQLite; a biblioteca `libsqlite3-0` vem na imagem base e a aplicação não a usa |
 | CVE-2025-69720 | ncurses | 4 | Estouro de buffer ao processar dados de terminal | A aplicação é uma API HTTP sem terminal interativo e não usa ncurses |
 | CVE-2026-16742 | systemd | 2 | Escalada de privilégio no `systemd-homed` | O container não executa systemd; só as bibliotecas `libsystemd0` e `libudev1` estão na imagem |
 | CVE-2026-9538 | perl (Archive::Tar) | 1 | Negação de serviço com arquivo tar malformado | A aplicação não usa Perl nem extrai arquivos tar; o Debian adiou a correção (`fix_deferred`) |
 
-Os 60 achados médios, os 61 baixos e o 1 de severidade desconhecida estão nos mesmos grupos de pacotes de base (`libc6`, `libsystemd0`, `tar`, `coreutils`, `libsqlite3-0`, `passwd`, `perl-base` e outros), todos sem correção publicada, e seguem a mesma justificativa: são utilitários do sistema que a aplicação não executa.
+Os 72 achados médios, os 61 baixos e os 7 de severidade desconhecida estão nos mesmos grupos de pacotes de base (`libc6`, `libsystemd0`, `tar`, `coreutils`, `libsqlite3-0`, `passwd`, `perl-base` e outros), todos sem correção publicada, e seguem a mesma justificativa: são utilitários do sistema que a aplicação não executa.
 
 Medidas que reduzem a superfície de ataque da imagem:
 
@@ -59,7 +60,7 @@ Medidas que reduzem a superfície de ataque da imagem:
 - `pip` removido da imagem final (seção 4.1);
 - `.env` e segredos fora da imagem (`.dockerignore`) e lidos do ambiente (RNF-06).
 
-**Acompanhamento:** a reanálise de 31/10/2026 manteve os mesmos 8 CVEs altos, sem correção publicada, e acrescentou 2 achados médios na imagem base. Na reconstrução para a entrega, a imagem base `python:3.12-slim` traz as correções que o Debian tiver publicado até lá, e a nova varredura atualiza esta seção.
+**Acompanhamento:** a reanálise de 31/10/2026 manteve os mesmos 8 CVEs altos, sem correção publicada, e acrescentou 2 achados médios na imagem base. A de 03/11/2026 encontrou 1 CVE alto novo (CVE-2026-119373, no `libsqlite3-0`), 12 médios e 6 de severidade desconhecida a mais, todos em pacotes do Debian 13.7, também sem correção publicada. Na reconstrução para a entrega, a imagem base `python:3.12-slim` traz as correções que o Debian tiver publicado até lá, e a nova varredura atualiza esta seção.
 
 ### 4.3. Justificado: configuração do `Dockerfile`
 

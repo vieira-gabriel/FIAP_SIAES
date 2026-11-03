@@ -326,7 +326,7 @@ set -a; . ./.env; set +a
 uv run locust -f tests/desempenho/locustfile.py --headless --host http://localhost:8000 --users 10 --spawn-rate 5 --run-time 60s
 ```
 
-O comando sai com código 1 se o p95 passar de 500 ms ou houver erro. O cenário, o resultado (p95 de 58 ms) e o relatório do Locust estão em [`docs/evidencias/desempenho.md`](docs/evidencias/desempenho.md).
+O comando sai com código 1 se o p95 passar de 500 ms ou houver erro. O cenário, o resultado (p95 de 62 ms) e o relatório do Locust estão em [`docs/evidencias/desempenho.md`](docs/evidencias/desempenho.md).
 
 ## Documentação
 

@@ -29,18 +29,18 @@ As rotas públicas de acompanhamento ficam **fora do cenário**: o limite de 10 
 
 ## Resultado
 
-Medição sobre a aplicação do commit `cccdc6d` (`main`, merge do PR #160), em 31/10/2026:
+Medição sobre a aplicação do commit `f76907d` (`main` no `f8edaf1` mais o PR desta atualização), em 03/11/2026, com os dados de demonstração (`SEED_DEMO=true`):
 
 | Métrica | Valor |
 | :--- | ---: |
-| Requisições | 575 (9,7 por segundo) |
+| Requisições | 582 (9,6 por segundo) |
 | Erros | 0 |
-| Mediana | 34 ms |
-| **p95** | **58 ms** |
+| Mediana | 20 ms |
+| **p95** | **62 ms** |
 | p99 | 210 ms |
-| Máximo | 240 ms (um login, que calcula o bcrypt) |
+| Máximo | 227 ms (um login, que calcula o bcrypt) |
 
-A rota mais lenta é a listagem de OS (p95 de 64 ms). O relatório completo está em [desempenho/relatorio-locust.html](desempenho/relatorio-locust.html). O p95 ficou 8 vezes abaixo do limite.
+A rota mais lenta é a listagem de OS (p95 de 82 ms). O relatório completo está em [desempenho/relatorio-locust.html](desempenho/relatorio-locust.html). O p95 ficou 8 vezes abaixo do limite.
 
 ## Limitação
 

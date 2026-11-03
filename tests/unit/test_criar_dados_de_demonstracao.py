@@ -15,6 +15,7 @@ from domain.value_objects.status_os import StatusOS
 from domain.value_objects.valor import Valor
 
 MOMENTO = datetime(2026, 11, 2, 12, 0, tzinfo=UTC)
+_DOCUMENTO_DA_ANA = "529.982.247-25"
 _RESERVAM_SALDO = {
     StatusOS.AGUARDANDO_APROVACAO,
     StatusOS.AGUARDANDO_PECA,
@@ -30,6 +31,17 @@ async def demonstracao(
         SenhasDaCargaInicial(gerente="senha-admin", atendente="senha-at", mecanico="senha-mec")
     )
     return CriarDadosDeDemonstracao(usuarios, servicos, pecas, estoques, clientes, veiculos, ordens)
+
+
+async def _cliente_cadastrado(clientes, nome: str, documento: str) -> Cliente:
+    cliente = Cliente(
+        nome=nome,
+        documento=Documento.de_texto(documento),
+        email="cliente@casa.com",
+        telefone="11900000000",
+    )
+    await clientes.salvar(cliente)
+    return cliente
 
 
 def _por_status(ordens) -> dict[StatusOS, list[OrdemServico]]:
@@ -176,30 +188,17 @@ async def test_servico_com_o_mesmo_codigo_e_reaproveitado(demonstracao, servicos
 
 
 async def test_cliente_com_o_mesmo_documento_e_reaproveitado(demonstracao, clientes, ordens):
-    existente = Cliente(
-        nome="Ana da Casa",
-        documento=Documento.de_texto("529.982.247-25"),
-        email="ana@casa.com",
-        telefone="11900000000",
-    )
-    await clientes.salvar(existente)
+    existente = await _cliente_cadastrado(clientes, "Ana da Casa", _DOCUMENTO_DA_ANA)
 
     await demonstracao.executar(MOMENTO)
 
     assert len(clientes.dados) == 5
     assert clientes.dados[existente.id].nome == "Ana da Casa"
-    nomes = {os.cliente_id for os in ordens.dados.values()}
-    assert existente.id in nomes
+    assert existente.id in {os.cliente_id for os in ordens.dados.values()}
 
 
 async def test_veiculo_com_a_mesma_placa_e_reaproveitado(demonstracao, clientes, veiculos, ordens):
-    dono = Cliente(
-        nome="Ana da Casa",
-        documento=Documento.de_texto("529.982.247-25"),
-        email="ana@casa.com",
-        telefone="11900000000",
-    )
-    await clientes.salvar(dono)
+    dono = await _cliente_cadastrado(clientes, "Ana da Casa", _DOCUMENTO_DA_ANA)
     existente = Veiculo(
         cliente_id=dono.id, placa=Placa("ABC1D23"), marca="Fiat", modelo="Uno", ano=2010
     )
@@ -215,13 +214,7 @@ async def test_veiculo_com_a_mesma_placa_e_reaproveitado(demonstracao, clientes,
 async def test_veiculo_com_a_placa_de_outro_cliente_fica_sem_os(
     demonstracao, clientes, veiculos, ordens
 ):
-    outro = Cliente(
-        nome="Pedro de Fora",
-        documento=Documento.de_texto("123.456.789-09"),
-        email="pedro@fora.com",
-        telefone="11900000001",
-    )
-    await clientes.salvar(outro)
+    outro = await _cliente_cadastrado(clientes, "Pedro de Fora", "123.456.789-09")
     do_outro = Veiculo(
         cliente_id=outro.id, placa=Placa("ABC1D23"), marca="Fiat", modelo="Uno", ano=2010
     )

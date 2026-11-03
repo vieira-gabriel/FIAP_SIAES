@@ -34,7 +34,7 @@ src/application/use_cases/cancelar_os.py                            17      0   
 src/application/use_cases/concluir_manutencao.py                    17      0   100%
 src/application/use_cases/consultar_os_publica.py                   14      0   100%
 src/application/use_cases/criar_carga_inicial.py                    32      0   100%
-src/application/use_cases/criar_dados_de_demonstracao.py           172      0   100%
+src/application/use_cases/criar_dados_de_demonstracao.py           179      0   100%
 src/application/use_cases/criar_os.py                               64      0   100%
 src/application/use_cases/desativar_usuario.py                       9      0   100%
 src/application/use_cases/detalhar_cliente.py                        8      0   100%
@@ -110,5 +110,5 @@ src/domain/value_objects/status_os.py                               11      0   
 src/domain/value_objects/texto_livre.py                              6      0   100%
 src/domain/value_objects/valor.py                                   33      0   100%
 ----------------------------------------------------------------------------------------------
-TOTAL                                                             2388      0   100%
+TOTAL                                                             2395      0   100%
 Required test coverage of 80% reached. Total coverage: 100.00%

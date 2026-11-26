@@ -1,6 +1,6 @@
 # Roadmap de Desenvolvimento - MVP SIAES
 
-Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atendimento e Execução de Serviços (SIAES)** em fases, da fundação do projeto até a entrega final do Tech Challenge da Fase 1. Cada tarefa referencia os requisitos de [requisitos-funcionais.md](docs/requisitos-funcionais.md) (RF) e [requisitos-nao-funcionais.md](docs/requisitos-nao-funcionais.md) (RNF), o [modelo C4](docs/ddd/c4-model.md) e os itens exigidos pelo enunciado. Para saber onde e como implementar cada tarefa, siga o [guia de desenvolvimento](docs/guia-de-desenvolvimento.md).
+Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atendimento e Execução de Serviços (SIAES)** em fases, da fundação do projeto até a entrega final do Tech Challenge da Fase 1. Cada tarefa referencia os requisitos de [requisitos-funcionais.md](../requisitos-funcionais.md) (RF) e [requisitos-nao-funcionais.md](../requisitos-nao-funcionais.md) (RNF), o [modelo C4](../ddd/c4-model.md) e os itens exigidos pelo enunciado. Para saber onde e como implementar cada tarefa, siga o [guia de desenvolvimento](../guia-de-desenvolvimento.md).
 
 **Como usar:** marque a tarefa como concluída (`[x]`) no mesmo Pull Request que a entrega. A ordem das fases segue as dependências técnicas; fases sem dependência entre si podem andar em paralelo.
 
@@ -16,7 +16,7 @@ Este documento organiza o desenvolvimento do MVP do **Sistema Integrado de Atend
 | Linguagem ubíqua | Atualizada com os 9 status, a tabela de transições e os termos de estoque; os nomes ainda divergem do modelo C4 em alguns pontos (Fase 1) |
 | Modelo C4 | Documentado nos 4 níveis; camada de entrada renomeada para `src/presentation/`; estrutura de pastas da seção 6 aprovada pelo grupo (issue #9) |
 | Guia de desenvolvimento e estrutura de pastas | Atualizados para a numeração atual dos requisitos, com as decisões técnicas da seção 8 |
-| Event Storming | PDF reexportado com os fluxos de peça pendente e de cancelamento; link do board registrado em [docs/ddd/event-storming.md](docs/ddd/event-storming.md) |
+| Event Storming | PDF reexportado com os fluxos de peça pendente e de cancelamento; link do board registrado em [docs/ddd/event-storming.md](../ddd/event-storming.md) |
 | Código (`src/`) e testes | Domínio implementado: objetos de valor, `Cliente`, `Veiculo`, `Usuario`, `Servico`, `Peca`, `OrdemServico` (itens, orçamento, máquina de estados, histórico e estimativa de entrega) e `EstoquePeca` (reserva, baixa, estorno e alocação por prioridade), com os quatro eventos de domínio acumulados por eles e as sete portas de repositório (cliente, veículo, usuário, serviço, peça, estoque e OS). Aplicação com o Event Dispatcher e os casos de uso de login, de carga inicial e dos cadastros de usuários (issue #81), clientes (issue #82), veículos (issue #83), serviços (issue #84) e peças com o saldo do estoque (issue #85). Infraestrutura com configuração, engine, unidade de trabalho, seis migrations (`usuarios`, `clientes`, `servicos`, `veiculos`, `pecas` e `estoque_pecas`) e a persistência desses cadastros. Apresentação com `/health`, login, validação de token com checagem de perfil (RBAC), rotas `/usuarios`, `/clientes`, `/veiculos`, `/servicos` e `/pecas`, as rotas de OS (abertura, detalhamento, listagem, atribuição do mecânico, itens e conclusão do orçamento) e tratamento padronizado de erros. 1872 testes passando (1249 unitários e 623 de integração), com 100% de cobertura em `domain/` e `application/` |
 | Configuração do repositório | `.gitignore`, `.env.example`, `pyproject.toml` (com o uv fixado em 0.8.22) e `uv.lock` criados. A proteção da `main` no GitHub ainda não está configurada (API: `protected: false`, sem ruleset) |
 | CI | `.github/workflows/ci.yml` em cada PR e em cada push na `main`: lint, testes com PostgreSQL, cobertura mínima de 80%, Bandit, pip-audit e `docker build` (issue #29) |
@@ -69,7 +69,7 @@ A branch `docs/fechamento-fase-0` entrou na `main` pelo PR #20, junto com o heal
 
 ### Decisões Técnicas
 
-As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/guia-de-desenvolvimento.md), com os custos das opções em aberto.
+As decisões estão registradas na seção 8 do [guia de desenvolvimento](../guia-de-desenvolvimento.md), com os custos das opções em aberto.
 
 | Decisão | Definição | Onde está registrada |
 | :--- | :--- | :--- |
@@ -96,7 +96,7 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 
 ### Decisões de Domínio
 
-- [x] Transições de status e responsáveis por cada uma ([linguagem-ubiqua.md](docs/ddd/linguagem-ubiqua.md) seção 5)
+- [x] Transições de status e responsáveis por cada uma ([linguagem-ubiqua.md](../ddd/linguagem-ubiqua.md) seção 5)
 - [x] Identificação do cliente na consulta pública: número da OS + CPF/CNPJ (RF-25)
 - [x] Aprovação e rejeição do orçamento pelo cliente em rota pública (RF-26)
 - [x] Perfis de acesso com RBAC: Atendente, Mecânico e Gerente (RF-02)
@@ -175,12 +175,12 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 - [x] Fluxo de peça pendente, reposição de estoque e cancelamento pelo Gerente no board
 - [x] Event Storming da gestão administrativa (área "Gestão administrativa"): CRUD de serviços, peças, clientes, veículos e OSs com validação de perfil
 - [x] Confirmar que a área "Gestão administrativa" cobre a gestão de peças e insumos, exigida explicitamente pelo enunciado
-- [x] Reexportar [event-storming.pdf](docs/ddd/event-storming.pdf) com o texto dos post-its legível com zoom de 100%
-- [x] Garantir acesso público ao board (Miro ou equivalente), sem necessidade de pedir permissão, e registrar o link no repositório ([docs/ddd/event-storming.md](docs/ddd/event-storming.md))
-- [x] Transcrever em texto os eventos de domínio, comandos, políticas e atores levantados, para referência no código e na linguagem ubíqua ([docs/ddd/event-storming.md](docs/ddd/event-storming.md))
-- [x] Completar o board com o estorno no cancelamento, a aprovação do orçamento em uma única área e um título que identifique o projeto (seção 6 de [docs/ddd/event-storming.md](docs/ddd/event-storming.md)); a aprovação em uma única área e o título foram descartados pelo grupo (motivo nos comentários da issue #49)
+- [x] Reexportar [event-storming.pdf](../ddd/event-storming.pdf) com o texto dos post-its legível com zoom de 100%
+- [x] Garantir acesso público ao board (Miro ou equivalente), sem necessidade de pedir permissão, e registrar o link no repositório ([docs/ddd/event-storming.md](../ddd/event-storming.md))
+- [x] Transcrever em texto os eventos de domínio, comandos, políticas e atores levantados, para referência no código e na linguagem ubíqua ([docs/ddd/event-storming.md](../ddd/event-storming.md))
+- [x] Completar o board com o estorno no cancelamento, a aprovação do orçamento em uma única área e um título que identifique o projeto (seção 6 de [docs/ddd/event-storming.md](../ddd/event-storming.md)); a aprovação em uma única área e o título foram descartados pelo grupo (motivo nos comentários da issue #49)
 
-**Lacunas do quadro atual do Event Storming** (levantadas em 15/10/2026 com base nas imagens exportadas do Miro; a seção 6 de [docs/ddd/event-storming.md](docs/ddd/event-storming.md) registra como cada divergência é tratada):
+**Lacunas do quadro atual do Event Storming** (levantadas em 15/10/2026 com base nas imagens exportadas do Miro; a seção 6 de [docs/ddd/event-storming.md](../ddd/event-storming.md) registra como cada divergência é tratada):
 
 - [ ] Modelar as etapas finais da OS, hoje reduzidas ao comando genérico "Atualizar status da OS": execução iniciada, manutenção concluída (mecânico) e veículo entregue (atendente), com os timestamps usados no tempo médio de execução. Execução iniciada e manutenção concluída entram na área "Ciclo de vida da OS aprovada" (issue #19); falta o veículo entregue
 - [ ] Modelar a baixa do estoque no início da execução e o estorno no cancelamento; a reserva após o orçamento gerado e o estorno na reprovação já constam no board. O estorno no cancelamento entrou com a issue #49, e a baixa entra na área "Ciclo de vida da OS aprovada" (issue #19)
@@ -193,16 +193,16 @@ As decisões estão registradas na seção 8 do [guia de desenvolvimento](docs/g
 ### Consistência entre Documentos
 
 - [x] Padronizar os objetos de valor de documento: `CPF` e `CNPJ` em classes separadas (`cpf.py` e `cnpj.py`), como na linguagem ubíqua; modelo C4 e estrutura de pastas atualizados (issue #14)
-- [x] Incluir na linguagem ubíqua os termos ainda ausentes do modelo C4: `Usuario`, `PerfilUsuario`, `ItemServico`, `ItemPeca` e eventos de domínio ([docs/ddd/linguagem-ubiqua.md](docs/ddd/linguagem-ubiqua.md), seções 1, 2 e 7)
-- [x] Usar o objeto de valor `Valor` (precisão decimal) nos preços do diagrama de classes, que hoje aparecem como `float` (seção 5 de [docs/ddd/c4-model.md](docs/ddd/c4-model.md))
-- [x] Completar o diagrama de classes com `Servico` (tempo estimado), `Peca`/`EstoquePeca` (quantidade reservada e prazo de reposição), `Orcamento` e `HistoricoStatusOS`, e esclarecer se `Peca` e `EstoquePeca` são a mesma entidade (são entidades separadas, na relação 1:1; decisão registrada na seção 5 de [docs/ddd/c4-model.md](docs/ddd/c4-model.md))
-- [x] Listar todos os eventos de domínio; o modelo C4 cita `OrcamentoAprovadoEvent`, `ExecucaoIniciadaEvent` e `StatusOSAlteradoEvent`, mas reserva, estorno, reposição de estoque e liberação de OS também dependem de eventos (seção 7 de [docs/ddd/event-storming.md](docs/ddd/event-storming.md); `OrcamentoAprovadoEvent` e `StatusOSAlteradoEvent` deixaram de ser classes porque nenhum outro agregado os consome)
+- [x] Incluir na linguagem ubíqua os termos ainda ausentes do modelo C4: `Usuario`, `PerfilUsuario`, `ItemServico`, `ItemPeca` e eventos de domínio ([docs/ddd/linguagem-ubiqua.md](../ddd/linguagem-ubiqua.md), seções 1, 2 e 7)
+- [x] Usar o objeto de valor `Valor` (precisão decimal) nos preços do diagrama de classes, que hoje aparecem como `float` (seção 5 de [docs/ddd/c4-model.md](../ddd/c4-model.md))
+- [x] Completar o diagrama de classes com `Servico` (tempo estimado), `Peca`/`EstoquePeca` (quantidade reservada e prazo de reposição), `Orcamento` e `HistoricoStatusOS`, e esclarecer se `Peca` e `EstoquePeca` são a mesma entidade (são entidades separadas, na relação 1:1; decisão registrada na seção 5 de [docs/ddd/c4-model.md](../ddd/c4-model.md))
+- [x] Listar todos os eventos de domínio; o modelo C4 cita `OrcamentoAprovadoEvent`, `ExecucaoIniciadaEvent` e `StatusOSAlteradoEvent`, mas reserva, estorno, reposição de estoque e liberação de OS também dependem de eventos (seção 7 de [docs/ddd/event-storming.md](../ddd/event-storming.md); `OrcamentoAprovadoEvent` e `StatusOSAlteradoEvent` deixaram de ser classes porque nenhum outro agregado os consome)
 
 ### Diagramas
 
 - [x] Modelo C4 nos níveis de contexto, contêineres, componentes e código
 - [x] Bounded contexts e máquina de estados descritos na linguagem ubíqua
-- [x] Conferir no material da disciplina de DDD quais diagramas são obrigatórios e produzir os que faltarem: os professores confirmaram que são o Event Storming ([docs/ddd/event-storming.md](docs/ddd/event-storming.md)) e o modelo C4 ([docs/ddd/c4-model.md](docs/ddd/c4-model.md)), e nenhum faltava
+- [x] Conferir no material da disciplina de DDD quais diagramas são obrigatórios e produzir os que faltarem: os professores confirmaram que são o Event Storming ([docs/ddd/event-storming.md](../ddd/event-storming.md)) e o modelo C4 ([docs/ddd/c4-model.md](../ddd/c4-model.md)), e nenhum faltava
 - [ ] ~~Exportar os diagramas para `docs/ddd/diagramas.pdf`, estrutura sugerida pelo enunciado~~ **Descartado**: os diagramas exigidos são só o Event Storming e o C4, que já têm documento próprio (motivo nos comentários da issue #19)
 - [ ] Completar o Event Storming com o ciclo de vida da OS da aprovação até a finalização (área "Ciclo de vida da OS aprovada", issue #19)
 
@@ -276,7 +276,7 @@ Tarefas da fase:
 
 **Objetivo:** disponibilizar o acesso autenticado com controle por perfil e os cadastros que alimentam a Ordem de Serviço.
 
-**Ponto de partida:** a autenticação já está implementada, distribuída pelas camadas conforme a seção 5 de [estrutura-de-pastas.md](docs/estrutura-de-pastas.md) (portas `TokenService` e `PasswordHasher`, caso de uso `autenticar_usuario.py`, adaptadores de JWT e bcrypt e `presentation/middlewares/dependencies.py`).
+**Ponto de partida:** a autenticação já está implementada, distribuída pelas camadas conforme a seção 5 de [estrutura-de-pastas.md](../estrutura-de-pastas.md) (portas `TokenService` e `PasswordHasher`, caso de uso `autenticar_usuario.py`, adaptadores de JWT e bcrypt e `presentation/middlewares/dependencies.py`).
 
 - [x] Login com e-mail e senha, emitindo JWT com a claim `role` e expiração de 24 horas (RF-01)
 - [x] Guard de RBAC retornando `401` sem token válido e `403` sem permissão (RF-02, RNF-03): `obter_usuario_autenticado` e `exigir_perfis` em `presentation/middlewares/dependencies.py`
@@ -360,7 +360,7 @@ Tarefas da fase:
 
 - [x] Objetivo do projeto
 - [x] Descrição resumida da solução
-- [x] Arquitetura utilizada (pode referenciar o [modelo C4](docs/ddd/c4-model.md))
+- [x] Arquitetura utilizada (pode referenciar o [modelo C4](../ddd/c4-model.md))
 - [x] Tecnologias utilizadas
 - [x] Pré-requisitos
 - [x] Instruções para execução, incluindo a cópia do `.env.example` para `.env` e o preenchimento das variáveis obrigatórias

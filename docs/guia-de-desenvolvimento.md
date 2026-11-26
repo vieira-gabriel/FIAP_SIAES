@@ -10,12 +10,13 @@ Antes de implementar, consulte os documentos abaixo. Em caso de conflito entre o
 
 | Documento | O que define |
 | :--- | :--- |
-| `docs/requisitos-funcionais.md` | O que o sistema deve fazer (RF-01 a RF-27). |
-| `docs/requisitos-nao-funcionais.md` | Arquitetura, segurança, banco, Docker e testes (RNF-01 a RNF-16). |
+| `docs/requisitos-funcionais.md` | O que o sistema deve fazer (RF-01 a RF-29). |
+| `docs/requisitos-nao-funcionais.md` | Arquitetura, segurança, banco, Docker, Kubernetes, Terraform, CI/CD e testes (RNF-01 a RNF-19). |
 | `docs/ddd/linguagem-ubiqua.md` | Nomes oficiais do domínio, máquina de estados da OS e o mapeamento entre conceitos e código. |
 | `docs/estrutura-de-pastas.md` | Por que a estrutura de pastas é como é, incluindo a autenticação JWT. |
 | `docs/guia-de-desenvolvimento.md` | Este guia: como implementar cada coisa. |
 | `docs/CHANGELOG.md` | Motivo de cada alteração estrutural ou arquitetural da documentação. |
+| `docs/adr/` | Decisões de arquitetura e alterações de decisões já documentadas, com as alternativas descartadas (ADR 0001). |
 
 ---
 
@@ -130,6 +131,8 @@ Toda dependência externa segue o mesmo padrão:
 | Relatório de segurança | `docs/security/` | — | relatório da análise de vulnerabilidades (RNF-07) |
 | Evidência de qualidade | `docs/evidencias/` | assunto medido | `cobertura.md` e `cobertura.txt` (RNF-14), relatório do teste de desempenho (RNF-10) |
 | Workflow de CI | `.github/workflows/` (raiz do projeto) | nome do pipeline | `ci.yml` |
+| Registro de decisão de arquitetura (ADR) | `docs/adr/` | `NNNN-titulo-em-kebab-case.md` | `0002-clean-architecture-leve.md` |
+| Planejamento e acompanhamento de uma fase do Tech Challenge | `docs/fase<N>/` | assunto do documento | `fase1/roadmap.md`, `fase2/BLUEPRINT-FASE-2.md` |
 
 Se algo não se encaixa em nenhuma linha desta tabela, **não crie uma pasta nova por conta própria**: discuta com o grupo e, se aprovado, atualize esta tabela e `docs/estrutura-de-pastas.md` no mesmo PR.
 
@@ -505,3 +508,4 @@ Se você é um assistente de IA trabalhando neste repositório, siga estas regra
 7. **Escreva testes** junto com o código, conforme a seção 5.7.
 8. **Nunca coloque segredos no código** (seção 6).
 9. **Ao terminar**, informe quais requisitos (RF/RNF) a mudança atende e se alguma decisão nova foi tomada.
+10. **Registre a decisão em ADR.** Decisão de arquitetura nova ou alteração de decisão, requisito ou estrutura já documentados gera um ADR em `docs/adr/` (ADR 0001 e `AGENTS.md`).

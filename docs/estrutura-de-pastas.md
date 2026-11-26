@@ -52,6 +52,9 @@ tests/
 ├── unit/
 └── integration/
 docs/
+├── adr/
+├── fase1/
+├── fase2/
 └── security/
 ```
 
@@ -86,6 +89,8 @@ A pasta `src/api/` foi removida, pois a RNF-01 nomeia a camada de entrada como `
 | `src/presentation/web/` | Interface web (POC da branch `feat/interface-web`, ainda sem aprovação do grupo): páginas estáticas da Frente da Loja (`oficina/`) e da Frente do Cliente (`cliente/`), com os módulos comuns em `comum/`. Fica em `presentation` porque é entrada do usuário e só fala com a API |
 | `docs/security/` | RNF-07 — relatório de análise de vulnerabilidades |
 | `docs/evidencias/` | RNF-14 e RNF-10 — evidências de cobertura de testes e de desempenho, para o README e o vídeo (issue #110) |
+| `docs/adr/` | ADR 0001 — registros de decisão de arquitetura no formato MADR, com o índice e o modelo em `docs/adr/README.md` |
+| `docs/fase1/` e `docs/fase2/` | Planejamento de cada fase do Tech Challenge: o roadmap da Fase 1, e o planejamento e o blueprint da Fase 2 |
 | `.github/workflows/` | Guia de desenvolvimento, seção 8.1 — CI no GitHub Actions (issue #29) |
 
 A porta do repositório no domínio é o que permite à camada `application` depender de uma abstração, e não da implementação em PostgreSQL, conforme exige a RNF-02.

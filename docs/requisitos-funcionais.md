@@ -2,7 +2,7 @@
 
 Este documento especifica todos os **Requisitos Funcionais (RF)** do MVP do sistema de gestão da oficina mecânica, estabelecendo as regras de negócio operacionais para as duas frentes do sistema: a **Frente da Loja** (acesso autenticado e controlado por perfis - RBAC) e a **Frente do Cliente** (acompanhamento público desautenticado e seguro).
 
-> Documento atualizado em 28/10/2026 - Versão 1.5
+> Documento atualizado em 25/11/2026 - Versão 1.6 (Fase 2: RF-13, RF-14 e RF-17 alterados; RF-28 e RF-29 novos)
 ---
 
 ## Matriz de Perfis e Permissões de Acesso (RBAC)
@@ -153,21 +153,31 @@ O enunciado define seis status (`RECEBIDA`, `EM_DIAGNOSTICO`, `AGUARDANDO_APROVA
 
 ##### **RF-13** - Abertura de Ordem de Serviço
 ###### Descrição do Domínio
-O sistema deve permitir a criação de uma nova Ordem de Serviço associando cliente e veículo cadastrados. A OS é criada com o status inicial `RECEBIDA`.
+O sistema deve permitir a criação de uma nova Ordem de Serviço associando cliente e veículo cadastrados e, opcionalmente, os serviços e as peças já identificados no atendimento. A OS é criada com o status inicial `RECEBIDA`.
+
+> Alterado na Fase 2. A abertura passa a aceitar serviços e peças, e a OS nasce em `RECEBIDA` com esses itens. Decisão em [ADR 0004](adr/0004-abertura-da-os-com-itens.md).
 ###### Perfis de Acesso
 `Atendente`, `Gerente`
 ###### Critério de Aceite / Validação
 * Gerar um identificador interno (UUID) e um número da OS para uso do cliente, gravar data/hora de abertura, o usuário que abriu a OS e definir o status inicial como `RECEBIDA`.
 * O número da OS é formado pelos 3 primeiros dígitos do CPF/CNPJ do cliente, um hífen e os 8 primeiros caracteres hexadecimais do UUID em maiúsculas (ex.: `123-7F3A9C2B`). Em caso de colisão com um número existente, gerar um novo UUID.
+* Aceitar, opcionalmente, a lista de serviços (pelo id) e a lista de peças (pelo id e pela quantidade), com as mesmas regras de inclusão do RF-17. A abertura não calcula o orçamento nem reserva peças.
+* Gravar cliente, veículo, OS e itens na mesma transação; qualquer falha desfaz a abertura inteira (RNF-08).
+* Devolver o identificador interno (UUID) e o número da OS.
 
 ##### **RF-14** - Listagem de Ordens de Serviço
 ###### Descrição do Domínio
-O sistema deve listar as Ordens de Serviço com filtros combináveis.
+O sistema deve listar as Ordens de Serviço em andamento, da mais prioritária para a menos prioritária, com filtros combináveis e paginação.
+
+> Alterado na Fase 2. A listagem passa a ordenar por prioridade de status, das mais antigas para as mais novas, a excluir as OS encerradas quando não há filtro de status e a paginar o resultado. Decisão em [ADR 0005](adr/0005-listagem-priorizada-e-paginada.md).
 ###### Perfis de Acesso
 `Atendente`, `Mecânico`, `Gerente` (todos os perfis veem todas as OS)
 ###### Critério de Aceite / Validação
 * Permitir filtrar por status, mecânico responsável, CPF/CNPJ do cliente ou placa do veículo e período de abertura (data inicial e data final).
 * Retornar, para cada OS, número, status, nome do cliente, placa, mecânico responsável, data de abertura e valor total do orçamento, quando houver.
+* Ordenar por prioridade de status: `EM_EXECUCAO`, `AGUARDANDO_EXECUCAO`, `AGUARDANDO_PECA`, `AGUARDANDO_APROVACAO`, `EM_DIAGNOSTICO` e `RECEBIDA`; dentro do mesmo status, da data de abertura mais antiga para a mais recente.
+* Sem o filtro de status, não listar as OS `FINALIZADA`, `ENTREGUE` e `CANCELADA`. Com o filtro de status informado, listar as OS daquele status, inclusive as encerradas.
+* Paginar o resultado por `limit` (padrão 50, máximo 200) e `offset`, informando o total de OS encontradas.
 
 ##### **RF-15** - Detalhamento de Ordem de Serviço
 ###### Descrição do Domínio
@@ -187,7 +197,7 @@ O sistema deve permitir que o mecânico assuma a OS, vinculando seu ID à Ordem 
 
 ##### **RF-17** - Inclusão de Itens e Congelamento de Valores no Orçamento
 ###### Descrição do Domínio
-O sistema deve permitir incluir serviços e peças na OS durante a fase de diagnóstico. Ao concluir o orçamento, o sistema busca os preços vigentes dos serviços e peças, o tempo estimado de cada serviço (RF-11) e o prazo de reposição de cada peça (RF-12), e congela esses valores na OS. Assim, reajustes futuros no catálogo não alteram o valor cotado nem a estimativa de entrega (RF-25).
+O sistema deve permitir incluir e remover serviços e peças na OS desde a abertura até o fim da fase de diagnóstico (status `RECEBIDA` e `EM_DIAGNOSTICO`). Ao concluir o orçamento, o sistema busca os preços vigentes dos serviços e peças, o tempo estimado de cada serviço (RF-11) e o prazo de reposição de cada peça (RF-12), e congela esses valores na OS. Assim, reajustes futuros no catálogo não alteram o valor cotado nem a estimativa de entrega (RF-25).
 ###### Perfis de Acesso
 `Mecânico`, `Gerente`
 ###### Critério de Aceite / Validação
@@ -195,6 +205,9 @@ O sistema deve permitir incluir serviços e peças na OS durante a fase de diagn
 * Não permitir o mesmo serviço nem a mesma peça duas vezes na OS, e exigir que a quantidade de cada peça seja um número inteiro maior que zero.
 * O cálculo do orçamento é a soma exata dos valores congelados dos serviços e peças incluídos.
 * Ao concluir o orçamento, a OS muda para `AGUARDANDO_APROVACAO` e a reserva de peças (RF-18) é executada na mesma transação.
+* A partir de `AGUARDANDO_APROVACAO`, os itens não podem ser incluídos nem removidos.
+
+> Alterado na Fase 2. A inclusão e a remoção de itens passam a valer também em `RECEBIDA`, para a abertura com itens (RF-13). Decisão em [ADR 0004](adr/0004-abertura-da-os-com-itens.md).
 
 ##### **RF-18** - Reserva de Peças, Pendência e Estorno Automático
 ###### Descrição do Domínio
@@ -315,3 +328,31 @@ O sistema deve calcular indicadores de tempo das Ordens de Serviço a partir dos
 * **Tempo médio de execução:** intervalo entre o início da execução (`EM_EXECUCAO`) e a finalização (`FINALIZADA`), agrupado por período e por mecânico responsável.
 * **Tempo médio de espera por peça:** intervalo entre a entrada e a saída de `AGUARDANDO_PECA`, agrupado por período.
 * **Tempo médio total da OS:** intervalo entre a abertura e a finalização (`FINALIZADA`), incluindo todas as esperas, agrupado por período.
+
+---
+
+## 8. Integrações e Notificações (Fase 2)
+
+##### **RF-28** - Decisão do Orçamento por Notificação Externa
+###### Descrição do Domínio
+O sistema deve receber, de um sistema externo autorizado, a notificação de que o cliente aprovou ou recusou o orçamento, e aplicar a mesma regra da aprovação e da rejeição pelo cliente (RF-26). Decisão em [ADR 0007](adr/0007-webhook-de-decisao-do-orcamento.md).
+###### Perfis de Acesso
+Sistema externo autenticado por chave de API (sem usuário do sistema).
+###### Critério de Aceite / Validação
+* Recusar a notificação sem a chave de API ou com a chave errada (`401`).
+* Identificar a OS pelo número; número inexistente responde `404`.
+* Aceitar a decisão `APROVADO` ou `RECUSADO` só para a OS em `AGUARDANDO_APROVACAO`; nos demais status, responder `422`.
+* Aplicar a aprovação e a rejeição com as mesmas transições, reservas e estornos do RF-26 e do RF-18, gravando no histórico a origem `CLIENTE` (RF-24).
+* Tratar a notificação de forma idempotente pelo identificador da notificação: o reenvio idêntico devolve a resposta original sem novo efeito, e o mesmo identificador com outra OS ou outra decisão responde `422`.
+* Registrar cada notificação recebida, com o identificador, a OS, a decisão e o momento, na mesma transação da decisão.
+
+##### **RF-29** - Notificação de Mudança de Status por E-mail
+###### Descrição do Domínio
+O sistema deve avisar o cliente por e-mail quando a OS muda para um status que exige a atenção dele. Decisão em [ADR 0008](adr/0008-notificacao-de-status-por-email.md).
+###### Perfis de Acesso
+Disparo automático pelo sistema; o destinatário é o e-mail do cliente da OS (RF-04).
+###### Critério de Aceite / Validação
+* Enviar o e-mail quando a OS muda para `AGUARDANDO_APROVACAO`, `EM_EXECUCAO`, `FINALIZADA` ou `CANCELADA`.
+* Enviar só depois que a transição for confirmada no banco; uma transição desfeita não envia e-mail.
+* Uma falha no envio não desfaz a transição nem altera a resposta da requisição; a falha é registrada em log.
+* O e-mail é texto puro e traz o número da OS, o novo status, o valor total do orçamento (em `AGUARDANDO_APROVACAO`), o motivo (em `CANCELADA`) e o link da página de acompanhamento com o número da OS. O documento do cliente não aparece no e-mail nem no link.

@@ -62,5 +62,13 @@ Toda implementação segue os princípios do Clean Code (Robert C. Martin): nome
 ### Registro de Mudanças na Documentação
 
 - Toda alteração de documentação registra o motivo na descrição do PR.
-- Alterações estruturais ou arquiteturais do que está documentado (camadas, pastas, portas e adaptadores, decisões técnicas da seção 8 do guia e regras de processo) também entram em `docs/CHANGELOG.md`, com a data, o PR, o que mudou e o motivo.
-- Mudanças de regra de negócio, de requisito ou de redação não entram no `docs/CHANGELOG.md`; o motivo delas fica no PR.
+- Alterações estruturais ou arquiteturais do que está documentado (camadas, pastas, portas e adaptadores, decisões técnicas da seção 8 do guia e regras de processo) também entram em `docs/CHANGELOG.md`, com a data, o PR, o que mudou, o motivo e o link para o ADR.
+- Mudanças de regra de negócio, de requisito ou de redação não entram no `docs/CHANGELOG.md`; o motivo delas fica no PR e, quando a mudança altera uma decisão ou um requisito, no ADR.
+
+### Registro de Decisões (ADR)
+
+- Toda decisão de arquitetura nova e toda alteração de uma decisão já documentada (requisito RF/RNF, decisão da seção 8 do guia, estrutura de pastas ou regra de processo) gera um ADR em `docs/adr/`, no formato MADR descrito em `docs/adr/README.md`.
+- O ADR lista as alternativas consideradas com o ganho e o custo de cada uma.
+- O RF ou RNF alterado recebe a observação "Alterado na Fase N", com uma frase simples sobre a mudança e o link para o ADR.
+- A linha nova ou alterada da seção 8.1 do guia e a entrada do `docs/CHANGELOG.md` trazem o link para o ADR.
+- Um ADR aceito não é reescrito: a decisão que o substitui ganha um ADR novo, e o antigo passa ao status "Substituído pelo ADR NNNN".

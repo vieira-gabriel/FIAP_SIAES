@@ -4,6 +4,12 @@ Registro das alterações estruturais e arquiteturais da documentação: camadas
 
 Cada entrada traz a data, o PR, o que mudou e o motivo. As entradas mais recentes ficam no topo.
 
+## 2026-11-25 — PR do blueprint da Fase 2 (registro de decisões em ADR)
+
+**O que mudou:** nova pasta `docs/adr/`, com o índice, o modelo MADR e os ADRs 0001 a 0012 da Fase 2. O `AGENTS.md` ganhou a seção "Registro de Decisões (ADR)": toda decisão de arquitetura nova e toda alteração de decisão, requisito ou estrutura já documentados gera um ADR, e o RF ou RNF alterado recebe a observação com o link. O guia registra `docs/adr/` nas fontes da verdade (seção 1), a pasta e as pastas `docs/fase<N>/` na tabela da seção 3 e a regra na seção 9; `docs/estrutura-de-pastas.md` registra as mesmas pastas. O roadmap da Fase 1 foi movido da raiz para `docs/fase1/roadmap.md`. Detalhes em [ADR 0001](adr/0001-registro-de-decisoes-em-adr.md).
+
+**Motivo:** a Fase 2 altera requisitos da Fase 1 e toma decisões de infraestrutura cujas alternativas descartadas precisam ficar registradas para o grupo e para o avaliador. A seção 8.1 do guia guarda só a decisão vigente, e este CHANGELOG não registra mudanças de requisito.
+
 ## 2026-10-31 — PR #170 (POC da interface web)
 
 **O que mudou:** a pasta `src/presentation/web/` entrou na árvore da seção 2 do guia, na tabela da seção 3, em `docs/estrutura-de-pastas.md` e na seção 6 de `docs/ddd/c4-model.md`, junto com o módulo `presentation/middlewares/interface_web.py`, que entrega as páginas e aplica os cabeçalhos de segurança delas por uma subclasse de `StaticFiles`. A seção 8.1 ganhou as decisões "Interface web (POC)" e "Decisão do orçamento no balcão (RF-26, RF-24)", e a decisão "Repetição da transação em impasse" passou a incluir o `RejeitarOrcamentoNoBalcao`.

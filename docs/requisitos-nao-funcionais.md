@@ -2,7 +2,7 @@
 
 Este documento especifica os **Requisitos Não Funcionais (RNF)** do MVP do sistema da oficina mecânica, definindo as restrições arquiteturais, padrões de segurança, requisitos de desempenho, transacionalidade de banco de dados, cobertura de testes e critérios para empacotamento e deploy.
 
-> Documento atualizado em 14/10/2026 - Versão 1.1
+> Documento atualizado em 25/11/2026 - Versão 1.2 (Fase 2: RNF-01, RNF-05 e RNF-15 alterados; RNF-17 a RNF-19 novos)
 
 ---
 
@@ -10,6 +10,10 @@ Este documento especifica os **Requisitos Não Funcionais (RNF)** do MVP do sist
 
 ##### **RNF-01** - Monólito em Camadas (Layered Monolith)
 A aplicação deve ser desenvolvida como uma arquitetura monolítica organizada em camadas estritas (`presentation`, `application`, `domain`, `infrastructure`), garantindo o isolamento da lógica de negócio em relação a tecnologias de interface e frameworks.
+
+Na Fase 2, as camadas seguem a Clean Architecture: os casos de uso recebem e devolvem DTOs (`application/dtos/`) e nunca devolvem entidades; a apresentação converte requisições e respostas em controllers e presenters; e a regra de dependência é verificada automaticamente no CI pelo import-linter.
+
+> Alterado na Fase 2. A arquitetura em camadas passa a seguir a Clean Architecture na versão leve, com DTOs de saída e verificação automática das dependências. Decisões em [ADR 0002](adr/0002-clean-architecture-leve.md) e [ADR 0003](adr/0003-verificacao-da-arquitetura-com-import-linter.md).
 
 ##### **RNF-02** - Isolamento do Núcleo de Domínio (Pure Python DDD)
 O núcleo de domínio (`src/domain/`) deve ser implementado em **Python 3.12 puro (`dataclasses`)**, permanecendo 100% livre de dependências externas de frameworks web (FastAPI, Flask) ou ORMs (SQLAlchemy, Pydantic).
@@ -32,6 +36,8 @@ A aplicação deve aplicar proteções ativas contra vulnerabilidades comuns de 
 
 ##### **RNF-05** - Proteção contra DoS e Brute Force (Rate Limiting)
 As rotas públicas de acompanhamento e de aprovação/rejeição da OS devem possuir **Rate Limiting** para restringir requisições excessivas por IP (máximo de 10 requisições por minuto por IP), mitigando ataques de negação de serviço, tentativas de adivinhar o CPF/CNPJ e raspagem automatizada de dados. A implementação usa a biblioteca SlowAPI com contador em memória, suficiente para a instância única do MVP.
+
+> Alterado na Fase 2. Com várias réplicas no Kubernetes, o contador em memória passa a valer por pod, e o limite efetivo é de 10 requisições por minuto multiplicado pelo número de pods. A limitação é aceita e documentada. Decisão em [ADR 0012](adr/0012-kubernetes-kustomize-e-hpa.md).
 
 ##### **RNF-06** - Gestão de Segredos e Ausência de Credenciais no Repositório
 Nenhuma credencial, senha, chave de assinatura ou token pode ser versionado no repositório, inclusive no histórico do Git:
@@ -101,7 +107,32 @@ A suíte de testes automatizados deve garantir uma cobertura de código (code co
 ##### **RNF-15** - Empacotamento Docker e Docker Compose
 O sistema deve ser totalmente empacotado para execução em contêineres Docker, fornecendo:
 * **`Dockerfile`**: Build otimizado da aplicação Python 3.12 em multi-stage.
-* **`docker-compose.yml`**: Orquestração dos serviços da API (`app`) e do banco relacional (`db`), permitindo subir o ambiente completo com um único comando (`docker compose up --build`).
+* **`docker-compose.yml`**: Orquestração dos serviços da API (`app`), do banco relacional (`db`), da migration do banco (`migration`) e do servidor de e-mail de testes (`mailpit`), permitindo subir o ambiente completo com um único comando (`docker compose up --build`).
+* A imagem executa só a API; a migration do banco roda em um processo separado, executado uma vez antes da API.
+
+> Alterado na Fase 2. A migration sai do comando de subida da API, para não rodar em paralelo em várias réplicas, e o compose ganha os serviços `migration` e `mailpit`. Decisões em [ADR 0008](adr/0008-notificacao-de-status-por-email.md) e [ADR 0012](adr/0012-kubernetes-kustomize-e-hpa.md).
 
 ##### **RNF-16** - Documentação Interativa de API (OpenAPI / Swagger)
 A API deve disponibilizar documentação interativa em conformidade com a especificação **OpenAPI 3.0 / Swagger UI** no endpoint `/docs`, detalhando schemas de entrada/saída, códigos de status HTTP e headers de autenticação Bearer JWT.
+
+---
+
+## 7. Orquestração, Infraestrutura e Entrega Contínua (Fase 2)
+
+##### **RNF-17** - Orquestração em Kubernetes com Escalabilidade Automática
+A aplicação deve rodar em Kubernetes, com os manifestos em `/k8s` (Deployments, Services, ConfigMaps, Secrets e HorizontalPodAutoscaler), aplicáveis a um cluster local e ao cluster na nuvem. Decisões em [ADR 0009](adr/0009-infraestrutura-aws-learner-lab.md) e [ADR 0012](adr/0012-kubernetes-kustomize-e-hpa.md).
+* No mínimo 2 réplicas da API, com `requests` e `limits` de CPU e memória e probes de prontidão e de vida em `/health`.
+* HPA por CPU (60%) e memória (80%), de 2 a 6 réplicas, com a escala demonstrada sob carga gerada pelo Locust.
+* A migration do banco roda uma vez por deploy, em um Job, antes da atualização da API.
+* Nenhum segredo real nos manifestos versionados.
+
+##### **RNF-18** - Infraestrutura como Código (Terraform)
+O cluster Kubernetes, o banco de dados e o registry da imagem devem ser provisionados por Terraform, com o código em `/infra` e a documentação de recursos, variáveis, custo e comandos em `infra/README.md`. Decisões em [ADR 0009](adr/0009-infraestrutura-aws-learner-lab.md) e [ADR 0010](adr/0010-terraform-state-e-execucao.md).
+* O ambiente deve poder ser criado do zero e destruído por completo pelo Terraform.
+* O state fica em armazenamento remoto com lock; arquivos de state e de variáveis com segredos não são versionados.
+
+##### **RNF-19** - Integração e Entrega Contínuas (CI/CD)
+A pipeline deve executar o build, os testes, a verificação de arquitetura e de segurança e o build da imagem em todo PR, e, na entrega, publicar a imagem, aplicar a migration do banco, aplicar os manifestos no cluster e verificar a saúde da aplicação. Decisão em [ADR 0011](adr/0011-entrega-continua-por-label.md).
+* A entrega é disparada pela label `deploy` em um PR mesclado na `main` ou manualmente.
+* Os segredos ficam nos GitHub Secrets do environment de deploy e chegam ao cluster como Secret do Kubernetes.
+* O deploy só termina com sucesso depois do rollout completo e da resposta positiva de `/health`.

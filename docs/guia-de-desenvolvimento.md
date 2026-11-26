@@ -10,8 +10,8 @@ Antes de implementar, consulte os documentos abaixo. Em caso de conflito entre o
 
 | Documento | O que define |
 | :--- | :--- |
-| `docs/requisitos-funcionais.md` | O que o sistema deve fazer (RF-01 a RF-27). |
-| `docs/requisitos-nao-funcionais.md` | Arquitetura, segurança, banco, Docker e testes (RNF-01 a RNF-16). |
+| `docs/requisitos-funcionais.md` | O que o sistema deve fazer (RF-01 a RF-29). |
+| `docs/requisitos-nao-funcionais.md` | Arquitetura, segurança, banco, Docker, Kubernetes, Terraform, CI/CD e testes (RNF-01 a RNF-19). |
 | `docs/ddd/linguagem-ubiqua.md` | Nomes oficiais do domínio, máquina de estados da OS e o mapeamento entre conceitos e código. |
 | `docs/estrutura-de-pastas.md` | Por que a estrutura de pastas é como é, incluindo a autenticação JWT. |
 | `docs/guia-de-desenvolvimento.md` | Este guia: como implementar cada coisa. |

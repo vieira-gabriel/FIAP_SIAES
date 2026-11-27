@@ -419,7 +419,7 @@ A cobertura deve ser de pelo menos **80%** nos domínios críticos (RNF-14). Tod
 
 ## 7. Fluxo de Git
 
-* Não faça commit direto na `main`. Crie uma branch e abra um PR. A `main` deve ser protegida no GitHub (exigência do enunciado): o merge exige PR com 1 aprovação de outro integrante, e o push forçado é bloqueado. O check "Lint, testes e segurança" do CI (seção 8.1) também precisa passar: ele deve estar marcado como obrigatório (*required status check*) na proteção da `main`. A configuração é feita pelo dono do repositório em Settings → Branches e está pendente (roadmap, Fase 0); até lá, a regra vale por combinação do grupo.
+* Não faça commit direto na `main`. Crie uma branch e abra um PR. A `main` é protegida no GitHub (exigência do enunciado; issue #178): o merge exige PR com 1 aprovação de outro integrante, o push forçado e a exclusão da branch são bloqueados, e o check "Lint, testes e segurança" do CI (seção 8.1) é obrigatório (*required status check*). A proteção não vale para os administradores do repositório (`enforce_admins` desligado), que podem mesclar ou fazer push direto em uma emergência; fora disso, eles seguem a mesma regra por combinação do grupo. A configuração fica em Settings → Branches e só o dono do repositório a altera.
 * Nomes de branch: `<tipo>/<descricao-curta>`, por exemplo `feat/crud-clientes`, `fix/validacao-cnpj`, `chore/estrutura-conforme-docs`.
 * Mensagens de commit em português, no formato `<tipo>: <descrição>`, com os tipos `feat`, `fix`, `chore`, `docs`, `test`, `refactor`.
 * Sempre que possível, cite o requisito no corpo do commit ou no PR (ex.: "Implementa RF-04").

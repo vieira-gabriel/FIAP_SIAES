@@ -4,8 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from application.use_cases.detalhar_ordem_servico import DetalheDaOrdemServico
-from application.use_cases.listar_ordens_servico import ResumoDaOrdemServico
+from application.dtos.ordem_servico import DetalheDaOrdemServico, ResumoDaOrdemServico
 from domain.entities.ordem_servico import OrdemServico
 
 _MAIOR_INTEIRO = 2_147_483_647

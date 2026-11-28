@@ -1,22 +1,11 @@
-from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from domain.entities.cliente import Cliente
-from domain.entities.ordem_servico import OrdemServico
-from domain.entities.veiculo import Veiculo
+from application.dtos.ordem_servico import DetalheDaOrdemServico
 from domain.exceptions import EntidadeNaoEncontrada
 from domain.repositories.cliente_repository import ClienteRepository
 from domain.repositories.ordem_servico_repository import OrdemServicoRepository
 from domain.repositories.veiculo_repository import VeiculoRepository
-
-
-@dataclass(frozen=True)
-class DetalheDaOrdemServico:
-    os: OrdemServico
-    cliente: Cliente
-    veiculo: Veiculo
-    estimativa_entrega: datetime | None
 
 
 class DetalharOrdemServico:

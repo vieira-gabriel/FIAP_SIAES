@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
+from application.dtos.ordem_servico import CriteriosDaListagem
 from application.ports.token_service import UsuarioAutenticado
 from application.use_cases.aprovar_orcamento_no_balcao import AprovarOrcamentoNoBalcao
 from application.use_cases.atribuir_mecanico import AtribuirMecanico
@@ -20,7 +21,7 @@ from application.use_cases.finalizar_orcamento import FinalizarOrcamento
 from application.use_cases.incluir_peca_na_os import IncluirPecaNaOS
 from application.use_cases.incluir_servico_na_os import IncluirServicoNaOS
 from application.use_cases.iniciar_execucao import IniciarExecucao
-from application.use_cases.listar_ordens_servico import CriteriosDaListagem, ListarOrdensServico
+from application.use_cases.listar_ordens_servico import ListarOrdensServico
 from application.use_cases.rejeitar_orcamento_no_balcao import RejeitarOrcamentoNoBalcao
 from application.use_cases.remover_peca_da_os import RemoverPecaDaOS
 from application.use_cases.remover_servico_da_os import RemoverServicoDaOS

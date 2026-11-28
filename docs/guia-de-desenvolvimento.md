@@ -32,6 +32,7 @@ src/
 │   ├── events/           Eventos de domínio, um arquivo por evento
 │   └── repositories/     Portas (interfaces ABC) de persistência
 ├── application/      Orquestração dos casos de uso
+│   ├── dtos/             DTOs de entrada e saída (dataclasses imutáveis), um arquivo por recurso
 │   ├── use_cases/        Um arquivo por caso de uso
 │   ├── ports/            Interfaces de serviços técnicos (token, hash de senha)
 │   ├── events/           Event Dispatcher síncrono em memória
@@ -44,8 +45,10 @@ src/
 └── presentation/     Entrada HTTP (rotas, DTOs, autenticação das rotas)
     ├── main.py           Criação do app FastAPI e registro dos routers
     ├── container.py      Montagem das dependências (único ponto que importa infrastructure)
+    ├── controllers/      Conversão do schema de entrada em DTO/VO de entrada
+    ├── presenters/       Conversão do DTO de saída no schema de resposta HTTP
     ├── routers/          Rotas FastAPI, um arquivo por recurso
-    ├── schemas/          DTOs de entrada e saída, um arquivo por recurso
+    ├── schemas/          DTOs de entrada e saída da API, um arquivo por recurso
     ├── middlewares/      Validação do token, rate limiting, tratamento de erros e entrega da interface web
     └── web/              Páginas da interface web (HTML, CSS e JavaScript), que chamam a API
 migrations/           Migrations do Alembic (seção 8.1)
@@ -106,6 +109,9 @@ Toda dependência externa segue o mesmo padrão:
 | Interface de persistência | `src/domain/repositories/` | `<entidade>_repository.py` | `cliente_repository.py` → `class ClienteRepository(ABC)` |
 | Implementação de persistência | `src/infrastructure/repositories/` | `postgres_<entidade>_repository.py` | `postgres_cliente_repository.py` |
 | Caso de uso | `src/application/use_cases/` | verbo + objeto | `aprovar_orcamento.py` → `class AprovarOrcamento` |
+| DTO de entrada ou saída de caso de uso | `src/application/dtos/` | nome do recurso no singular | `ordem_servico.py` → `DetalheDaOrdemServico` |
+| Controller (entrada HTTP → DTO/VO) | `src/presentation/controllers/` | nome do recurso no singular | `ordem_servico.py` |
+| Presenter (DTO de saída → schema HTTP) | `src/presentation/presenters/` | nome do recurso no singular | `ordem_servico.py` |
 | Interface de serviço técnico | `src/application/ports/` | nome do serviço | `token_service.py` → `class TokenService(ABC)` |
 | Implementação de serviço técnico | `src/infrastructure/<assunto>/` | tecnologia + serviço | `jwt_token_service.py` |
 | Rota HTTP | `src/presentation/routers/` | nome do recurso no plural | `ordens_servico.py` → `router = APIRouter()` |
@@ -289,10 +295,11 @@ Os métodos das portas de repositório são `async def`, porque o SQLAlchemy rod
 
 ### 5.4. Criar um Caso de Uso
 
-Um arquivo por caso de uso. O caso de uso recebe as portas pelo construtor e expõe um único método assíncrono `executar`.
+Um arquivo por caso de uso. O caso de uso recebe as portas pelo construtor e expõe um único método assíncrono `executar`, que recebe DTOs de entrada ou objetos de valor e devolve um **DTO de saída** (`dataclass(frozen=True)` em `src/application/dtos/<recurso>.py`), nunca uma entidade do domínio (ADR 0002).
 
 ```python
 # src/application/use_cases/criar_os.py (trecho ilustrativo)
+from application.dtos.ordem_servico import OSCriadaDTO
 from domain.repositories.cliente_repository import ClienteRepository
 from domain.repositories.ordem_servico_repository import OrdemServicoRepository
 
@@ -302,9 +309,10 @@ class CriarOS:
         self._clientes = clientes
         self._ordens = ordens
 
-    async def executar(self, documento_cliente: Documento, placa: Placa) -> OrdemServico:
+    async def executar(self, documento_cliente: Documento, placa: Placa) -> OSCriadaDTO:
         cliente = await self._clientes.buscar_por_documento(documento_cliente)
         ...
+        return OSCriadaDTO.de_entidade(os)
 ```
 
 O caso de uso **orquestra** (busca, chama métodos das entidades, salva). Se aparecer um `if` de regra de negócio no caso de uso, ele provavelmente deveria estar na entidade.

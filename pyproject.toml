@@ -26,6 +26,7 @@ dev = [
     "pip-audit>=2.10.1",
     "bandit>=1.9.4",
     "locust>=2.32",
+    "import-linter>=2.17",
 ]
 
 [tool.uv]
@@ -47,3 +48,42 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.importlinter]
+root_packages = ["domain", "application", "infrastructure", "presentation"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Domínio isolado de camadas externas e frameworks"
+type = "forbidden"
+source_modules = ["domain"]
+forbidden_modules = [
+    "application",
+    "infrastructure",
+    "presentation",
+    "fastapi",
+    "pydantic",
+    "sqlalchemy",
+    "asyncpg",
+    "jwt",
+    "bcrypt",
+]
+
+[[tool.importlinter.contracts]]
+name = "Aplicação isolada de infraestrutura e apresentação"
+type = "forbidden"
+source_modules = ["application"]
+forbidden_modules = ["infrastructure", "presentation"]
+
+[[tool.importlinter.contracts]]
+name = "Infraestrutura não importa apresentação"
+type = "forbidden"
+source_modules = ["infrastructure"]
+forbidden_modules = ["presentation"]
+
+[[tool.importlinter.contracts]]
+name = "Apresentação não importa infraestrutura (exceto container)"
+type = "forbidden"
+source_modules = ["presentation"]
+forbidden_modules = ["infrastructure"]
+ignore_imports = ["presentation.container -> infrastructure.**"]

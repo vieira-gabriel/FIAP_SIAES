@@ -1,40 +1,13 @@
 from collections.abc import Awaitable, Callable, Iterable
-from dataclasses import dataclass, replace
-from datetime import datetime
+from dataclasses import replace
 from uuid import UUID
 
-from domain.entities.cliente import Cliente
-from domain.entities.ordem_servico import OrdemServico
-from domain.entities.usuario import Usuario
-from domain.entities.veiculo import Veiculo
+from application.dtos.ordem_servico import CriteriosDaListagem, ResumoDaOrdemServico
 from domain.repositories.cliente_repository import ClienteRepository
 from domain.repositories.ordem_servico_repository import OrdemServicoRepository
 from domain.repositories.usuario_repository import UsuarioRepository
 from domain.repositories.veiculo_repository import VeiculoRepository
-from domain.value_objects.documento import Documento
 from domain.value_objects.filtro_ordens_servico import FiltroOrdensServico
-from domain.value_objects.placa import Placa
-from domain.value_objects.status_os import StatusOS
-
-
-@dataclass(frozen=True)
-class CriteriosDaListagem:
-    """Critérios como chegam da requisição, antes de documento e placa virarem identificadores."""
-
-    documento: Documento | None = None
-    placa: Placa | None = None
-    status: StatusOS | None = None
-    mecanico_id: UUID | None = None
-    abertura_de: datetime | None = None
-    abertura_ate: datetime | None = None
-
-
-@dataclass(frozen=True)
-class ResumoDaOrdemServico:
-    os: OrdemServico
-    cliente: Cliente
-    veiculo: Veiculo
-    mecanico: Usuario | None
 
 
 class ListarOrdensServico:

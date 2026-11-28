@@ -99,7 +99,7 @@ flowchart TD
 
 ## 4. Nível 3: Diagrama de Componentes (Component Diagram)
 
-O Diagrama de Componentes descreve a organização interna do contêiner da aplicação Python, evidenciando o desacoplamento das camadas da **Clean / Layered Architecture** com a entrada centralizada em `src/presentation/`.
+O Diagrama de Componentes descreve a organização interna do contêiner da aplicação Python, evidenciando o desacoplamento das camadas da **Clean Architecture leve** (ADR 0002) com a entrada centralizada em `src/presentation/` (incluindo `controllers/` para conversão de entrada e `presenters/` para formatação de saída) e DTOs imutáveis em `src/application/dtos/`.
 
 ### Diagrama de Componentes (Mermaid)
 

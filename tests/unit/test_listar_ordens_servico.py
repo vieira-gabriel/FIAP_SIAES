@@ -3,7 +3,8 @@ from uuid import uuid4
 
 import pytest
 
-from application.use_cases.listar_ordens_servico import CriteriosDaListagem, ListarOrdensServico
+from application.dtos.ordem_servico import CriteriosDaListagem
+from application.use_cases.listar_ordens_servico import ListarOrdensServico
 from domain.entities.cliente import Cliente
 from domain.entities.ordem_servico import OrdemServico
 from domain.entities.usuario import Usuario

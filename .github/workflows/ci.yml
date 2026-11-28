@@ -64,6 +64,9 @@ jobs:
       - name: Ruff (formatação)
         run: uv run ruff format --check src tests migrations
 
+      - name: Regra de dependência (import-linter)
+        run: PYTHONPATH=src uv run lint-imports
+
       - name: Testes unitários e de integração, com cobertura (RNF-12 a RNF-14)
         run: uv run pytest --cov --cov-report=term-missing --cov-fail-under=80
 
